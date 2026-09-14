@@ -1,6 +1,11 @@
 # Real people's details. Never in git.
-growth-engine/people/*
+**/people/*
 !growth-engine/people/README.md
+growth-engine/outreach-firstlines.csv
+growth-engine/dm-openers.md
+# A copy unzipped in the wrong place, or twice.
+growth-engine/growth-engine/
+growth-engine */
 # Working copies the Launchhouse checks keep for a moment.
 growth-engine/.state/.pre/
 # Downloads from the app, once brought across.

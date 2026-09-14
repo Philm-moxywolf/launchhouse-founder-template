@@ -21,7 +21,6 @@
       "Bash(git diff:*)",
       "Bash(git rev-parse:*)",
       "Bash(git remote -v)",
-      "Bash(git push)",
       "Bash(git pull --no-rebase)",
       "Bash(git fetch)",
       "Bash(git branch -r)",
@@ -38,7 +37,18 @@
       "Bash(unzip:*)",
       "Bash(tar -xf:*)",
       "Bash(textutil:*)",
-      "Bash(sips:*)"
+      "Bash(sips:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(cp:*)",
+      "Bash(rm -rf .lh-import)",
+      "Bash(rm -rf growth-engine/growth-engine)",
+      "Bash(rm -rf growth-engine/.state/snapshots)",
+      "Bash(rm growth-engine/drafts/:*)",
+      "Bash(rm growth-engine/README-your-files.md)",
+      "Bash(rm growth-engine/.state/HOME)",
+      "Bash(rm growth-engine/.gitignore)",
+      "Bash(powershell -NoProfile -Command Expand-Archive:*)"
     ]
   }
 }
