@@ -18,7 +18,7 @@ A founder on the Launchhouse Atlanta programme, 25 to 27 September 2026, buildin
 
 **Saving.** The folder is saved with git. When a piece of work is finished, commit it with a short plain message, and push if there is a GitHub remote. Any earlier version can be brought back.
 
-**Real people.** `growth-engine/people/` holds real people's names and contact details. It is kept out of git on purpose. Never paste its contents anywhere public.
+**Real people.** `growth-engine/people/`, `growth-engine/outreach-firstlines.csv` and `growth-engine/dm-openers.md` hold real people's names, emails or handles. They are kept out of git on purpose. Never paste them anywhere public, and never copy a person's details into any other file.
 
 **Cowork.** Cowork can work in this same folder, for dropping in documents and photos and for planning. Whatever either one saves into `growth-engine/`, the other sees.
 
