@@ -1,0 +1,32 @@
+{
+  "extraKnownMarketplaces": {
+    "launchhouse-v3": {
+      "source": {
+        "source": "github",
+        "repo": "Philm-moxywolf/launchhouse-v3"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "growth-engine@launchhouse-v3": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git show:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git remote -v)",
+      "Bash(git push)",
+      "Bash(git config user.name:*)",
+      "Bash(git config user.email:*)",
+      "Bash(date:*)",
+      "Bash(readlink /etc/localtime)",
+      "Bash(unzip:*)",
+      "Bash(tar -xf:*)"
+    ]
+  }
+}

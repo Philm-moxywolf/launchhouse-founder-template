@@ -1,0 +1,9 @@
+# Real people's details. Never in git.
+growth-engine/people/*
+!growth-engine/people/README.md
+# Working copies the Launchhouse checks keep for a moment.
+growth-engine/.state/.pre/
+# Downloads from the app, once brought across.
+*.zip
+.lh-import/
+.DS_Store
