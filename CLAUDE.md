@@ -7,7 +7,8 @@ Claude reads this file at the start of every conversation in this folder. The fo
 A founder on the Launchhouse Atlanta programme, 25 to 27 September 2026, building their business. They are not a developer and they do not use a terminal.
 
 **Talking with them**
-- Never ask them to type or run a command. Run what needs running yourself, then say what you did in one plain sentence.
+- They use the Claude desktop app, in Code or Cowork, on a Mac or a Windows PC. Never ask them to open a terminal, type or run a command. Run what needs running yourself, then say what you did in one plain sentence.
+- If a command is not available on this computer, do the job with your own file tools instead. If `git` is missing on a Windows PC, the computer needs Git for Windows (an ordinary installer from git-scm.com); `/growth-engine:start` walks them through it.
 - Offer plain words or the `/growth-engine:` name of a skill, never a bare slash command.
 - Keep sentences short. Explain any jargon in a few words. Name their doubt first, then answer it. End on the next thing to do.
 

@@ -2,24 +2,32 @@
 
 This folder is where your Launchhouse work lives from now on. Claude works in it with you, on your own computer, and it is saved to your own GitHub.
 
-You might be wondering whether this is more setup than the app was. It is less. There is no key to paste and no database to make. There is nothing to install beyond the Claude app.
+You might be wondering whether this is more setup than the app was. It is less. There is no key to paste, no passphrase and no database. You never open a terminal. Everything happens in apps you click through.
 
-## 1. Open this folder in Claude
+## 1. Install three things, once
+
+1. **The Claude desktop app**, from claude.ai/download, signed in to your paid Claude account.
+2. **GitHub Desktop**, from desktop.github.com, signed in to your GitHub account. It is how this folder gets onto your computer, and how your work gets backed up.
+3. **On a Windows PC only: Git for Windows**, from git-scm.com. Run the installer and press Next on every screen without changing anything. It is what lets Claude save your work and run the Launchhouse checks. A Mac does not need it, though the first time Claude saves your work a Mac may offer to install developer tools: press Install.
+
+## 2. Get this folder onto your computer
+
+1. On GitHub, on your own copy of this folder, press the green **Code** button, then **Open with GitHub Desktop**.
+2. In GitHub Desktop, choose where to keep it, for example your Documents folder, and press **Clone**.
+
+## 3. Open it in Claude
 
 1. Open the Claude desktop app and choose **Code**.
-2. Open this folder. Always this same folder.
+2. Choose this folder. Always this same folder.
 3. If Claude offers to install the Launchhouse plugin, say yes.
 
-If it does not offer, add it yourself:
-1. Press the **+** button next to the message box and choose **Plugins**.
-2. Add the marketplace `Philm-moxywolf/launchhouse-v3`.
-3. Install **growth-engine**.
+If it does not offer, press the **+** button next to the message box, choose **Plugins**, add the marketplace `Philm-moxywolf/launchhouse-v3`, and install **growth-engine**.
 
-## 2. Say "start launchhouse"
+## 4. Say "start launchhouse"
 
-It asks your name and where you are, then gets the folder ready. About two minutes.
+It checks your computer is ready, asks your name and where you are, and gets the folder ready. About two minutes.
 
-## 3. Bring your work across from the app
+## 5. Bring your work across from the app
 
 If you built anything in the Launchhouse app, bring it over once.
 
@@ -30,6 +38,14 @@ If you built anything in the Launchhouse app, bring it over once.
 Your work arrives as it was. It gets tidied for the new setup, and nothing you wrote is rewritten without your yes. After this you do not need the app.
 
 If you are new and have nothing in the app, say **"build my founder brain"** instead.
+
+## 6. Connect your tools
+
+In the Claude app, open **Settings**, then **Connectors**. Connect **HighLevel**, and **Apollo** if you sell to businesses. Then say **"connect my tools"** and Claude checks both work.
+
+## Backing up
+
+Claude saves your work as you go. To send it up to GitHub, open GitHub Desktop and press **Push origin**.
 
 ## Using Cowork as well
 
