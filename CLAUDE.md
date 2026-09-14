@@ -25,7 +25,7 @@ A founder on the Launchhouse Atlanta programme, 25 to 27 September 2026, buildin
 
 `growth-engine/founder-brain.md` is the record of the business: what they sell, who to, what they can prove, and how they write. Read it before writing anything for them.
 
-If it does not exist, the next step is the Founder Brain (`/growth-engine:founder-brain`). If the folder is not set up, start with `/growth-engine:start`.
+If it does not exist, the next step is the Founder Brain (`/growth-engine:brain`). If the folder is not set up, start with `/growth-engine:start`.
 
 ## The six rules
 

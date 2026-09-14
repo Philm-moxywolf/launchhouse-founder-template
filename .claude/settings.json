@@ -11,6 +11,7 @@
     "growth-engine@launchhouse-v3": true
   },
   "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
       "Bash(git status:*)",
       "Bash(git add:*)",
@@ -21,12 +22,23 @@
       "Bash(git rev-parse:*)",
       "Bash(git remote -v)",
       "Bash(git push)",
+      "Bash(git pull --no-rebase)",
+      "Bash(git fetch)",
+      "Bash(git branch -r)",
+      "Bash(git restore:*)",
+      "Bash(git mv:*)",
+      "Bash(git merge --abort)",
+      "Bash(git init)",
       "Bash(git config user.name:*)",
       "Bash(git config user.email:*)",
       "Bash(date:*)",
       "Bash(readlink /etc/localtime)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
       "Bash(unzip:*)",
-      "Bash(tar -xf:*)"
+      "Bash(tar -xf:*)",
+      "Bash(textutil:*)",
+      "Bash(sips:*)"
     ]
   }
 }
