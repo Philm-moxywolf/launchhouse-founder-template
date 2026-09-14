@@ -41,7 +41,8 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 ## What the tools never do here
 
 **GoHighLevel**
-- Never send a message from their account. Replies to people who wrote first come from the workflow they loaded.
+- Only ever reply to someone who wrote first. Before sending, read their conversation and check it holds a message from them. Show the founder the reply and get a yes.
+- A first message to someone who has not written is never sent by a tool. It goes by hand, from the founder's own phone.
 
 **Apollo**
 - Build sequences paused.
