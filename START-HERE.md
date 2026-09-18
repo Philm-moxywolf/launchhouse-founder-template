@@ -2,7 +2,7 @@
 
 This folder is where your Launchhouse work lives from now on. Claude works in it with you, on your own computer, and it is saved to your own GitHub.
 
-You might be wondering whether this is more setup than the app was. It is less. There is no key to paste, no passphrase and no database. You never open a terminal. Everything happens in apps you click through.
+You might be wondering whether this is more setup than the app was. It is less. There is no passphrase and no database. The one key, for GoHighLevel, stays in your computer's own password store and never goes in the chat. You never open a terminal. Everything happens in apps you click through.
 
 ## 1. Install three things, once
 
@@ -19,13 +19,13 @@ You might be wondering whether this is more setup than the app was. It is less. 
 
 1. Open the Claude desktop app and choose **Code**.
 2. Choose this folder. Always this same folder.
-3. If Claude offers to install the Launchhouse plugin, say yes.
+3. There is nothing to install. Everything Launchhouse needs is already in the folder, so Claude knows the programme the moment it opens.
 
-If it does not offer, press the **+** button next to the message box, choose **Plugins**, add the marketplace `Philm-moxywolf/launchhouse-v3`, and install **growth-engine**.
+If Claude does not seem to know about Launchhouse, quit the app and open it again on this same folder.
 
 ## 4. Say "start launchhouse"
 
-It checks your computer is ready, asks your name and where you are, and gets the folder ready. About two minutes.
+It checks your computer is ready, asks your name and where you are, and gets the folder ready. About two minutes. If you are starting fresh, it goes straight on to your Founder Brain.
 
 ## 5. Bring your work across from the app
 
@@ -37,11 +37,13 @@ If you built anything in the Launchhouse app, bring it over once.
 
 Your work arrives as it was. It gets tidied for the new setup, and nothing you wrote is rewritten without your yes. After this you do not need the app.
 
-If you are new and have nothing in the app, say **"build my founder brain"** instead.
+If you are new and have nothing in the app, skip this step. "start launchhouse" already took you to your Founder Brain.
 
 ## 6. Connect your tools
 
-In the Claude app, open **Settings**, then **Connectors**. Connect **HighLevel**, and **Apollo** if you sell to businesses. Then say **"connect my tools"** and Claude checks both work.
+If you sell to businesses, open **Settings** in the Claude app, then **Connectors**, and connect **Apollo**. Then say **"connect my tools"**. Claude walks you through GoHighLevel and checks everything works.
+
+For GoHighLevel you make a key in your GoHighLevel account and add it, by clicking, to your computer's own password store: Keychain Access on a Mac, Credential Manager on a Windows PC. Claude never sees it. Nothing asks about GoHighLevel until you do this.
 
 ## Backing up
 

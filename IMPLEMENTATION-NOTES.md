@@ -1,0 +1,117 @@
+# Implementation notes: standalone system
+
+Branch `standalone-system`. Two commits: the standalone change (`bdadb23`) and wave A (`f2d20db`). Waves B and C are in the working tree and not committed. Final check run on 18 September 2026.
+
+This repository is a complete standalone system. Everything Launchhouse does lives in `.claude/`: 19 skills, 21 commands, 4 agents, the references, 5 routines, 17 shell scripts and `rules.awk`, the output style, the tests, and the hooks in `settings.json`. The plugin distribution is out of scope here, by the owner's decision, and gets its own changes later. Nobody uses this repository yet.
+
+## The standalone change (`bdadb23`)
+
+- The skills, commands, agents, references, routines, scripts, rules and tests came into `.claude/`. Nothing the plugin had was dropped.
+- The hooks moved from the plugin's `hooks.json` into `.claude/settings.json` and point at `$CLAUDE_PROJECT_DIR/.claude/scripts/`. All 5 plugin hooks are there, plus `refresh.sh` after every tool, `prompt-state.sh` on every message and `turn-end.sh` at the end of each turn.
+- `gate-state.sh` works out the gate state once and writes `growth-engine/.state/gate-state.md`. The session line, the status and gate skills, the engine skills and the end of turn check all read that file.
+- `park.sh`, with `prompt-state.sh`, lets a founder say "park this" to stop the nudges for an engine.
+- `rules.awk` reads the heading or bold label above a message, so a blank line no longer changes the result, and a label that names the inbound trigger passes.
+- Programme dates live only in the cohort block in `.claude/references/gates.md`.
+- The contract records which files go stale when another changes. The Brain has a `Team` line and a "give me what you already have" line. The content engine asks who is on camera and drops a borrowed founder story. Engines check the gate they depend on and say where the founder stands.
+
+## Wave A (`f2d20db`)
+
+- **#31** Output style `.claude/output-styles/launchhouse-guide.md`, selected with `"outputStyle": "Launchhouse Guide"`.
+- **#3** A push to any `Philm-moxywolf` remote is refused by `guard-pre.sh` (`lh_push_to_original` in `lib.sh`).
+- **#4, #5, #6** The start skill asks with clickable choices, names the timezone the everyday way, and a fresh founder goes straight into the Brain.
+- **#8** Rule 1 in `CLAUDE.md`: the track is set once, in the Brain intake, never asked again.
+- **#7** No Model fits: record the nearer one plus a Flag.
+- **#12** The Brain's `Team` line records who runs which part of the selling.
+- **#13** The reviewer holds data and credit claims until the founder confirms them.
+- **#28** Wrong-case folders refused, `inbox/uploads/` and `brain/voice-samples/` checked, shell copies checked, every Apollo tool asks first except named reads.
+- **#29** Reworded promises caught, the negation window narrowed, the LinkedIn false hold removed.
+- **#30** Only new or changed lines are held.
+- **#22** The playbook insert is stamped, checked for staleness, and has a printable HTML beside it.
+- **#24, #25** `connections.md` names each connector; Gmail drafts after a yes; mailbox sending refused.
+
+## Waves B and C (working tree, not committed)
+
+- **GoHighLevel connects from the folder (#24).** The key lives in the computer's own password store, never in a file: an item named `Launchhouse GoHighLevel` in the login keychain on a Mac, or a generic credential in Credential Manager on Windows. Its account or user name is the Location ID, its password the Private Integration key. `connect-tools` walks the founder through making the key and adding the item by clicking. `sh .claude/scripts/ghl-headers.sh --check < /dev/null` says whether the item is there and in the right shape, never what is in it. `--connect` does the same check and then writes `.mcp.json` at the top of the folder: one server, `highlevel`, at `https://services.leadconnectorhq.com/mcp/`, whose `headersHelper` names `ghl-headers.sh` by this computer's absolute path. On a Mac the helper is started with `sh`; on Windows with Git's `sh.exe` by its full path, quoted, because the app runs the helper through cmd.exe and a default Git for Windows install does not put `sh` on the PATH. `.mcp.json` is not shipped and git ignores it. `settings.json` pre-approves the server with `enabledMcpjsonServers`. The helper gives the headers only to GoHighLevel's own address. The shared store reader is `ghl-store.sh`. `START-HERE.md` sends the founder to "connect my tools" for GoHighLevel, and to Settings, Connectors only for Apollo and the mailbox. In Cowork, `connect-tools` says GoHighLevel connects from Code on this folder and goes on to the other tools.
+- **How long the key lasts.** `connect-tools` and `connections.md` say, once and plainly, that GoHighLevel's help pages say the key does not expire on its own, that it stops when deleted or rotated, and that GoHighLevel recommends rotating it every 90 days. `ghl-values` agrees. A state check keeps the three in step.
+- **Custom values over the API (ghl-values).** This route already existed. Its token no longer goes in a plain text file. It goes in a second store item, `Launchhouse GoHighLevel values`, and every call goes through `sh .claude/scripts/ghl-values-api.sh` (`list`, `create`, `update <id>`), which passes the token to curl on standard input, never on the command line, and prints only GoHighLevel's answer. The founder deletes the token and the item at the end of the job. By hand stays the recommended route.
+- **The key never reaches the chat or git.** `guard-pre.sh` runs on Write, Edit, MultiEdit and Bash. It refuses any command that reads the password store (`security find-generic-password`, `dump-keychain`, `CredRead`, `PasswordVault`, `-EncodedCommand`, `ghl-store`, the item names) or sets `CLAUDE_CODE_MCP_SERVER_URL`. The helpers run only in their listed forms, on one line, with no `;`, `&`, `|`, backtick, `$(` or `>`. `settings.json` also denies the `security` read commands. New text holding a Private Integration key shape (`pit-`, eight hex characters and a dash) is refused, in a file or a shell command. `guard-post.sh` takes such a key back out of any file a shell command changed under `growth-engine/`, and never quotes a key back.
+- **Contact changes ask first.** Creating, updating or tagging a GoHighLevel contact, updating an opportunity, and creating or editing a blog post ask the founder (`ask-mcp.sh`). A mailbox mail rule (`create_filter`) is refused (`deny-mcp.sh`).
+- **Replies (#25).** `outreach-b2b` has "check for replies": it searches the mailbox for mail from each contacted person since their first email, marks them `replied` in their person file, logs a count only, and never answers for the founder. With no mailbox it asks the founder.
+- **Clickable choices (#4).** The start skill, the Brain's track and Model, `connect-tools` "Can you log in to GoHighLevel?", `outreach-b2b` Step 0 (Google, Microsoft 365, something else) and the yes or no asks in `apollo-sequence` all use them, with plain text where choices cannot be shown.
+- **The Brain's track (#8).** Confirmed from the founder's "who pays you" answer, asked afresh only when that did not settle it.
+- **Word rules (#29).** Two `pass-` fixtures record, on purpose, that "we guarantee it" with no reply word and invented figures are left to the rules reviewer.
+- **Folders by kind (#21).** `growth-engine/` now holds `brain/` (with `voice-samples/`), `inbox/uploads/`, `drafts/`, `engines/content|outreach|audience|ops|plan/`, `export/` and `log/`, with `people/` and `.state/` unchanged. The contract table is the one list of paths, `lh_place` in `lib.sh` mirrors it, and a state check keeps the two in step. `move-layout.sh` moves an older folder: `git mv` for tracked files, a plain move for ignored ones, never overwrites or deletes, safe to run twice, one line in `log/ops-log.md`. The start skill runs it, the session line points at it, nothing moves by itself, and import-from-app puts the app's work in the new layout in its holding folder before copying. The five tracked template files are staged as renames; git pairs the two empty `.gitkeep` files crosswise, which is harmless.
+- **No plugin build (#27).** The plugin build script, its README, its `dist/` ignore line and its state checks were removed. `settings.json` switches the old `growth-engine@launchhouse-v3` plugin off with `enabledPlugins`, so a founder who has it installed never gets two copies, and `CLAUDE.md` says so in one line. It declares no marketplace. State checks guard both.
+
+## Results of the final check
+
+1. **Tests.** `.claude/tests/run.sh`: 191 of 191 passed, exit 0. `.claude/tests/state.sh`: 75 of 75 passed, exit 0.
+2. **Syntax.** All 19 shell scripts (17 in `.claude/scripts/`, including the untracked `ghl-headers.sh`, `ghl-store.sh`, `ghl-values-api.sh` and `move-layout.sh`, and the 2 test suites) pass `sh -n`. `settings.json` is valid JSON. `rules.awk` loads.
+3. **Old paths.** No flat `growth-engine/<file>` path is used as a live path. The only matches are on purpose: `context.sh` and the start skill detect an older folder, import-from-app describes the app's flat layout, and the tests build old folders to move.
+4. **Plugin remnants.** None that does anything. `enabledPlugins` switches the old plugin off on purpose and is tested. One stale comment: `lib.sh` line 14 calls the hooks "the plugin". Harmless, left as is.
+5. **Secrets.** No key, token or password in any file, tracked, untracked or ignored. The only `pit-` matches are the guards' own patterns and the test keys: `pit-test-0000-not-a-real-key`, `pit-test-1111-values-not-real`, and a real-shaped one `run.sh` builds from two halves so no file holds the shape. No `.mcp.json` in the worktree.
+6. **Privacy.** `git status`, including ignored files, shows nothing under `people/`, `dm-openers` or `firstlines` at any depth. The only tracked file in `people/` is its placeholder `README.md`. `.gitignore` covers `**/people/*`, `**/outreach-firstlines.csv` and `**/dm-openers.md`.
+
+## Every open issue on GitHub
+
+All 30 are still open on GitHub. None is closed until the branch is merged. "Closed" below means closed by this branch.
+
+- **#2 LH-001, changed file on open:** partly. `settings.json` ships in the key order the issue describes (permissions first, `defaultMode` after the lists). Left, and only a hand check in the app can settle it: where the app puts `outputStyle`, `enabledMcpjsonServers` and `enabledPlugins`, whether approving the `highlevel` server writes a file git sees, and whether `.claude/settings.local.json`, which the app writes on an "always allow", is ignored on a founder's machine. This repository's `.gitignore` does not list it (hand check 2). No more code until that is seen.
+- **#3 LH-003, the public original:** closed. Pushes to `Philm-moxywolf` are refused, with tests.
+- **#4 LH-004, clickable choices:** closed for every question the issue names, and the three left from wave B. There is no general rule, so a new skill would have to add it itself. How it looks is a hand check (10).
+- **#5 LH-005, timezone city:** closed, with a state check.
+- **#6 LH-006, straight into the Brain:** closed, with a state check.
+- **#7 LH-007, Model for an app:** closed.
+- **#8 LH-008, rule 1 against the track fork:** closed.
+- **#9 LH-009, pull from existing material:** closed. The Brain offers "give me what you already have" before Group 1.
+- **#10 LH-010, one founder who is the voice:** closed. The Brain asks who else is involved and records the `Team` line.
+- **#11 LH-012, who is on camera:** closed. The content engine asks, and drops the founder story when this founder did not live it.
+- **#12 LH-013, more than one founder:** closed.
+- **#13 LH-014, product and privacy claims:** closed in the reviewer's instructions. Whether a model holds them is a hand check (8).
+- **#14 LH-015, gates without a hand-off step:** closed, reframed by the owner. Nothing is pasted anywhere, and nothing goes to anyone outside this folder. `gate-state.md` is the report, and every engine reads its own row from the engine table in it.
+- **#15 LH-016, approved wording blocked:** closed. A label naming the inbound trigger passes, a bare "Automatic DM" heading is still held, in every file alike, with fixtures.
+- **#16 LH-017, programme dates:** closed. One cohort block in `gates.md`.
+- **#17 LH-018, the blank line:** closed, with fixtures both ways.
+- **#18 LH-019, half the toolkit never mentioned:** closed. Every engine skill and the Brain end with the next step and "where am I up to", and the Brain points at "add a file". Read, not run (hand check 5).
+- **#19 LH-020, the index goes stale:** closed. The state is rebuilt after every tool, shell edits included, with a state check.
+- **#20 LH-021, changes never reach built files:** closed as far as text can. The contract lists what goes stale, and skills must name it and offer a rebuild. Nothing rebuilds by itself, which is what the issue asked.
+- **#21 LH-022, one flat folder:** closed, with 14 state checks. A hand check (14) runs the move on a copy of an older folder in the app.
+- **#22 LH-023, the playbook insert:** closed in code. The PDF from the printable HTML, and the page count, are a hand check (9) on a Mac and a Windows PC.
+- **#23 LH-024, gates as paperwork:** closed. Gates lock, with a way through. Only a `not done` row blocks an engine: a self-reported item still awaiting an answer, or a row hidden by gitignore on a second computer, is never treated as something that must be answered first. Each engine reads its own row in the gate-state engine table; a locked engine does not start, and says what is missing before offering to do that first. Going ahead anyway records a dated override for that one engine, in `growth-engine/.state/gate-overrides.md`, never for the whole gate, and an override already on file is honoured without asking twice (hand check 5).
+- **#24 LH-025, tools not shipped:** partly. GoHighLevel connects from the folder with its key in the password store, and Apollo and the mailbox are named exactly as Claude's own connectors. Left: the connection has never been made on a real account, on a Mac or a Windows PC. That needs a real GoHighLevel sub-account and a hand check (13), not more code. Apollo and the mailbox cannot ship in a folder, since they are Claude account connectors.
+- **#25 LH-026, the mailbox:** partly. Gmail: connect, prove, draft after a yes, check replies, never send. Left: Microsoft 365 has no draft tool, so the 25 go by hand there, and its search tool name and whether it shows the sender have never been seen on a real account. That needs a real Gmail and a real Microsoft 365 account (hand check 11).
+- **#26 LH-027, keeping on track:** closed, with state checks. How the nudge feels in use is a hand check (6).
+- **#27 LH-028, standalone system:** closed for this repository. The issue also asks for the plugin as a second distribution built from the same source. That half is out of scope here by the owner's decision, so the issue should stay open, or be split, for the plugin work.
+- **#28 LH-029, ways past the checks:** closed, with tests for all four. The guards' own known gaps are listed under hand check 13.
+- **#29 LH-030, word rules:** partly. Every listed input has a fixture. Left: "we guarantee it" and invented proof rest on the rules reviewer, a model, and no test can show it holds them. Hand check 12 settles it.
+- **#30 LH-031, the founder's own lines:** closed.
+- **#31 LH-032, output style:** closed in files. Whether the app selects it, and whether Cowork honours it, is a hand check (7).
+
+Tally: 25 closed (of which #13, #14, #18, #22, #23, #26 and #31 still want their hand check), 4 partly (#2, #24, #25, #29), and #27 closed for this repository only, with its plugin half out of scope.
+
+## Decisions waiting on the maintainer
+
+1. Whether #27 stays open for the plugin distribution or is split into a new issue.
+
+## What a maintainer should check by hand
+
+Use a machine without a personal `.claude/settings.local.json` in the folder. The one in this worktree sets another output style.
+
+1. Open a fresh copy in the Claude desktop app on a Mac and on a Windows PC with Git for Windows. Confirm the session opens with the "Launchhouse founder folder" line, and that nothing asks to install or trust a marketplace.
+2. Look at GitHub Desktop straight after opening, after the first "always allow", and after approving the `highlevel` server. Note which files show as changed, whether the app moved keys in `settings.json`, and whether `.claude/settings.local.json` shows up. This is #2.
+3. Type `/growth-engine:` and confirm all 21 commands appear.
+4. With the old plugin also installed, confirm only one set of checks runs and that this folder's copy is the one in use.
+5. Run each engine with its gate not met. Confirm it does not start, says what is missing in one or two plain sentences, and offers to do that first. Say to go ahead anyway, and confirm it records a dated override in `growth-engine/.state/gate-overrides.md`, runs the engine, and that `gate-state.md` then reads that one engine as `overridden`, not `done`, and leaves the other engines `locked`. Confirm it ends with the next step and "where am I up to".
+6. Say "park this" in the middle of an engine, then "pick it back up", and confirm the end of turn nudge stops and starts again.
+7. Restart and run `/output-style`. Confirm Launchhouse Guide is selected and replies change. Try `keep-coding-instructions` true and false, and check whether Cowork honours the style.
+8. Write "no personal text leaves the device", and a co-founder line "as the one building this". Confirm the reviewer holds both and the founder is asked.
+9. Build the playbook insert, save `export/playbook-insert.html` as a PDF on a Mac and a Windows PC, confirm the page count is read, and that changing a source file marks the insert out of date.
+10. Say "start launchhouse" in a fresh copy. Confirm clickable choices, the everyday timezone name, and a fresh founder going straight into the Brain. In the Brain, confirm the track is confirmed from "who pays you" with choices. In `connect-tools`, `outreach-b2b` and `apollo-sequence`, confirm the choices appear, and plain text in Cowork.
+11. With Gmail connected on a B2B test folder, say "put my outreach emails in my drafts" and "check for replies". Confirm only drafts are written, after a yes, sending is refused, and a reply marks the person `replied`. Connect Microsoft 365 once and note the real tool names and whether its search shows the sender.
+12. Write "Book a call this week and we guarantee it." and "We have 412 clients, 312 percent growth this year." into a content piece with no such proof in the Brain. Confirm the rules reviewer holds both.
+13. On a Mac and on a Windows PC, make a Private Integration key in a test sub-account and add the item `Launchhouse GoHighLevel` (account or user name the Location ID, password the key). Say "connect my tools" and confirm: `--check` finds the item without showing the key; on a Mac the `security` prompt appears and Always Allow sticks; `--connect` writes `.mcp.json` with this computer's absolute path (on Windows, Git's `sh.exe` by its full path); after quitting and reopening the app the `highlevel` server connects, and note whether `enabledMcpjsonServers` really skips the approval prompt; the sub-account is read back; and asking Claude to read the item is refused. Then run "write my GoHighLevel values" and choose the API route with a second item, `Launchhouse GoHighLevel values`: confirm `list` reads the account, one `update` lands after a yes, and the founder is walked through deleting the token and the item. Say "connect my tools" in Cowork and confirm it sends the founder to Code for GoHighLevel. Open risks this check settles:
+    - **The helper time limit.** On Windows the store reader compiles a small C# reader (Add-Type) on every call. Time it, and confirm it finishes inside the app's limit for header helpers.
+    - **`sh` on Windows.** That cmd.exe starts the quoted full path to `sh.exe`, on a default Git for Windows install, with nothing added to the PATH.
+    - **Cowork.** That Cowork does not load the folder's `.mcp.json`, as assumed.
+    - **Known gaps in the guards.** They stop mistakes, not a determined model. The helpers are allowed by a path relative to the shell's working folder, so a copy at `.claude/scripts/` under another working folder would pass. Claude can edit the helpers or the guards themselves. A key written into a file outside `growth-engine/` by a shell command, or in a shape other than `pit-`, is not caught.
+14. Copy an older, flat folder (Brain, content, ledger, a person file and a first lines file at the top of `growth-engine/`) into a fresh copy and say "start launchhouse". Confirm every file lands in its new place, the private files stay out of GitHub Desktop, one plain line appears in `log/ops-log.md`, and saying it again changes nothing. Do the same through "bring my work across from the app" with an app download.
