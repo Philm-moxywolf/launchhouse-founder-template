@@ -17,7 +17,7 @@ No track chosen yet, so only the files every founder needs are listed.
 | log/ledger.md | - | ok | 215 | 0 pieces, 0 approved |
 | log/memory.md | - | ok | 632 | - |
 | log/ops-log.md | - | ok | 131 | - |
-| people/ | - | ok | - | 0 prospects, 25 targets |
+| people/ | gate C | missing | - | 0 |
 | inbox/uploads/ | - | - | - | 0 files |
 | brain/voice-samples/ | - | - | - | 0 files |
 | drafts/ | - | - | - | 0 files |
