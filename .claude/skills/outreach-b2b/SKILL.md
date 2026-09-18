@@ -1,0 +1,255 @@
+---
+name: outreach-b2b
+description: Build the B2B outreach engine. Chooses how the 25 messages will be sent, turns the ICP into Apollo search criteria, writes a four to five touch sequence in the founder's voice, records the list of 25, and writes a personalised first line for every person on it. B2B track only. Trigger on "build my outreach", "write my sequence", "apollo filters", "cold email", "first lines", "I sent the emails", "check for replies", "who replied".
+---
+
+# Outreach Engine, B2B
+
+Produces the sequence and the 25 personalised messages sent live on the Saturday in Atlanta.
+
+**Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
+
+File shapes are in `../../references/contract.md`. Gate C for B2B is in `../../references/gates.md`.
+
+**Dates.** Every programme date comes from the cohort block in `../../references/gates.md`. Take today's date from the founder's own computer. Once a date in that block has passed, do not announce it as though it is still ahead: say "your clinic session" or "the Saturday of your programme" instead.
+
+## Prerequisites
+
+1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
+2. **Read the Brain.** Read `./growth-engine/brain/founder-brain.md`.
+   - If it genuinely does not exist, do not leave them stuck. Say in one plain sentence that this engine writes from their Founder Brain, about an hour of their own answers that every engine reads, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
+   - Do not ask them to describe their business again from scratch, and do not guess at their offer, audience or voice. Everything this skill produces is only as good as the Brain behind it.
+3. **Check the track.** If `Track` is not `b2b`, stop and route the founder to the audience engine (`/growth-engine:audience`). Do not run a B2B sequence for a B2C founder.
+4. **When the Brain is not enough.** If something this engine needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
+5. **Check the gate this builds on.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `outreach` row in its engine table. This engine needs Gate B, from the mapping in `../../references/gates.md`.
+
+   If there is no `outreach` row, no track is chosen yet. Treat it as locked: what is missing is the track, from the Founder Brain.
+
+   If the row reads `locked`, or is still missing after the refresh, this engine does not start. Say in one or two plain sentences what is missing, using the `not done` Gate B rows' evidence, and offer to do that first. Before offering to go ahead anyway, check `growth-engine/.state/gate-overrides.md` for a line already naming `outreach`. If one is there, treat the row as overridden and carry on; do not add a second line.
+
+   Otherwise, only record an override when the founder says, in their own words, to go ahead anyway. A no, or "later", is not consent. If it is unclear, ask once: "Build it without that?" Then add a line to `growth-engine/.state/gate-overrides.md`: `<today's date> | B | outreach | <their exact words>`, run `sh .claude/scripts/refresh.sh < /dev/null`, and carry on.
+
+   If the row reads `done` or `overridden`, carry straight on.
+6. **Check what exists.** If `engines/outreach/outreach-sequence.md` already exists, first check that it holds the tight, medium and broad list criteria. Files from the app usually do not. If they are missing, say so in one line, run Step 1, and add the three criteria to the file without changing anything else in it. Then check and save as in Step 7. After that, ask whether they want to change the sequence, add to the list, write more first lines, or record sends, and go straight to that step.
+
+## Step 0: what is going to send this
+
+Decide this before writing a word, because it changes the merge variables and the export. The Brain's Channels section may already record it. If it does, confirm it in one line rather than asking again.
+
+Ask one question: **is their work email on Google (Gmail or Google Workspace), or on Microsoft 365, or something else?**
+
+The answers are predictable, so ask with clickable choices (the AskUserQuestion tool): **Google (Gmail or Google Workspace)**, **Microsoft 365**, **Something else**. It adds a box for any other answer. When the Brain already records it, confirm with the same tool, **Yes** or **No**. If you cannot show choices, as in Cowork, ask the same question in plain text.
+
+### If Google
+
+They build the list and send from Apollo.
+- Apollo does not run its own mail servers. Every message leaves through their own connected mailbox, by a two-minute sign-in, so their domain carries the reputation either way.
+- Sequences handle the follow-up touches, and stop-on-reply is on by default, which is the whole reason to use a sequencer at this volume.
+
+### If Microsoft 365 or anything else
+
+They send by hand from their own mailbox, and schedule the follow-ups with their mail app's own scheduled send.
+
+This is a real route, not a consolation. At 25 messages it meets the promise completely, costs nothing, needs no new account, and replies land where they already read email.
+
+Record the answer in the output file. Nobody chooses twice.
+
+### On the cost, and get this the right way round
+
+The free Apollo plan connects in full, so connecting Claude to it costs nothing. The 65 USD/month plan is what carries real sending: credits, sending limits and mailboxes. The programme sets it up in Session 2, with sending.
+
+Say it that way round. Telling a founder they need the plan to connect is not true. They will find that out, and every other number in this programme is worth less to them afterwards.
+
+They are already carrying Claude, a domain and GoHighLevel at 97 USD. A founder who says the total is too much is doing arithmetic rather than hesitating, and arguing is how this skill loses them. That founder takes the manual route, which is real and meets the promise at 25 messages.
+
+**On the manual route, schedule two touches at a time, never all four.** If someone replies, there are only two things to cancel, and cancelling is the job people forget.
+
+## Step 1: list criteria
+
+Convert the ICP into filters a founder can type into Apollo.
+
+Output the criteria as a plain list they can copy:
+- industry
+- headcount band
+- revenue band
+- geography
+- job titles
+- seniority
+- any technology or keyword filters that indicate the trigger event
+
+Give three variants:
+- **Tight:** the best-fit list, which may be small.
+- **Medium.**
+- **Broad:** the fallback if tight returns under 100 results.
+
+**Build to 35, then cut to 25.** Some rows will be wrong: the person left, the address bounces, the company is not a fit on a second look. Topping up a list under time pressure on the Saturday is how founders end up messaging people they have not read.
+
+Tell them to verify emails before sending. An unverified list destroys domain reputation faster than bad copy.
+
+## Step 2: sequence
+
+Four to five touches over two to three weeks.
+
+- **Touch 1: the opener.** Specific to them, one clear reason for the message, one low-friction ask.
+- **Touch 2: proof.** A result or case relevant to their situation, taken from the Brain's Proof section and from nowhere else.
+- **Touch 3:** a different angle on the same problem.
+- **Touch 4:** a short, direct close.
+- **Touch 5, optional:** the break-up.
+
+**Rules that are not negotiable:**
+- Under 120 words per touch. Shorter converts.
+- One ask per message.
+- A subject line on touch 1. For each later touch, a decision on whether it replies in the same thread or starts a new one. Same thread is the default.
+- A wait interval stated between every touch. Three to four working days is the normal spacing across two to three weeks.
+- **A plain opt-out line in the body of every touch.** One sentence, in their own words, for example "if this is not for you, say so and I will leave you alone". Do not rely on a tool's unsubscribe link: the free plan may not have one, and at this volume a human sentence reads better anyway. This is not optional. It is what the law expects and what a real person deserves.
+- Written in the founder's captured voice, not in generic sales English. Use the `voice-reviewer` agent on the touches once they are written, and change what it flags.
+- No fake familiarity, no invented compliments, no "I noticed you..." unless it is genuinely specific.
+
+### Merge variables
+
+**On the Apollo route only.**
+- Apollo uses `{{contact.first_name}}` and `{{account.name}}`. The older `{{first_name}}` and `{{company}}` still work.
+- The personalised opening line is not one of those. It is a custom field on the contact called `first_line`, holding a different sentence for every person, written into touch 1 as `{{first_line}}`. So the sequence has one body, and each recipient reads a line written for them.
+
+**On the manual route there are no merge variables at all.** Touch 1 is written out in full for each of the 25, finished, with the name and detail already in the text, in Step 4. The later touches stay as one text in `engines/outreach/outreach-sequence.md`, with the name to change marked `[first name]`. There is nothing else to substitute.
+
+### Stop on reply
+
+- **In Apollo** this is on by default, as is pausing on an out of office. Confirm it is on rather than assuming.
+- **On the manual route** this is the founder's job, and it is the single thing most likely to be forgotten three weeks after the event.
+
+### Claims
+
+**Never write a claim the Brain does not support, and never write a number the founder did not give you.**
+
+If the Proof section is thin, touch 2 is still touch 2. Write it from one of these instead, in this order:
+1. The one named case they do have, in the detail they gave you.
+2. What they have seen across the jobs they have done. The fault that turns up again and again, the thing every owner says in the first meeting.
+3. The step they take that the cheaper option skips. That is method, and it needs no number at all.
+
+A specific observation about the reader's own world reads as true. A number nobody gave you can be checked, and in a trade this size somebody will check it.
+
+**Never promise replies**, anywhere in the sequence or in anything you say about it. Replies depend on list quality, timing and offer.
+
+## Step 3: the list
+
+### Where the list comes from
+
+- **On the Apollo route, with Apollo connected,** the founder can have the search run and the addresses filled in with `/growth-engine:sequence`, and the list arrives without anybody typing it. If they take that:
+  1. First write `./growth-engine/engines/outreach/outreach-sequence.md` as in Step 6, with the route, the criteria and the sequence, because that skill builds from it.
+  2. Run Step 7 on it.
+  3. Hand over to `/growth-engine:sequence`. It builds the list, writes the first lines to the same rules as Step 4 below, and loads everything paused.
+- **Otherwise** they run the search in Apollo themselves, or use their own contacts, and paste the leads in. Take whatever they have: name, email, company, job title, and anything specific about them.
+
+### Record each person
+
+Write one file per person in `growth-engine/people/`, named by the slug of their email address, in the prospect shape in the contract:
+- `kind: prospect`
+- `status: candidate`
+- `source`: `apollo` when it came through the Apollo connector, `import` for a list they pasted or exported from somewhere, `manual` for people they typed in one by one
+- `created`: today
+- `email`, `first_name`, `company`, `title` when known
+- anything specific about them as note lines, with where it came from
+
+These files hold real people's details. They are kept out of git on purpose and never pasted anywhere public.
+
+### Build to 35, cut to 25
+
+When there are more than 25, go through them with the founder. Set the ones they drop to `status: cut`, and keep a one-line reason as a note. Never delete a person file.
+
+## Step 4: first lines
+
+For each person not at `cut`, write one opening line specific to that company or that person.
+
+**Generate from the actual detail:** company name, website copy, a recent post, a job ad, a news item. If there is nothing specific, tell the founder which people you had nothing on, and write their line from the segment rather than fabricating a detail. **A generic honest line beats an invented specific one.**
+
+**Write each line in the founder's voice,** from the Voice section of the Brain and their own writing in `brain/voice-samples/`. It opens a message from them, so it has to sound like them.
+
+**Work in batches of 5 to 10**, so the founder can check quality as it goes. For each person, write the line inside the Opener block of their person file. Use the `voice-reviewer` agent on the first batch, and change what it flags before writing the rest.
+
+**On the manual route,** the Opener block holds that person's whole touch 1, finished, under 120 words, opening with their first line and ending with the opt-out line. It stays in their person file, which never goes to GitHub, and the first line of the block is what goes into the CSV.
+
+## Step 5: deliverability brief
+
+Cover this even though it is not copy, because it decides whether any of it works.
+
+- **Volume.** 25 messages is low volume. At this scale, authentication matters more than warmup duration.
+- **Authentication.** SPF, DKIM and DMARC must all be configured. Without them, mail gets filtered no matter how old the domain is.
+- **Domain.** An existing domain with real sending history is still better than a fresh one. Use it if they have it.
+- **Fresh domains.** On a fresh domain, sending ten to twenty normal messages a day in the weeks beforehand is sufficient at this volume.
+- **Verify.** Verify every email before sending. An unverified list does more damage than a cold domain.
+- **Replies.** Never promise replies. Replies depend on list quality, timing and offer, none of which are guaranteed.
+- **Tracking.** Turn open and click tracking off. Tracking pixels and rewritten links are a spam signal, and at 25 messages the data is worth nothing.
+- **The subdomain question. Say this plainly, once.** Best practice for high-volume cold email is to send from a separate outreach subdomain, never the main company domain. This programme sends from the main domain on purpose, because 25 authenticated, genuinely personalised messages with an opt-out line carry low risk, and setting up a second domain properly is more work than the runway allows. The risk is low. It is not zero. The founder should know that rather than find out.
+
+## Step 6: export
+
+Write `./growth-engine/engines/outreach/outreach-sequence.md` containing:
+- the route chosen in Step 0
+- the three list criteria
+- the full sequence, with subject lines, wait intervals and the opt-out line in every touch
+- the merge variables, on the Apollo route only
+- the deliverability brief from Step 5, under `## Before you send`
+
+Write `./growth-engine/engines/outreach/outreach-firstlines.csv`:
+- columns `email`, `first_name`, `company`, `first_line`
+- one row per person not at `cut`, in list order
+- `first_line` holds the line from their Opener block
+- quote any field holding a comma or a quote
+
+**Name it `first_line`, not anything generic,** so the CSV column, the Apollo custom field and the variable in the sequence all read the same. A mismatch here fails silently and takes the most valuable output of this skill with it.
+
+## Step 7: check and save
+
+1. **Check.** Use the `rules-reviewer` agent on `engines/outreach/outreach-sequence.md` and `engines/outreach/outreach-firstlines.csv`. Give it every figure the founder gave in this conversation.
+2. **Fix what it holds.** Ask about any held figure rather than guessing. Do this at most twice, then show the founder what is still held.
+3. **Save.** Run `git add growth-engine` then `git commit -m "Outreach engine: sequence and first lines"`. Person files stay out of git by design. If there is a remote, run `git push`. If the push fails, say the work is saved on this computer.
+
+## Sending it
+
+### On the Apollo route
+
+`/growth-engine:sequence` builds the sequence in their Apollo account, with the copy and first lines already in it, **paused**. Starting it is a button they press in Apollo, having read the messages. Nothing sends before that, and nothing here can make it.
+
+### On the manual route
+
+The CSV is a checklist, not an import. It is the founder's running sheet for the Saturday: who, and what the opening line is. Each person's finished touch 1 is in their person file, ready to copy into their own email.
+
+When they say they have sent to someone:
+- set that person's `status` to `contacted_ok`
+- add a touch line `- YYYY-MM-DD email out: sent touch 1`
+- add a result line to `log/ops-log.md`
+- save: `git add growth-engine` and `git commit -m "Recorded sends"`. Person files stay out of git, so the ops log line is the record GitHub keeps.
+
+When someone replies, set them to `replied` and remind the founder to cancel that person's scheduled follow-ups.
+
+### Checking for replies
+
+When they ask who has replied, and their mailbox is connected (Gmail, or Microsoft 365), check it for them. This only reads. Follow the mailbox rules in `../../references/connections.md`.
+
+1. Take each person in `people/` at `status: contacted_ok`, with the date of their first `email out` touch line.
+2. Search the mailbox for mail from that person's address since that date. Read only who wrote and when.
+3. For each one who wrote:
+   - set their `status` to `replied`
+   - add a touch line `- YYYY-MM-DD reply in: found in <Gmail or Microsoft 365>`
+   - if they asked to be left alone, add a note line saying so
+4. Add one result line to `log/ops-log.md` with the count only, never a name: `- HH:MM result: 2 replies recorded`. Save: `git add growth-engine` and `git commit -m "Recorded replies"`.
+5. Tell them who replied, and remind them to cancel those people's scheduled follow-ups. They answer each one in their own mail app. Never answer for them.
+
+If no mailbox is connected, ask them who has replied and record it the same way. On Microsoft 365 this check has not yet been tried on a real account: if the search cannot show who a message is from, say so plainly and ask them.
+
+### Never GoHighLevel
+
+This is a cold list, so it never goes into GoHighLevel's email tool. GoHighLevel is the CRM and the publisher for this programme. It is not the cold sender.
+
+## Gate
+
+Gate C for B2B, from `../../references/gates.md`:
+- the route is chosen and the sequence written, with an opt-out line in every touch
+- the list criteria are written down, tight, medium and broad
+- the list is built: 25 prospects not at `cut`
+- first lines exist for the 25
+- the operations workflow is built (`/growth-engine:ops`)
+- domain set up and sending started, which the founder confirms
+
+Tell the founder which of these are done and which one to do next. Then tell them, once, that saying "where am I up to" shows where they stand at any time.

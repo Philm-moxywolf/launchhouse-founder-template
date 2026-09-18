@@ -1,0 +1,84 @@
+---
+name: growth-plan
+description: Write the 90 day growth plan that sequences the founder's engines into one connected revenue play, with one number, weekly actions, Monday morning's first three actions, and kill criteria. Built in Atlanta on the Sunday. Trigger on "build my 90 day plan", "growth plan", "what do I do Monday", or the Sunday Growth System Workshop.
+---
+
+# 90 Day Growth Plan
+
+The Sunday deliverable. It sequences everything built over the weekend into one plan the founder can carry out from Monday.
+
+**Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
+
+## Prerequisites
+
+**Check the gate first.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `plan` row in its engine table. This engine needs Gate C, from the mapping in `../../references/gates.md`.
+
+If there is no `plan` row, no track is chosen yet. Treat it as locked: what is missing is the track, from the Founder Brain.
+
+If the row reads `locked`, or is still missing after the refresh, the plan does not start. Say in one or two plain sentences what is missing, using the `not done` Gate C rows' evidence, and offer to do that first. Before offering to go ahead anyway, check `growth-engine/.state/gate-overrides.md` for a line already naming `plan`. If one is there, treat the row as overridden and carry on; do not add a second line.
+
+Otherwise, only record an override when the founder says, in their own words, to go ahead anyway. A no, or "later", is not consent. If it is unclear, ask once: "Build it without that?" Then add a line to `growth-engine/.state/gate-overrides.md`: `<today's date> | C | plan | <their exact words>`, run `sh .claude/scripts/refresh.sh < /dev/null`, and carry on.
+
+If the row reads `done` or `overridden`, carry straight on.
+
+1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
+2. **Read the files that exist:**
+   - `./growth-engine/brain/founder-brain.md`, especially Goal and Numbers
+   - `./growth-engine/engines/content/content-30.md` and `./growth-engine/log/ledger.md`
+   - B2B: `./growth-engine/engines/outreach/outreach-sequence.md`
+   - B2C: `./growth-engine/engines/audience/dm-openers.md`, `./growth-engine/engines/audience/hook-bank.md` and `./growth-engine/engines/audience/inbound-scripts.md`
+   - `./growth-engine/engines/ops/ops-workflow.md`
+   - the What worked and What did not blocks in `./growth-engine/log/memory.md`, and the last two weeks of `./growth-engine/log/ops-log.md`
+   - `./growth-engine/.state/setup.md`, which says what is actually connected
+3. **If the Brain is missing,** say plainly that the plan is built on the Founder Brain, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
+4. **If the Brain exists but engine files are missing,** build the plan from what exists and note the gaps honestly. Do not pretend an engine is running when it is not. Name the engine that fills each gap, so the plan says what to do about it.
+5. **When the Brain is not enough.** If something this engine needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
+6. **Read the track.**
+   - A B2B plan sequences the sequence, the list and the sending.
+   - A B2C plan sequences the DMs, the hooks and the inbound machine.
+   - Never put the other track's work in a founder's plan.
+
+## Structure
+
+**The one number.** One primary metric for 90 days, derived from the Brain's stated goal. Not a vanity metric. Something that moves revenue.
+
+**Days 1 to 30.** Get all three engines running consistently. Weekly actions, specific and small enough to actually happen.
+
+**Days 31 to 60.** Volume and iteration: what gets tested, and what gets measured. On the B2C track, volume never means more first messages a day. It means more posts, more hooks, and more of the inbound side switched on. On the B2B track, it means another 25 to a list built and read the same way, not a volume machine.
+
+**Days 61 to 90.** Double down or cut, based on the data.
+
+**Monday morning.** The first three actions, in order, with time estimates. This is the most important section. Most plans die because nobody knows what to do first.
+
+**Kill criteria.** What result at day 30 means stop. Founders never write these, and it is why they persist with things that are not working. Push for a real number.
+
+**Realistic numbers.** Base projections on their actual list size, audience size and conversion assumptions, never on figures from a promotional page or somebody else's results. If the maths says a modest outcome, say so.
+
+Every number in this plan is either one the founder gave you, or an assumption:
+- **Label assumptions** in the text, with the word assume.
+- **Show the arithmetic** in one line, so they can change an input and see what moves.
+- **Never project replies** as a promise. A reply rate is an assumption, labelled, with the arithmetic.
+
+A projection that does not say it is a projection becomes a fact the moment it gets pasted somewhere else.
+
+## Output
+
+Write `./growth-engine/engines/plan/90-day-plan.md`.
+
+Keep it to two pages. A plan nobody reads is not a plan.
+
+## Check and save
+
+1. **Record the number.** Add one line to the Decisions block of `log/memory.md`: `- YYYY-MM-DD 90 day number: <the number>`.
+2. **Check.** Use the `rules-reviewer` agent on `engines/plan/90-day-plan.md`. Give it every figure the founder gave in this conversation. Assumptions labelled with the word assume are not claims.
+3. **Fix what it holds.** Ask about held figures. Do this at most twice.
+4. **Save.** Run `git add growth-engine` then `git commit -m "90 day plan"`. Push if there is a remote.
+
+## Pressure test
+
+The founder presents this in the Sunday pressure-test session. Prepare them for three questions:
+1. Is the number realistic?
+2. What happens if it does not work?
+3. What is the first thing you do Monday?
+
+Offer the `monday-plan` routine (`/growth-engine:routines`), which drafts each week's three actions from this plan. Then tell them the plain way to check where they stand: saying "where am I up to" shows what is left, gate by gate.

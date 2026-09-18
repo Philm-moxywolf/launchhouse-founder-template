@@ -3,11 +3,18 @@
 !growth-engine/people/README.md
 **/outreach-firstlines.csv
 **/dm-openers.md
+# The GoHighLevel connection, written by "connect my tools" on each computer.
+# It holds this computer's own path to the folder, never the key.
+/.mcp.json
 # A copy unzipped in the wrong place, or twice.
 growth-engine/growth-engine/
 growth-engine */
 # Working copies the Launchhouse checks keep for a moment.
 growth-engine/.state/.pre/
+# Worked out from the folder and rebuilt in seconds. Keeping them in git would
+# make a conflict out of a file the founder must never edit.
+growth-engine/.state/gate-state.md
+growth-engine/.state/nudges.md
 # Downloads from the app, once brought across.
 *.zip
 .lh-import/
