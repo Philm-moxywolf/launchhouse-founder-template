@@ -24,6 +24,16 @@ You never open a terminal. Everything happens in the Claude app, GitHub Desktop 
 | `.gitignore` | Keeps real people's details and downloads off GitHub |
 | `growth-engine/` | Your work. Starts nearly empty and fills as you go |
 
+Inside `growth-engine/`, each kind of file has its own folder:
+
+- `brain/` holds your Founder Brain and your writing samples. Keep these safe.
+- `inbox/uploads/` holds the documents you drop in.
+- `drafts/` holds work Claude has drafted for you to read.
+- `engines/` holds what each engine builds, one folder per engine.
+- `export/` holds the playbook insert you hand to your mentor.
+- `log/` holds the ledger and notes Claude keeps as it works.
+- `people/` holds real people's details. It never leaves your computer.
+
 ## Your work and your privacy
 
 - **Keep your copy private.** It holds your business. Claude never sends your work to the public original.

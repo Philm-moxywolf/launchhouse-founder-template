@@ -19,8 +19,8 @@ The caller tells you:
 
 ## Before you read the files
 
-1. **Track:** take it from the Brain on disk, `growth-engine/founder-brain.md`, header line `Track:`, `b2b` or `b2c`. The track on disk is the one the founder is on now, even straight after a track change. If there is none, say "no track" and skip rule 1.
-2. **Grounding:** read the Brain as it was **before** this piece of work, `git show HEAD:growth-engine/founder-brain.md` using Bash, so a figure written into the Brain in this same piece of work cannot ground itself. If that fails (no commits yet, or the Brain was never saved), use the Brain on disk and say so in your answer.
+1. **Track:** take it from the Brain on disk, `growth-engine/brain/founder-brain.md`, header line `Track:`, `b2b` or `b2c`. The track on disk is the one the founder is on now, even straight after a track change. If there is none, say "no track" and skip rule 1.
+2. **Grounding:** read the Brain as it was **before** this piece of work, `git show HEAD:growth-engine/brain/founder-brain.md` using Bash, so a figure written into the Brain in this same piece of work cannot ground itself. If that fails (no commits yet, or the Brain was never saved), use the Brain on disk and say so in your answer.
 3. Collect the grounded figures:
    - Every number and named claim in that Brain, especially `## Proof`, `## Numbers` and `## Offer`.
    - Lines in `## Proof` of the form `- <figure>, checked by me on <date>`. These are figures the founder confirmed.
@@ -30,8 +30,8 @@ The caller tells you:
 Use only Bash commands that read: `git show`, `git log`, `git diff`. Never write, move or delete anything.
 
 **Never judge these.** They are the founder's own words or bookkeeping:
-- `voice-samples/`, `uploads/` and `people/`
-- `ledger.md`, `memory.md` and `ops-log.md`
+- `brain/voice-samples/`, `inbox/uploads/` and `people/`
+- `log/ledger.md`, `log/memory.md` and `log/ops-log.md`
 - the figures in the Brain itself, when the only grounding you have is that same Brain. Still check the Brain for rules 1, 2 and 3, and for claims the founder must confirm.
 
 ## Rule 5: never invent proof

@@ -7,8 +7,8 @@
 # Count: the numbers the gates need, counted here once so no agent has to count
 # quoted CSV records or person files by eye.
 #
-# Files kept off GitHub on purpose (people/, outreach-firstlines.csv,
-# dm-openers.md) are absent from any copy of the folder but the computer they
+# Files kept off GitHub on purpose (people/, engines/outreach/outreach-firstlines.csv,
+# engines/audience/dm-openers.md) are absent from any copy of the folder but the computer they
 # were written on. When one is absent but git ignores it and the last index had
 # it, its row is carried forward as "unknown, kept off GitHub", so a routine
 # does not report it missing and nothing reports it done either.
@@ -22,27 +22,27 @@ mkdir -p "$ge/.state" 2>/dev/null || exit 0
 track=$(lh_track)
 old="$ge/.state/index.md"
 
-rows="founder-brain.md|gate A
-content-30.md|gate B
-content-30.csv|gate B
-rss-feeds.md|gate B"
+rows="brain/founder-brain.md|gate A
+engines/content/content-30.md|gate B
+engines/content/content-30.csv|gate B
+engines/content/rss-feeds.md|gate B"
 case $track in
   b2b) rows="$rows
-outreach-sequence.md|gate C
-outreach-firstlines.csv|gate C" ;;
+engines/outreach/outreach-sequence.md|gate C
+engines/outreach/outreach-firstlines.csv|gate C" ;;
   b2c) rows="$rows
-dm-openers.md|gate C
-hook-bank.md|gate C
-inbound-scripts.md|gate C" ;;
+engines/audience/dm-openers.md|gate C
+engines/audience/hook-bank.md|gate C
+engines/audience/inbound-scripts.md|gate C" ;;
 esac
 rows="$rows
-ops-workflow.md|gate C
-ghl-values.md|-
-90-day-plan.md|-
-playbook-insert.md|-
-ledger.md|-
-memory.md|-
-ops-log.md|-"
+engines/ops/ops-workflow.md|gate C
+engines/ops/ghl-values.md|-
+engines/plan/90-day-plan.md|-
+export/playbook-insert.md|-
+log/ledger.md|-
+log/memory.md|-
+log/ops-log.md|-"
 
 # Quote-aware CSV record count, header excluded.
 csv_records() {
@@ -78,10 +78,10 @@ count_for() {
   f="$ge/$1"
   [ -f "$f" ] || { printf -- '-'; return; }
   case $1 in
-    content-30.md) printf '%s pieces' "$(pieces "$f")" ;;
-    content-30.csv|outreach-firstlines.csv) printf '%s rows' "$(csv_records "$f")" ;;
-    dm-openers.md) printf '%s openers' "$(openers "$f")" ;;
-    ledger.md)
+    engines/content/content-30.md) printf '%s pieces' "$(pieces "$f")" ;;
+    engines/content/content-30.csv|engines/outreach/outreach-firstlines.csv) printf '%s rows' "$(csv_records "$f")" ;;
+    engines/audience/dm-openers.md) printf '%s openers' "$(openers "$f")" ;;
+    log/ledger.md)
       awk -F '|' '/^C\|/ { n++; if ($6 == "approved" || $6 == "scheduled" || $6 == "posted") a++ }
         END { printf "%d pieces, %d approved", n, a }' "$f" ;;
     *) printf -- '-' ;;
@@ -103,7 +103,7 @@ previous_row() {
 # .state/.pre/, which is itself kept off GitHub, and it carries the name of this
 # computer, so a folder copied whole to another machine is not mistaken for it.
 host=$(uname -n 2>/dev/null); [ -n "$host" ] || host=unknown
-if [ -f "$ge/outreach-firstlines.csv" ] || [ -f "$ge/dm-openers.md" ] || [ "$(ls "$ge/people/" 2>/dev/null | grep -c '\.md$' | tr -d ' ')" -gt 1 ]; then
+if [ -f "$ge/engines/outreach/outreach-firstlines.csv" ] || [ -f "$ge/engines/audience/dm-openers.md" ] || [ "$(ls "$ge/people/" 2>/dev/null | grep -c '\.md$' | tr -d ' ')" -gt 1 ]; then
   mkdir -p "$ge/.state/.pre" 2>/dev/null && printf '%s\n' "$host" > "$ge/.state/.pre/private-seen" 2>/dev/null
 fi
 # Anywhere else, a missing private file cannot be told apart from one that was
@@ -161,7 +161,7 @@ tmp="$ge/.state/index.md.tmp.$$"
     esac
   fi
 
-  for d in uploads voice-samples drafts; do
+  for d in inbox/uploads brain/voice-samples drafts; do
     n=$(ls -A "$ge/$d" 2>/dev/null | grep -vc '^\.gitkeep$' | tr -d ' ')
     printf '| %s/ | - | - | - | - | %s files |\n' "$d" "$n"
   done

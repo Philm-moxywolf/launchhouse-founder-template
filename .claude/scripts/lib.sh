@@ -83,9 +83,36 @@ lh_rel() {
   esac
 }
 
+# Where each Launchhouse file lives inside growth-engine/, by its name. This is
+# the file table in .claude/references/contract.md, and a test checks the two
+# agree. Empty for a name that is not one of ours.
+lh_place() {
+  case $1 in
+    founder-brain.md) printf 'brain/%s' "$1" ;;
+    content-30.md|content-30.csv|rss-feeds.md|\
+    content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9].md|content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9].md|\
+    content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9].csv|content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9].csv) printf 'engines/content/%s' "$1" ;;
+    outreach-sequence.md|outreach-firstlines.csv) printf 'engines/outreach/%s' "$1" ;;
+    dm-openers.md|hook-bank.md|inbound-scripts.md) printf 'engines/audience/%s' "$1" ;;
+    ops-workflow.md|ghl-values.md) printf 'engines/ops/%s' "$1" ;;
+    90-day-plan.md) printf 'engines/plan/%s' "$1" ;;
+    playbook-insert.md|playbook-insert.html|playbook-insert.pdf) printf 'export/%s' "$1" ;;
+    ledger.md|memory.md|ops-log.md) printf 'log/%s' "$1" ;;
+    .launchhouse) printf '%s' "$1" ;;
+  esac
+}
+
+# Where each Launchhouse folder lives inside growth-engine/, by its old name.
+lh_dir_place() {
+  case $1 in
+    uploads) printf 'inbox/uploads' ;;
+    voice-samples) printf 'brain/voice-samples' ;;
+  esac
+}
+
 # The Track line from the Founder Brain header, lower case, or empty.
 lh_track() {
-  b="$(lh_root)/growth-engine/founder-brain.md"
+  b="$(lh_root)/growth-engine/brain/founder-brain.md"
   [ -f "$b" ] || return 0
   lh_track_of "$b"
 }
@@ -107,7 +134,7 @@ lh_track_of() {
 
 # A header label from the Brain, as written (first match, trimmed).
 lh_brain_label() {
-  b="$(lh_root)/growth-engine/founder-brain.md"
+  b="$(lh_root)/growth-engine/brain/founder-brain.md"
   [ -f "$b" ] || return 0
   awk -v want="$1" '
     /^## / { exit }
@@ -124,37 +151,45 @@ lh_brain_label() {
     }' "$b"
 }
 
-# Which track a deliverable belongs to: b2b, b2c, both, or empty if unlisted.
-lh_file_track() {
+# Which track a Launchhouse file belongs to, by its name alone: b2b, b2c, both,
+# or empty if it is not one of ours.
+lh_base_track() {
   case $1 in
-    founder-brain.md|content-30.md|content-30.csv|rss-feeds.md|ops-workflow.md|ghl-values.md|90-day-plan.md|playbook-insert.md|playbook-insert.html|ledger.md|memory.md|ops-log.md|.launchhouse) printf both ;;
     outreach-sequence.md|outreach-firstlines.csv) printf b2b ;;
     dm-openers.md|hook-bank.md|inbound-scripts.md) printf b2c ;;
-    content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9].md|content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9].md|content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9].csv|content-30-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9].csv|playbook-insert.pdf) printf both ;;
-    *) printf '' ;;
+    *) [ -n "$(lh_place "$1")" ] && printf both ;;
   esac
+  return 0
+}
+
+# Which track a deliverable belongs to, by its path inside growth-engine/: b2b,
+# b2c, both, or empty if that path is not where one of ours lives.
+lh_file_track() {
+  [ -n "$1" ] && [ "$(lh_place "${1##*/}")" = "$1" ] && lh_base_track "${1##*/}"
+  return 0
 }
 
 # Deliverables the rules read. Bookkeeping files and people are not judged.
-# The text files in uploads/ and voice-samples/ are judged for the sending
-# rules only (see lh_scope).
+# The text files in inbox/uploads/ and brain/voice-samples/ are judged for the
+# sending rules only (see lh_scope).
 lh_is_judged() {
   case $1 in
-    ledger.md|memory.md|ops-log.md|.launchhouse|*.pdf) return 1 ;;
+    log/ledger.md|log/memory.md|log/ops-log.md|.launchhouse|*.pdf) return 1 ;;
     people/*|.state/*) return 1 ;;
-    uploads/*.md|uploads/*.txt|uploads/*.csv|voice-samples/*.md|voice-samples/*.txt|voice-samples/*.csv) return 0 ;;
-    uploads/*|voice-samples/*) return 1 ;;
+    inbox/uploads/*.md|inbox/uploads/*.txt|inbox/uploads/*.csv|brain/voice-samples/*.md|brain/voice-samples/*.txt|brain/voice-samples/*.csv) return 0 ;;
+    inbox/uploads/*|brain/voice-samples/*) return 1 ;;
     drafts/*) return 0 ;;
   esac
   [ -n "$(lh_file_track "$1")" ]
 }
 
-# How much of the rules a file gets. uploads/ and voice-samples/ hold the
-# founder's own documents and writing, so only the two rules about messages
-# that go out apply there: no cold DM automation and no promised replies. Their
-# words, track and voice are never judged. Everything else gets every rule.
+# How much of the rules a file gets. inbox/uploads/ and brain/voice-samples/
+# hold the founder's own documents and writing, so only the two rules about
+# messages that go out apply there: no cold DM automation and no promised
+# replies. Their words, track and voice are never judged. Everything else gets
+# every rule.
 lh_scope() {
-  case $1 in uploads/*|voice-samples/*) printf send ;; *) printf all ;; esac
+  case $1 in inbox/uploads/*|brain/voice-samples/*) printf send ;; *) printf all ;; esac
 }
 
 # Findings for one file, as rules.awk prints them.
@@ -165,7 +200,7 @@ lh_findings() {
       awk -F '\t' '$1 == "HOLD" && ($3 == "dm.offered" || $3 == "prose.promise-reply")'
     return 0
   fi
-  b=0; [ "$2" = founder-brain.md ] && b=1
+  b=0; [ "$2" = brain/founder-brain.md ] && b=1
   awk -v track="$3" -v brain="$b" -f "$(dirname "$0")/rules.awk" "$1" 2>/dev/null
 }
 
@@ -175,8 +210,8 @@ lh_findings() {
 # founder is told, because it may be their own words. Only new or changed
 # lines are held. $1 file, $2 earlier copy, $3 path inside growth-engine, $4 track.
 #
-# uploads/ and voice-samples/ hold the founder's own documents and writing, so
-# nothing there is ever held, removed or put back: every finding is OLD.
+# inbox/uploads/ and brain/voice-samples/ hold the founder's own documents and
+# writing, so nothing there is ever held, removed or put back: every finding is OLD.
 lh_judge() {
   lh_keep=0; [ "$(lh_scope "$3")" = send ] && lh_keep=1
   lh_new=$(lh_findings "$1" "$3" "$4") || return 1

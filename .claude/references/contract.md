@@ -2,44 +2,50 @@
 
 Every file a founder's `growth-engine/` folder can hold, the shape each one must have, and which skill writes it. Work brought across from the Launchhouse app already has these shapes, so it fits without being rewritten.
 
-## Files, by track
+## Files, by track, and where each one lives
 
-| File | Track | Gate | Made by |
-|---|---|---|---|
-| `founder-brain.md` | both | A | founder-brain |
-| `content-30.md` | both | B | content-engine |
-| `content-30.csv` | both | B | content-engine |
-| `rss-feeds.md` | both | B | content-engine |
-| `outreach-sequence.md` | B2B only | C | outreach-b2b |
-| `outreach-firstlines.csv` | B2B only | C | outreach-b2b, apollo-sequence |
-| `dm-openers.md` | B2C only | C | audience-b2c |
-| `hook-bank.md` | B2C only | C | audience-b2c |
-| `inbound-scripts.md` | B2C only | C | audience-b2c |
-| `ops-workflow.md` | both | C | ghl-workflows |
-| `ghl-values.md` | both | none | ghl-values |
-| `90-day-plan.md` | both | none | growth-plan |
-| `playbook-insert.md` | both | none | playbook-export |
-| `content-30-YYYY-MM.md`, `content-30-YYYY-MM.csv` | both | none | content-engine, refill archive. A second archive in one month adds `-2` |
-| `playbook-insert.html` | both | none | playbook-export |
-| `playbook-insert.pdf` | both | none | playbook-export |
-| `ledger.md` | both | B evidence | content-engine, publish-content |
-| `memory.md` | both | none | any skill |
-| `ops-log.md` | both | none | any skill |
-| `people/<slug>.md` | prospect B2B, target B2C | C | outreach-b2b, audience-b2c, apollo-sequence |
-| `uploads/` | both | none | add-files: documents, read for facts |
-| `voice-samples/` | both | none | add-files, founder-brain: the founder's own writing, read for voice |
-| `drafts/` | both | none | routines, work in progress |
-| `.state/profile.md` | both | none | start |
-| `.state/setup.md` | both | none | connect-tools |
-| `.state/gate-answers.md` | both | none | status, gate |
-| `.state/imported.md` | both | none | import-from-app, once the app's work is in |
-| `.state/index.md` | both | none | rebuilt automatically after every write |
+The folder holds one folder per kind: the founder's own material in `brain/` and `inbox/`, what each engine makes in `engines/`, what they hand over in `export/`, and the bookkeeping in `log/`. This table is the one list of paths. Every skill, agent, routine and script uses these paths, and `lh_place` in `.claude/scripts/lib.sh` mirrors it for the checks. Paths are inside `growth-engine/`.
+
+| File | Path | Track | Gate | Made by |
+|---|---|---|---|---|
+| `founder-brain.md` | `brain/founder-brain.md` | both | A | founder-brain |
+| `content-30.md` | `engines/content/content-30.md` | both | B | content-engine |
+| `content-30.csv` | `engines/content/content-30.csv` | both | B | content-engine |
+| `rss-feeds.md` | `engines/content/rss-feeds.md` | both | B | content-engine |
+| `content-30-YYYY-MM.md`, `content-30-YYYY-MM.csv` | `engines/content/` | both | none | content-engine, refill archive. A second archive in one month adds `-2` |
+| `outreach-sequence.md` | `engines/outreach/outreach-sequence.md` | B2B only | C | outreach-b2b |
+| `outreach-firstlines.csv` | `engines/outreach/outreach-firstlines.csv` | B2B only | C | outreach-b2b, apollo-sequence |
+| `dm-openers.md` | `engines/audience/dm-openers.md` | B2C only | C | audience-b2c |
+| `hook-bank.md` | `engines/audience/hook-bank.md` | B2C only | C | audience-b2c |
+| `inbound-scripts.md` | `engines/audience/inbound-scripts.md` | B2C only | C | audience-b2c |
+| `ops-workflow.md` | `engines/ops/ops-workflow.md` | both | C | ghl-workflows |
+| `ghl-values.md` | `engines/ops/ghl-values.md` | both | none | ghl-values |
+| `90-day-plan.md` | `engines/plan/90-day-plan.md` | both | none | growth-plan |
+| `playbook-insert.md` | `export/playbook-insert.md` | both | none | playbook-export |
+| `playbook-insert.html` | `export/playbook-insert.html` | both | none | playbook-export |
+| `playbook-insert.pdf` | `export/playbook-insert.pdf` | both | none | playbook-export |
+| `ledger.md` | `log/ledger.md` | both | B evidence | content-engine, publish-content |
+| `memory.md` | `log/memory.md` | both | none | any skill |
+| `ops-log.md` | `log/ops-log.md` | both | none | any skill |
+| `people/<slug>.md` | `people/` | prospect B2B, target B2C | C | outreach-b2b, audience-b2c, apollo-sequence |
+| `voice-samples/` | `brain/voice-samples/` | both | none | add-files, founder-brain: the founder's own writing, read for voice |
+| `uploads/` | `inbox/uploads/` | both | none | add-files: documents, read for facts |
+| `drafts/` | `drafts/` | both | none | routines, work in progress |
+| `.state/profile.md` | `.state/profile.md` | both | none | start |
+| `.state/setup.md` | `.state/setup.md` | both | none | connect-tools |
+| `.state/gate-answers.md` | `.state/gate-answers.md` | both | none | status, gate |
+| `.state/imported.md` | `.state/imported.md` | both | none | import-from-app, once the app's work is in |
+| `.state/index.md` | `.state/index.md` | both | none | rebuilt automatically after every write |
+
+In the rest of this file, and in every skill, a file named on its own, such as `content-30.md`, means the file at its path in this table.
 
 A founder never has the other track's files. If an import brings some, leave them in place, do not list them, and mention them once.
 
-**Kept off GitHub on purpose.** `people/`, `outreach-firstlines.csv` and `dm-openers.md` hold real people's names, emails or handles. The folder's `.gitignore` keeps them out of git, so they live on this computer only and routines never see them. Never paste them anywhere public, and never copy a person's details into any other file.
+**Kept off GitHub on purpose.** `people/`, `engines/outreach/outreach-firstlines.csv` and `engines/audience/dm-openers.md` hold real people's names, emails or handles. The folder's `.gitignore` keeps them out of git at any depth, so they live on this computer only and routines never see them. Never paste them anywhere public, and never copy a person's details into any other file.
 
-Nothing is ever written outside `growth-engine/`. The Launchhouse checks refuse a Launchhouse file anywhere else, and refuse a file at the top of `growth-engine/` that is not in this table.
+Nothing is ever written outside `growth-engine/`. The Launchhouse checks refuse a Launchhouse file anywhere else, refuse one of these files anywhere but its path in this table, and refuse a file that is not in this table outside `drafts/`, `inbox/uploads/`, `brain/voice-samples/`, `people/` and `.state/`.
+
+**A folder in the older, flat layout.** Before these folders existed, every file sat at the top of `growth-engine/`, with `uploads/` and `voice-samples/` beside them. The start skill moves such a folder into this layout with `sh .claude/scripts/move-layout.sh < /dev/null`. It moves files git keeps with `git mv` and the private files with a plain move, never overwrites, never deletes, changes nothing on a second run, and adds one line to `log/ops-log.md` saying what moved and why. Nothing moves by itself when a session starts.
 
 ## When one file changes, what goes stale
 
@@ -263,7 +269,7 @@ The two sentence opener.
 
 ## Uploads
 
-**Converted documents** are stored as markdown, with the source type folded into the name: `notes.docx` becomes `uploads/notes-docx.md`. They start with this header:
+**Converted documents** are stored as markdown, with the source type folded into the name: `notes.docx` becomes `inbox/uploads/notes-docx.md`. They start with this header:
 
 ```
 # Uploaded file: <original name>
@@ -281,7 +287,7 @@ If anything was left out on the way in (hidden sheets, speaker notes, pages past
 
 **Names.** The stem is slugged with the people rule. If the same name is uploaded again, it replaces the earlier file.
 
-**Voice.** `voice-samples/` is the only folder read for voice. `uploads/` is read for facts and topics only.
+**Voice.** `brain/voice-samples/` is the only folder read for voice. `inbox/uploads/` is read for facts and topics only.
 
 ## .state/profile.md
 

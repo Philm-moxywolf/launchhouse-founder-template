@@ -36,6 +36,6 @@ Lighter, because the posts are mostly words.
 
 **How many.** Five or six is enough to work from. Almost none is normal: the Founder Brain interviews them instead.
 
-**Where.** Each piece goes in `growth-engine/voice-samples/`, one per file. It is the only folder read for voice.
+**Where.** Each piece goes in `growth-engine/brain/voice-samples/`, one per file. It is the only folder read for voice.
 
 The programme's dates, including which session is which, are in `gates.md`, in one block. Do not repeat a date here.

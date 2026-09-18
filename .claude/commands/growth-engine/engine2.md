@@ -2,7 +2,7 @@
 description: Build your outreach engine (B2B) or audience engine (B2C)
 ---
 
-Read the `Track:` line in `./growth-engine/founder-brain.md`.
+Read the `Track:` line in `./growth-engine/brain/founder-brain.md`.
 
 If it is `b2b`, use the outreach-b2b skill.
 If it is `b2c`, use the audience-b2c skill.

@@ -11,15 +11,17 @@ Takes the founder's outreach engine into their own Apollo account.
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
 
+**How to ask.** The yes or no questions here have predictable answers: carrying on with a gate row not done, building the Brain now, spending credits, adding the contacts, confirming the schedule, creating the sequence, and adding the 25. Ask each with clickable choices (the AskUserQuestion tool), **Yes** and **No**, with the full cost or plan inside the question itself, so they approve exactly what they read. It adds a box for any other answer. Only a click on **Yes**, or a typed yes, is a yes. If you cannot show choices, as in Cowork, ask the same question in plain text.
+
 ## 0. Before starting
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
-2. **Read the Brain.** Read `./growth-engine/founder-brain.md`. If it does not exist or has no Track line, say in one plain sentence that the sequence is built from their Founder Brain and outreach engine, and offer to build the Brain with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step: `/growth-engine:brain`, or say "build my founder brain".
+2. **Read the Brain.** Read `./growth-engine/brain/founder-brain.md`. If it does not exist or has no Track line, say in one plain sentence that the sequence is built from their Founder Brain and outreach engine, and offer to build the Brain with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step: `/growth-engine:brain`, or say "build my founder brain".
 3. **Check the track.** If `Track` is `b2c`, stop. Apollo is not part of the B2C track. Send them to `/growth-engine:audience`.
-4. **Check the sequence exists.** Read `growth-engine/outreach-sequence.md`.
+4. **Check the sequence exists.** Read `growth-engine/engines/outreach/outreach-sequence.md`.
    - If it does not exist, the sequence and criteria come first, because this step loads the founder's own words and never writes a sequence of its own. Offer to build them with the outreach engine now (`/growth-engine:outreach`), then come back here.
    - Read `growth-engine/.state/gate-state.md` and use the `state` column as it stands, without counting anything yourself. If the Gate C `sequence` or `criteria` row is not done, say in one plain sentence what is missing, in the words of its `evidence`. Then ask whether they want to carry on anyway, and carry on if they say yes. Never make them go back first.
-   - If it records the manual route (Microsoft 365 or other), stop. Their route is by hand, and `outreach-firstlines.csv` is their checklist. Offer to switch routes only if their work email has changed to Google.
+   - If it records the manual route (Microsoft 365 or other), stop. Their route is by hand, and `engines/outreach/outreach-firstlines.csv` is their checklist. Offer to switch routes only if their work email has changed to Google.
 5. **When something is missing or thin.** If something this step needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
 6. **Check Apollo is connected.** You need tools whose names end in `apollo_mixed_people_api_search` and `apollo_sequences_create`. If not, run `/growth-engine:connect`.
 
@@ -27,9 +29,9 @@ Takes the founder's outreach engine into their own Apollo account.
 
 ## 1. Build the list, free
 
-**First, bring in first lines from the app.** If `growth-engine/outreach-firstlines.csv` has a row whose email has no person file, write one for it, named by the slug of the email, in the prospect shape in `../../references/contract.md`. Set `key` and `email` to the address, with `kind: prospect`, `status: candidate`, `source: import`, `created` today, and `first_name` and `company` from the row. Put the row's `first_line` inside the Opener block. Never change a person file that already exists. **Then skip this step** if `growth-engine/people/` holds 25 or more prospects not at `cut`, and go to step 3. If it holds fewer, count the ones already there towards the 35 and the 25.
+**First, bring in first lines from the app.** If `growth-engine/engines/outreach/outreach-firstlines.csv` has a row whose email has no person file, write one for it, named by the slug of the email, in the prospect shape in `../../references/contract.md`. Set `key` and `email` to the address, with `kind: prospect`, `status: candidate`, `source: import`, `created` today, and `first_name` and `company` from the row. Put the row's `first_line` inside the Opener block. Never change a person file that already exists. **Then skip this step** if `growth-engine/people/` holds 25 or more prospects not at `cut`, and go to step 3. If it holds fewer, count the ones already there towards the 35 and the 25.
 
-1. **Search.** Use the tight criteria from `outreach-sequence.md` with the tool ending `apollo_mixed_people_api_search`.
+1. **Search.** Use the tight criteria from `engines/outreach/outreach-sequence.md` with the tool ending `apollo_mixed_people_api_search`.
    - Search does not spend credits.
    - It returns a catalogue: names with the surname hidden, titles and companies, and whether an email is likely. No email addresses.
 2. **Widen if needed.** If tight returns fewer than 35 good matches, add medium, then broad. Say which you used.
@@ -65,19 +67,19 @@ If more than 25 remain, go through them with the founder and cut to 25. Cut peop
 
 Every person not at `cut` needs a first line in the Opener block of their file.
 
-**Keep the lines that exist.** They are the founder's, from the outreach engine or from the app. A line exists if it is in the person's Opener block, or in their row of `outreach-firstlines.csv`, which is where the app wrote them. If the block is empty and the CSV has a line, copy that line into the block exactly as it is. Never rewrite one while loading.
+**Keep the lines that exist.** They are the founder's, from the outreach engine or from the app. A line exists if it is in the person's Opener block, or in their row of `engines/outreach/outreach-firstlines.csv`, which is where the app wrote them. If the block is empty and the CSV has a line, copy that line into the block exactly as it is. Never rewrite one while loading.
 
 If any are missing, write them now, following Step 4 of the outreach engine exactly:
 - one line specific to that company or person, from real detail
 - a generic honest line when there is nothing specific
-- in the founder's voice, from the Voice section of the Brain and their own writing in `voice-samples/`
+- in the founder's voice, from the Voice section of the Brain and their own writing in `brain/voice-samples/`
 - batches of 5 to 10, so the founder can check as they go
 
 Use the `voice-reviewer` agent on the first batch you write, and change what it flags before writing the rest.
 
-Then rewrite `growth-engine/outreach-firstlines.csv` from the people not at `cut`, in the contract's shape. Every line already in the file for someone not at `cut` stays exactly as it was.
+Then rewrite `growth-engine/engines/outreach/outreach-firstlines.csv` from the people not at `cut`, in the contract's shape. Every line already in the file for someone not at `cut` stays exactly as it was.
 
-Use the `rules-reviewer` agent on `outreach-firstlines.csv` before loading anything.
+Use the `rules-reviewer` agent on `engines/outreach/outreach-firstlines.csv` before loading anything.
 
 ## 4. Load into Apollo
 
@@ -100,13 +102,13 @@ Only contacts go into sequences.
 3. **Create.** Use the tool ending `apollo_contacts_bulk_create`, or `apollo_contacts_create` one at a time, with de-duplication on if the tool offers it.
    - Set `first_line` on each contact.
    - **If the create tool cannot set a custom field,** set it afterwards on each contact with the tool ending `apollo_contacts_update`.
-   - **If neither can,** tell the founder to import `outreach-firstlines.csv` in Apollo and map the `first_line` column to the field. Wait until they have.
+   - **If neither can,** tell the founder to import `engines/outreach/outreach-firstlines.csv` in Apollo and map the `first_line` column to the field. Wait until they have.
 4. **Label them.** With the tools ending `apollo_labels_create` and `apollo_labels_add_entity_ids_to_label_names`, add a label `Launchhouse 25`, so the list is easy to find.
 5. **Record the ids.** Write each `apollo_contact_id` into the person file.
 
 ### The sequence
 
-1. **Read the copy.** Read the touches from `outreach-sequence.md`: subject lines, bodies with the `{{contact.first_name}}`, `{{account.name}}` and `{{first_line}}` variables, wait intervals, and the same-thread decisions. The personal line goes into touch 1 as `{{first_line}}`, exactly.
+1. **Read the copy.** Read the touches from `engines/outreach/outreach-sequence.md`: subject lines, bodies with the `{{contact.first_name}}`, `{{account.name}}` and `{{first_line}}` variables, wait intervals, and the same-thread decisions. The personal line goes into touch 1 as `{{first_line}}`, exactly.
    - **These are the founder's words, in their voice, and they go in as written.** Never shorten, polish or rewrite a touch while loading it. The sequence was written and approved in the outreach engine, whether in this folder or in the app.
    - If a file from the app writes the personal line some other way, such as `[first line]`, change only that marker to `{{first_line}}`, and show the founder the line before and after.
    - If a touch has no opt-out line, or there are fewer than four touches, stop. Send them back to the outreach engine to finish the sequence there, rather than writing touches here.
@@ -115,7 +117,7 @@ Only contacts go into sequences.
 4. **Wait for a yes.**
 5. **Create it** with the tool ending `apollo_sequences_create`, **inactive**.
    - If the tool can set the steps and copy, set them exactly as written.
-   - If it cannot, create the sequence, then tell the founder to paste each touch from `outreach-sequence.md` into the steps in Apollo, in order, with the waits. Offer to show each touch for copying.
+   - If it cannot, create the sequence, then tell the founder to paste each touch from `engines/outreach/outreach-sequence.md` into the steps in Apollo, in order, with the waits. Offer to show each touch for copying.
 6. **Read it back.** Call the tool ending `apollo_emailer_campaigns_show`, and check it is not active, the steps match, and stop-on-reply is on. If stop-on-reply is off, tell them to turn it on in the sequence settings.
 
 ### Add the 25
@@ -138,7 +140,7 @@ Never promise replies. If they ask what to expect, say replies depend on the lis
 
 ## 6. Save
 
-1. Add a line to `ops-log.md`: `- HH:MM result: Apollo sequence <name> built paused with 25 contacts`.
+1. Add a line to `log/ops-log.md`: `- HH:MM result: Apollo sequence <name> built paused with 25 contacts`.
 2. Run `git add growth-engine` then `git commit -m "Apollo sequence built, paused"`. Person files stay out of git. Push if there is a remote.
 3. Tell them the next step is the operations engine (`/growth-engine:ops`) if it is not built yet, and that saying "where am I up to" shows where they stand at any time.
 

@@ -2,7 +2,7 @@
 
 This folder is where your Launchhouse work lives from now on. Claude works in it with you, on your own computer, and it is saved to your own GitHub.
 
-You might be wondering whether this is more setup than the app was. It is less. There is no key to paste, no passphrase and no database. You never open a terminal. Everything happens in apps you click through.
+You might be wondering whether this is more setup than the app was. It is less. There is no passphrase and no database. The one key, for GoHighLevel, stays in your computer's own password store and never goes in the chat. You never open a terminal. Everything happens in apps you click through.
 
 ## 1. Install three things, once
 
@@ -41,7 +41,9 @@ If you are new and have nothing in the app, skip this step. "start launchhouse" 
 
 ## 6. Connect your tools
 
-In the Claude app, open **Settings**, then **Connectors**. Connect **HighLevel**, and **Apollo** if you sell to businesses. Then say **"connect my tools"** and Claude checks both work.
+If you sell to businesses, open **Settings** in the Claude app, then **Connectors**, and connect **Apollo**. Then say **"connect my tools"**. Claude walks you through GoHighLevel and checks everything works.
+
+For GoHighLevel you make a key in your GoHighLevel account and add it, by clicking, to your computer's own password store: Keychain Access on a Mac, Credential Manager on a Windows PC. Claude never sees it. Nothing asks about GoHighLevel until you do this.
 
 ## Backing up
 

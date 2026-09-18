@@ -58,7 +58,7 @@ Hand off to `/growth-engine:status` rather than duplicating it here.
 
 ### 6. Time-critical items
 
-Read the Flags section of `growth-engine/founder-brain.md` if it exists.
+Read the Flags section of `growth-engine/brain/founder-brain.md` if it exists.
 - **B2B:** is the sending domain sorted, with SPF, DKIM and DMARC configured? If the Brain flags a fresh domain and nothing has happened, raise it now.
 - **B2C:** is Instagram converted to Business or Creator and linked to a Facebook Page? Nothing publishes or captures inbound without it.
 
@@ -98,7 +98,7 @@ Do not edit the Track line yourself outside that flow.
 **"My files disappeared."** Almost never true.
 1. Run check 1.
 2. Then run `git log --oneline -10 -- growth-engine`, which shows every save.
-3. Any earlier version of a saved file can be brought back with `/growth-engine:save`. `people/`, `outreach-firstlines.csv` and `dm-openers.md` are kept out of git on purpose, so those have no history.
+3. Any earlier version of a saved file can be brought back with `/growth-engine:save`. `people/`, `engines/outreach/outreach-firstlines.csv` and `engines/audience/dm-openers.md` are kept out of git on purpose, so those have no history.
 
 **"It said a file was held."** The Launchhouse checks found a line that offers to automate cold DMs, promises replies, or uses the other track's material. The file was put back as it was, so nothing is lost. The message names the line, and the line gets rewritten.
 

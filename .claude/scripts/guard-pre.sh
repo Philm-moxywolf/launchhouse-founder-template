@@ -4,7 +4,7 @@
 # Decides from the path alone, before anything is written:
 #   - a Launchhouse file being written outside growth-engine/ (design rule 4)
 #   - a path that climbs out of the folder
-#   - a file at the top of growth-engine/ that is not one of ours
+#   - a file in growth-engine/ that is not one of ours, or not where the contract puts it
 #   - the other track's file, or a track file before a track is chosen (rule 1)
 #   - a person file whose name is not a plain slug
 # Then keeps a copy of the file as it was, so guard-post.sh can put it back if
@@ -19,6 +19,50 @@
 input=$(cat) || exit 0
 
 tool=$(lh_json_get tool_name "$input") || tool=""
+
+# The GoHighLevel key lives in the computer's own password store, and is never
+# read in the conversation. Only Claude Code's own connection reads it, through
+# ghl-headers.sh, and ghl-values-api.sh sends the values token to GoHighLevel
+# without printing it. So refuse any command that reads the store itself, and
+# allow the helpers only in the forms that never show a key.
+keymsg="Not run: that would show the founder's GoHighLevel key in the chat. The only commands allowed near it are sh .claude/scripts/ghl-headers.sh --check < /dev/null, the same with --connect, and ghl-values-api.sh with list, create or update. None of them shows the key."
+# A Private Integration key starts pit- and eight hex characters. It never goes
+# in a file here, where the next save would put it in git, or on a command line.
+pitmsg="Not saved: that holds a GoHighLevel key. A key never goes in a file in this folder or in a command. It lives only in the computer's password store. Tell the founder in one plain sentence that the key stays in their password store and nowhere else."
+pit='pit-[0-9A-Fa-f]{8}-'
+nl=$(printf '\n\rx'); nl=${nl%x}
+case $tool in
+  Read|Grep|Glob) exit 0 ;;
+  Write|Edit|MultiEdit)
+    # What is being written, without the old text an edit replaces.
+    printf '%s' "$input" | sed -E 's/"old_string"[[:space:]]*:[[:space:]]*"([^"\\]|\\.)*"//g' | grep -Eq "$pit" \
+      && lh_deny_pre "$pitmsg" ;;
+  Bash)
+    kc=$(lh_json_get command "$input") || kc=""
+    printf '%s' "$kc" | grep -Eq "$pit" && lh_deny_pre "$pitmsg"
+    kl=$(printf '%s' "$kc" | tr 'A-Z' 'a-z')
+    case $kl in
+      *find-generic-password*|*find-internet-password*|*dump-keychain*|*credread*|*credenumerate*|\
+      *passwordvault*|*-encodedcommand*|*ghl-store*|*ghl_store*|*"launchhouse gohighlevel"*|\
+      *claude_code_mcp_server*) lh_deny_pre "$keymsg" ;;
+    esac
+    # The helpers run only from this folder, alone, on one line.
+    case $kc in
+      *ghl-headers*|*ghl-values-api*)
+        case $kc in *[$nl]*|*';'*|*'&'*|*'|'*|*'`'*|*'$('*|*'>'*) lh_deny_pre "$keymsg" ;; esac ;;
+    esac
+    case $kc in
+      *ghl-headers*)
+        printf '%s' "$kc" | grep -Eqx 'sh (\.claude/scripts/ghl-headers\.sh|"\$CLAUDE_PROJECT_DIR/\.claude/scripts/ghl-headers\.sh") --(check|connect)( < /dev/null)?' \
+          || lh_deny_pre "$keymsg" ;;
+    esac
+    case $kc in
+      *ghl-values-api*)
+        printf '%s' "$kc" | grep -Eqx 'sh (\.claude/scripts/ghl-values-api\.sh|"\$CLAUDE_PROJECT_DIR/\.claude/scripts/ghl-values-api\.sh") (list|create|update [A-Za-z0-9]+)( < [A-Za-z0-9_./:~-]+)?' \
+          || lh_deny_pre "$keymsg" ;;
+    esac ;;
+esac
+
 if [ "$tool" = Bash ]; then
   lh_active || exit 0
   pre="$(lh_root)/growth-engine/.state/.pre"
@@ -28,7 +72,6 @@ if [ "$tool" = Bash ]; then
   lh_push_to_original "$cmd" && lh_deny_pre "Not pushed: that copy on GitHub is the public Launchhouse original, so the founder's work would be public. Tell the founder in one plain sentence that their work is saved on this computer, and that their own private copy on GitHub is where it should go."
   # Bringing back work already saved in this folder is not checked again: an
   # undo must never be undone. Only these exact forms, on one line.
-  nl=$(printf '\n\rx'); nl=${nl%x}
   case $cmd in
     *[$nl]*|*'>'*|*'<'*|*'|'*|*';'*|*'&'*|*'`'*|*'$('*) ;;
     'git restore '*|'git checkout '*' -- '*|'git pull --no-rebase'|'git merge --abort') exit 0 ;;
@@ -58,7 +101,7 @@ base=${full##*/}
 # Opened in the wrong folder: a Launchhouse file written here would be lost.
 if ! lh_active; then
   near=$(lh_near_all)
-  if [ -n "$near" ] && [ -n "$(lh_file_track "$base")" ] && [ "$base" != ".launchhouse" ]; then
+  if [ -n "$near" ] && [ -n "$(lh_base_track "$base")" ] && [ "$base" != ".launchhouse" ]; then
     if [ "$(printf '%s\n' "$near" | grep -c .)" -gt 1 ]; then
       lh_deny_pre "Not written: this is not the founder's Launchhouse folder, so $base would be lost here. There are several Launchhouse folders nearby: $(printf '%s' "$near" | tr '\n' ';' | sed 's/;$//; s/;/, /g'). Ask the founder which is the real one, and tell them to open it."
     fi
@@ -79,13 +122,13 @@ fi
 case $rel in
   growth-engine/*) ;;
   *)
-    ftrack=$(lh_file_track "$base")
+    ftrack=$(lh_base_track "$base")
     if [ -n "$ftrack" ] && [ "$base" != ".launchhouse" ]; then
       track=$(lh_track)
       if { [ "$ftrack" = b2b ] || [ "$ftrack" = b2c ]; } && [ "$track" != "$ftrack" ]; then
         lh_deny_pre "Not written: $base is part of the $(printf '%s' "$ftrack" | tr 'bc' 'BC') method, and this founder is not on that track. Never write the other track's files, here or anywhere."
       fi
-      lh_deny_pre "Not written: $base belongs inside the growth-engine folder, and every Launchhouse file lives there so nothing gets lost. Write it to growth-engine/$base instead."
+      lh_deny_pre "Not written: $base belongs inside the growth-engine folder, and every Launchhouse file lives there so nothing gets lost. Write it to growth-engine/$(lh_place "$base") instead."
     fi
     exit 0 ;;
 esac
@@ -96,26 +139,33 @@ case "/$inner/" in
   */../*|*/./*) lh_deny_pre "Not written: $rel climbs out of the growth-engine folder. Keep every path inside growth-engine/." ;;
 esac
 
+# Where each file goes is the table in .claude/references/contract.md, which
+# lh_place in lib.sh mirrors. The folders that take any file are people/,
+# drafts/, inbox/uploads/, brain/voice-samples/ and .state/.
+place=$(lh_place "$base")
 case $inner in
-  */*)
-    top=${inner%%/*}
-    case $top in
-      people)
-        case $base in
-          README.md) ;;
-          *)
-            slug=${base%.md}
-            if [ "$slug" = "$base" ] || ! printf '%s' "$slug" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' || [ ${#slug} -gt 60 ]; then
-              lh_deny_pre "Not written: person files are named as a plain slug, lower case letters, digits and single dashes, ending .md, for example sam-example-com.md. Rename it and write it again."
-            fi ;;
-        esac ;;
-      uploads|voice-samples|drafts|.state) ;;
-      *) lh_deny_pre "Not written: growth-engine/$top/ is not one of the Launchhouse folders. Use drafts/ for work in progress, uploads/ for documents, voice-samples/ for the founder's own writing." ;;
+  people/*)
+    case $base in
+      README.md) ;;
+      *)
+        slug=${base%.md}
+        if [ "$slug" = "$base" ] || ! printf '%s' "$slug" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' || [ ${#slug} -gt 60 ]; then
+          lh_deny_pre "Not written: person files are named as a plain slug, lower case letters, digits and single dashes, ending .md, for example sam-example-com.md. Rename it and write it again."
+        fi ;;
     esac ;;
+  drafts/*|inbox/uploads/*|brain/voice-samples/*|.state/*) ;;
+  uploads/*|voice-samples/*)
+    lh_deny_pre "Not written: growth-engine/${inner%%/*}/ has moved to growth-engine/$(lh_dir_place "${inner%%/*}")/. Write it to growth-engine/$(lh_dir_place "${inner%%/*}")/${inner#*/} instead." ;;
   *)
+    if [ -n "$place" ] && [ "$place" != "$inner" ]; then
+      lh_deny_pre "Not written: $base lives at growth-engine/$place, not growth-engine/$inner. Write it there instead."
+    fi
     ftrack=$(lh_file_track "$inner")
     if [ -z "$ftrack" ]; then
-      lh_deny_pre "Not written: $inner is not one of the Launchhouse files. Put work in progress in growth-engine/drafts/ instead, or use the file name the engine asks for."
+      case $inner in
+        */*) lh_deny_pre "Not written: growth-engine/$inner is not one of the Launchhouse files. Put work in progress in growth-engine/drafts/, documents in growth-engine/inbox/uploads/, and the founder's own writing in growth-engine/brain/voice-samples/, or use the file name the engine asks for." ;;
+        *) lh_deny_pre "Not written: $inner is not one of the Launchhouse files. Put work in progress in growth-engine/drafts/ instead, or use the file name the engine asks for." ;;
+      esac
     fi
     if [ "$ftrack" = b2b ] || [ "$ftrack" = b2c ]; then
       track=$(lh_track)

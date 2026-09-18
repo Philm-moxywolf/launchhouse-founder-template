@@ -5,7 +5,8 @@
 # does creating or updating a sequence with active set to true: the founder
 # presses start in Apollo themselves, having read it.
 # Apollo email_account_purchase_create spends their money.
-# A mailbox's send, reply and forward tools: Claude writes drafts only.
+# A mailbox's send, reply and forward tools: Claude writes drafts only. And
+# its mail rules, which can forward mail with nobody looking.
 #
 # In a Launchhouse folder, and also when the founder opened a folder next to
 # one, because the wrong folder is the most common way in.
@@ -26,6 +27,8 @@ case $tool in
     why="Launchhouse never buys anything on the founder's account. If they want a mailbox, they buy it in Apollo themselves." ;;
   *__send_message|*__reply|*__forward|*__send_inbox_draft)
     why="Launchhouse never sends from the founder's mailbox. Claude writes drafts only, and the founder presses Send themselves." ;;
+  *__create_filter)
+    why="Launchhouse never sets up mail rules, which can forward or file the founder's mail without them seeing it. If they want one, they make it in their mail app themselves." ;;
   *) exit 0 ;;
 esac
 

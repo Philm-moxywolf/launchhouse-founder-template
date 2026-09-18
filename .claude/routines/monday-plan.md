@@ -18,7 +18,7 @@ Rules you never break:
 - No em dashes or en dashes. Short sentences. Plain words.
 
 Do this:
-1. Read growth-engine/founder-brain.md (Track, Goal, Numbers), growth-engine/90-day-plan.md if it exists, growth-engine/ledger.md, growth-engine/.state/index.md, growth-engine/.state/setup.md, growth-engine/.state/profile.md for the timezone, and the last 14 days of growth-engine/ops-log.md.
+1. Read growth-engine/brain/founder-brain.md (Track, Goal, Numbers), growth-engine/engines/plan/90-day-plan.md if it exists, growth-engine/log/ledger.md, growth-engine/.state/index.md, growth-engine/.state/setup.md, growth-engine/.state/profile.md for the timezone, and the last 14 days of growth-engine/log/ops-log.md.
 2. Work out today's date in the founder's timezone and the ISO week number.
 3. If growth-engine/drafts/week-<YYYY>-<WW>.md already exists, stop without writing anything.
 4. Write growth-engine/drafts/week-<YYYY>-<WW>.md with, in this order:

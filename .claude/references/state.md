@@ -18,7 +18,7 @@ A short header, then one row per gate item for this founder's track only.
 
 ```
 Computed: 2026-09-17 17:15
-Newest change: growth-engine/content-30.md, 2026-09-17 16:02
+Newest change: growth-engine/engines/content/content-30.md, 2026-09-17 16:02
 Stamp: 2317745611-1204
 Track: b2b
 Engine in progress: content

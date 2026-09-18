@@ -26,6 +26,10 @@ case $tool in
     why="This sends a message from the founder's GoHighLevel account. It is only for replying to someone who wrote first: check their conversation shows a message from them, show the founder the reply, and get a yes. A first message to someone who has not written goes by hand from the founder's own phone." ;;
   *emails_create-template)
     why="This creates an email template in GoHighLevel. Check the founder said yes." ;;
+  *contacts_create-contact|*contacts_upsert-contact|*contacts_update-contact|*contacts_add-tags|*opportunities_update-opportunity)
+    why="This changes a contact or deal in GoHighLevel, which can start one of its workflows and send a message. Check the founder has seen the change and said yes." ;;
+  *blogs_create-blog-post|*blogs_update-blog-post)
+    why="This puts a blog post into GoHighLevel. Check the founder has seen the words and said yes." ;;
   *__execute_operation)
     why="This can post, edit or message from the founder's GoHighLevel account. Show the founder exactly what goes out, and check they said yes." ;;
   *__create_draft|*__update_draft)

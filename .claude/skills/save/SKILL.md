@@ -24,7 +24,7 @@ Any of those can lose work, and none of them is ever needed here.
 2. Say in one line what is being saved, in words: "your content file and 3 new writing samples".
 3. Run `git add -A`.
    - `.gitignore` keeps `people/` and downloaded zips out.
-   - If `git status` shows a person file, a zip, `outreach-firstlines.csv`, `dm-openers.md`, or any `.csv` with an email column about to be added, stop. Run `git restore --staged` on it, fix `.gitignore` from the start skill's scaffold, and only then save.
+   - If `git status` shows a person file, a zip, `engines/outreach/outreach-firstlines.csv`, `engines/audience/dm-openers.md`, or any `.csv` with an email column about to be added, stop. Run `git restore --staged` on it, fix `.gitignore` from the start skill's scaffold, and only then save.
 4. Commit with a short plain message that says what the work was: `git commit -m "<what changed>"`.
 5. **Push.**
    - If `git remote -v` shows a remote, run `git push`.
@@ -65,16 +65,16 @@ If the file was deleted, find the last save that had it with `git log --diff-fil
 
 ## Restoring the Founder Brain
 
-Before restoring `founder-brain.md`, compare the `Track:` line of the version coming back with the current one. If they differ, say so plainly before the yes: "that version is on the B2B track, and you are on B2C now, so everything would switch back". After restoring, the Launchhouse checks and the session context follow the restored track.
+Before restoring `brain/founder-brain.md`, compare the `Track:` line of the version coming back with the current one. If they differ, say so plainly before the yes: "that version is on the B2B track, and you are on B2C now, so everything would switch back". After restoring, the Launchhouse checks and the session context follow the restored track.
 
 ## What history cannot bring back
 
-`people/`, `outreach-firstlines.csv` and `dm-openers.md` are kept out of git, so they have no earlier versions here. If one of those is lost, say so honestly. People can be found again in Apollo, or from the founder's own list.
+`people/`, `engines/outreach/outreach-firstlines.csv` and `engines/audience/dm-openers.md` are kept out of git, so they have no earlier versions here. If one of those is lost, say so honestly. People can be found again in Apollo, or from the founder's own list.
 
 ## What a restore makes out of date
 
-A restored file is a changed file, so anything built from it no longer matches. Check it against the table in `../../references/contract.md`, under "When one file changes, what goes stale". Name what is now out of date in plain words, and offer to rebuild it. Never rebuild it quietly, and never leave it unsaid. Bringing back `founder-brain.md` is the widest: the content files, the track's engine 2 files, the operations workflow, the plan and the playbook insert were all built from it.
+A restored file is a changed file, so anything built from it no longer matches. Check it against the table in `../../references/contract.md`, under "When one file changes, what goes stale". Name what is now out of date in plain words, and offer to rebuild it. Never rebuild it quietly, and never leave it unsaid. Bringing back `brain/founder-brain.md` is the widest: the content files, the track's engine 2 files, the operations workflow, the plan and the playbook insert were all built from it.
 
 ## Content approvals
 
-If a restored file is `content-30.md`, any piece whose words changed goes back to `draft` in `ledger.md`, because approval is of the words as they read. Say which.
+If a restored file is `engines/content/content-30.md`, any piece whose words changed goes back to `draft` in `log/ledger.md`, because approval is of the words as they read. Say which.

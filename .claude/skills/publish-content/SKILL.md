@@ -5,7 +5,7 @@ description: Publish the founder's approved content through their GoHighLevel co
 
 # Publish content
 
-Puts approved pieces from `content-30.md` into GoHighLevel's Social Planner, on the founder's own account.
+Puts approved pieces from `engines/content/content-30.md` into GoHighLevel's Social Planner, on the founder's own account.
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
 
@@ -20,9 +20,9 @@ Puts approved pieces from `content-30.md` into GoHighLevel's Social Planner, on 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
 2. **Check GoHighLevel is connected,** in either shape. If it is not, stop and run `/growth-engine:connect`.
 3. **Read these:**
-   - `growth-engine/founder-brain.md`, for the track
-   - `growth-engine/content-30.md`
-   - the `C|` rows in `growth-engine/ledger.md`
+   - `growth-engine/brain/founder-brain.md`, for the track
+   - `growth-engine/engines/content/content-30.md`
+   - the `C|` rows in `growth-engine/log/ledger.md`
    - `growth-engine/.state/profile.md`, for their timezone
 4. **If there is no content,** send them to `/growth-engine:content`.
 5. **If there is no timezone,** ask where they are before scheduling anything.
@@ -33,7 +33,7 @@ Only pieces at `approved` can be published.
 
 If the founder asks for "the next five", take the first five approved rows that have no post id, in ledger order.
 
-A row's id says where its words are: a plain number is that piece in `content-30.md`, and `<suffix>-<n>` is piece n in `content-30-<suffix>.md`. Always publish the words from that file, exactly as they are there.
+A row's id says where its words are: a plain number is that piece in `engines/content/content-30.md`, and `<suffix>-<n>` is piece n in `engines/content/content-30-<suffix>.md`. Always publish the words from that file, exactly as they are there.
 
 If a piece's words have changed since its row was approved, the approval no longer matches the words. Say so, show the piece again, and publish it only if they approve it as it now reads.
 
@@ -59,7 +59,7 @@ The founder may have edited pieces by hand since they were written. Use the `rul
 
 ## 3. Choose where and when
 
-1. **Get the accounts to post to,** and match each piece to the right accounts by its `platform` in the matching sheet: `content-30.csv` for a plain id, `content-30-<suffix>.csv` for an archived one.
+1. **Get the accounts to post to,** and match each piece to the right accounts by its `platform` in the matching sheet: `engines/content/content-30.csv` for a plain id, `engines/content/content-30-<suffix>.csv` for an archived one.
    - B2B pieces usually go to LinkedIn.
    - B2C pieces go to Instagram and the Facebook Page.
    - If a platform is not connected, say so, and do not post that piece there.
@@ -90,7 +90,7 @@ For each post, one at a time:
    - post id: the id GoHighLevel returned
    - status: `scheduled` for a scheduled post. A draft stays `approved` with the post id set, because it has not been scheduled yet.
    - goes out: the scheduled time in their timezone, as `2026-09-25T09:00`, or `-` for a draft
-5. **Record the result** as a line in `ops-log.md`: `- HH:MM result: scheduled piece 7 to LinkedIn for 25 Sep 09:00`.
+5. **Record the result** as a line in `log/ops-log.md`: `- HH:MM result: scheduled piece 7 to LinkedIn for 25 Sep 09:00`.
 
 **If a call fails,**
 - set that row's status to `failed`
@@ -118,16 +118,16 @@ When they ask what was published:
 When they ask how posts did:
 - Read how the posts did from GoHighLevel.
 - Report what it returns, in plain words. Never invent a figure it did not return, and never compare it to a benchmark nobody gave you.
-- If something clearly worked or clearly did not, offer to note it in the What worked or What did not block of `memory.md`, dated, so the next refill uses it.
+- If something clearly worked or clearly did not, offer to note it in the What worked or What did not block of `log/memory.md`, dated, so the next refill uses it.
 
 ## The 25 outreach emails, into the founder's drafts
 
 B2B only. This puts each person's finished first email into the founder's own Gmail drafts, so they read it and press Send, instead of copying and pasting. Follow the mailbox rules in `../../references/connections.md`: **drafts only, never send.**
 
 1. **Check it fits.**
-   - The Brain's track is `b2b`, and `outreach-sequence.md` records the manual route. On the Apollo route, Apollo sends the sequence through their mailbox once they start it, so there is nothing to draft. Say so.
+   - The Brain's track is `b2b`, and `engines/outreach/outreach-sequence.md` records the manual route. On the Apollo route, Apollo sends the sequence through their mailbox once they start it, so there is nothing to draft. Say so.
    - Gmail is connected: a tool whose name ends in `create_draft`. If not, run `/growth-engine:connect`. On Microsoft 365 there is no draft tool, so say plainly that the 25 go by hand from each person's file.
-2. **Gather the emails.** For each person in `people/` at `kind: prospect`, not at `cut`, and not yet sent to, take their email address and the finished touch 1 in their Opener block. Take the subject line from touch 1 in `outreach-sequence.md`. Skip anyone with no address or no Opener block, and say who.
+2. **Gather the emails.** For each person in `people/` at `kind: prospect`, not at `cut`, and not yet sent to, take their email address and the finished touch 1 in their Opener block. Take the subject line from touch 1 in `engines/outreach/outreach-sequence.md`. Skip anyone with no address or no Opener block, and say who.
 3. **Show, then wait.** Show a table, one row per email: first name, company, subject, the first line. Say: "These go into your Gmail drafts, not out. You read each one and press Send yourself. Shall I put them in?" Wait for a clear yes. A yes covers exactly this table.
 4. **Draft them,** one at a time, to that one person, with the subject and the Opener block exactly as written. Never send, reply or forward.
 5. **Record it** in each person's file as a touch line: `- YYYY-MM-DD email drafted: touch 1 in Gmail drafts`. Leave their status as it is: nothing is sent until they press Send. When they say they have sent to someone, record it the way the outreach engine says.

@@ -8,7 +8,7 @@ Create a file only when it is missing. Never overwrite one that exists.
 This is a Launchhouse founder folder. Everything the growth engine makes lives in this growth-engine folder.
 ```
 
-## growth-engine/ledger.md
+## growth-engine/log/ledger.md
 
 ```markdown
 # Ledger
@@ -17,7 +17,7 @@ One row per content piece. Format: C|id|pillar|format|lane|status|post id|goes o
 Status is draft, approved, scheduled, posted, failed or archived. A piece becomes approved only when the founder says so.
 ```
 
-## growth-engine/memory.md
+## growth-engine/log/memory.md
 
 ```markdown
 # Memory
@@ -53,7 +53,7 @@ Add one line per entry inside the marked blocks, dated. Anything under Notes is 
 Anything below this heading is the founder's own.
 ```
 
-## growth-engine/ops-log.md
+## growth-engine/log/ops-log.md
 
 ```markdown
 # Ops log
@@ -135,17 +135,17 @@ A founder on the Launchhouse Atlanta programme, building their business. They ar
 
 **Saving.** The folder is saved with git. When a piece of work is finished, commit it with a short plain message, and push if there is a GitHub remote. Never push to a remote under `Philm-moxywolf`: that is the public original every founder copies. Any earlier version can be brought back.
 
-**Real people.** `growth-engine/people/`, `growth-engine/outreach-firstlines.csv` and `growth-engine/dm-openers.md` hold real people's names, emails or handles. They are kept out of git on purpose. Never paste them anywhere public, and never copy a person's details into any other file.
+**Real people.** `growth-engine/people/`, `growth-engine/engines/outreach/outreach-firstlines.csv` and `growth-engine/engines/audience/dm-openers.md` hold real people's names, emails or handles. They are kept out of git on purpose. Never paste them anywhere public, and never copy a person's details into any other file.
 
 **Cowork.** Cowork can work in this same folder, for dropping in documents and photos and for planning. Whatever either one saves into `growth-engine/`, the other sees.
 
 ## Where the system lives
 
-This folder carries Launchhouse itself, in `.claude/`: the skills, the agents, the checks that run on every write, the references they read and the routines. Nothing is installed from a marketplace, so there is never a plugin to add or update. If the founder has the old `growth-engine` plugin installed as well, this folder's copy is the one in use.
+This folder carries Launchhouse itself, in `.claude/`: the skills, the agents, the checks that run on every write, the references they read and the routines. Nothing is installed from a marketplace, so there is never a plugin to add or update. If the founder has the old `growth-engine` plugin installed as well, this folder's copy is the one in use: `.claude/settings.json` switches the old `growth-engine` plugin off inside this folder, so there are never two copies.
 
 ## The Founder Brain comes first
 
-`growth-engine/founder-brain.md` is the record of the business: what they sell, who to, what they can prove, and how they write. Read it before writing anything for them.
+`growth-engine/brain/founder-brain.md` is the record of the business: what they sell, who to, what they can prove, and how they write. Read it before writing anything for them.
 
 If it does not exist, the next step is the Founder Brain (`/growth-engine:brain`). If the folder is not set up, start with `/growth-engine:start`.
 
@@ -158,7 +158,7 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 3. **B2B outreach is 25 messages.** Low volume, to a list the founder built and can explain. Never promise replies. Replies depend on the list, the offer and the timing.
 4. **Everything lives in `growth-engine/`.** Never anywhere else.
 5. **Never invent proof.** No made-up numbers, customers, results or testimonials. If proof is thin, write from point of view and observation. A real figure goes in the Brain first.
-6. **The voice is the founder's.** Topics can come from other sources. The voice comes only from their own writing in `growth-engine/voice-samples/` and the Voice section of the Brain.
+6. **The voice is the founder's.** Topics can come from other sources. The voice comes only from their own writing in `growth-engine/brain/voice-samples/` and the Voice section of the Brain.
 
 ## What the tools never do here
 

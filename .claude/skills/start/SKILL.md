@@ -35,17 +35,19 @@ The session context at the top of this conversation says one of three things.
 
 Everything a founder makes lives in `growth-engine/`, inside the folder they opened. Nothing is ever written anywhere else.
 
+**A folder in the older layout.** If `growth-engine/` has any of `founder-brain.md`, `content-30.md`, `ledger.md`, `memory.md`, `ops-log.md`, `uploads/` or `voice-samples/` at its top, it is in the older, flat layout. Before creating anything, run `sh .claude/scripts/move-layout.sh < /dev/null`. It moves each file to its place in folders by kind, never overwrites, never deletes, and adds a line to `growth-engine/log/ops-log.md`. Tell the founder in one or two plain sentences: their files now sit in folders by kind, so what is theirs, what the engines made and what they hand over each have their own place, and nothing was changed or lost. If it says it left a file where it was, because the new place already had one, name both files, show the first lines of each, and ask which to keep. Never overwrite or delete either without their yes. Run this only here, never by itself at the start of a session. Step 4 saves the move.
+
 Create only what is missing, and never overwrite a file that exists. A founder's private copy of the Launchhouse repository already has `.claude/` and `CLAUDE.md`, so this step adds the rest. Launchhouse runs inside a copy of that repository: any other folder needs `.claude/` copied across whole first. The exact starting contents are in `references/scaffold.md` next to this file.
 
 - `growth-engine/.launchhouse`
-- `growth-engine/ledger.md`, `growth-engine/memory.md`, `growth-engine/ops-log.md`
+- `growth-engine/log/ledger.md`, `growth-engine/log/memory.md`, `growth-engine/log/ops-log.md`
 - `growth-engine/people/README.md`
-- `growth-engine/uploads/`, `growth-engine/voice-samples/`, `growth-engine/drafts/`, each with an empty `.gitkeep`
+- `growth-engine/inbox/uploads/`, `growth-engine/brain/voice-samples/`, `growth-engine/drafts/`, each with an empty `.gitkeep`
 - a `.gitignore` in the folder they opened, containing the lines in the scaffold reference. If it has a line that ignores the whole `growth-engine` folder, such as `/growth-engine/`, remove that one line: it would stop their work being saved.
 - `.claude/` in the folder they opened, if it is not there: copy it whole from the founder's copy of the Launchhouse repository, as the scaffold reference says. Never write `settings.json` out by hand.
 - `CLAUDE.md` in the folder they opened: created if missing, or the Launchhouse text added to the end of one that is not Launchhouse's, as the scaffold reference says
 
-Do not create `founder-brain.md`. The Founder Brain makes it.
+Do not create `brain/founder-brain.md`. The Founder Brain makes it.
 
 ## 3. A few quick questions
 

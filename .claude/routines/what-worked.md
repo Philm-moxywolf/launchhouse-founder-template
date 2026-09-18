@@ -19,7 +19,7 @@ Rules you never break:
 - No em dashes or en dashes. Short sentences.
 
 Do this:
-1. Read growth-engine/ledger.md for C rows at scheduled or posted with a post id, and growth-engine/.state/profile.md for the timezone.
+1. Read growth-engine/log/ledger.md for C rows at scheduled or posted with a post id, and growth-engine/.state/profile.md for the timezone.
 2. If there are none from the last 7 days, stop without writing anything.
 3. If no GoHighLevel read tools are available to you, stop without writing anything.
 4. For each post from the last 7 days, read its statistics. Write growth-engine/drafts/what-worked-<today>.md with a short table: piece number, first line, platform, the figures returned.

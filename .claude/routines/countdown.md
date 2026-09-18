@@ -19,7 +19,7 @@ Rules you never break:
 
 Do this:
 1. Work out today's date in the founder's timezone from growth-engine/.state/profile.md, and the programme dates from the cohort block in .claude/references/gates.md. If today is after the day Atlanta starts, stop without writing anything.
-2. Read growth-engine/founder-brain.md for the Track and Flags, growth-engine/.state/index.md, growth-engine/.state/setup.md, growth-engine/.state/gate-answers.md, growth-engine/ledger.md. Take the people count from the people/ row of growth-engine/.state/index.md, because people/ itself is never on GitHub.
+2. Read growth-engine/brain/founder-brain.md for the Track and Flags, growth-engine/.state/index.md, growth-engine/.state/setup.md, growth-engine/.state/gate-answers.md, growth-engine/log/ledger.md. Take the people count from the people/ row of growth-engine/.state/index.md, because people/ itself is never on GitHub.
 3. Rewrite growth-engine/drafts/before-atlanta.md with:
    - "<n> days to Atlanta", counted to the day Atlanta starts in the cohort block.
    - Not done yet, gate by gate, for this founder's track only: Gate A the Brain, Gate B content with 30 approved, Gate C engine 2 and the operations workflow. Name what is missing in a few words each. dm-openers.md and outreach-firstlines.csv are never on GitHub either, so take their state from the index. The 25 B2C messages go out at the event, so never list them as missing.

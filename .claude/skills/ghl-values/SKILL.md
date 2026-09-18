@@ -24,13 +24,13 @@ If the snapshot is already loaded, nothing changes except that the pasting can f
 **Check the gate first.** Read `./growth-engine/.state/gate-state.md`. These words come from the Brain and the operations file, so look at the Gate A rows and the Gate C `workflow` row. If one is `not done`, say in one plain sentence what is missing, using the row's evidence, then offer to carry on anyway. Never hold a founder up for working out of order.
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
-2. **Read the Brain.** Read `./growth-engine/founder-brain.md`.
+2. **Read the Brain.** Read `./growth-engine/brain/founder-brain.md`.
    - If it genuinely does not exist, do not leave them stuck. Say in one plain sentence that this engine writes from their Founder Brain, about an hour of their own answers that every engine reads, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
    - Do not ask them to describe their business again from scratch, and do not guess at their offer, audience or voice.
-3. **Read `./growth-engine/ops-workflow.md`.** It names the pack to publish first and holds the copy already written for it. Reuse that copy rather than writing a second version of the same email. A file made in the app calls that pack a snapshot, using one of six names: Lead follow-up, Discovery booking, Proposal chase, Comment-to-DM capture, DM qualify and book, or Review request. Comment-to-DM capture is the Comment to DM pack. Read the name as the pack to publish first. The file is not out of date, and nothing in it needs redoing. Their snapshot still comes from the Brain.
+3. **Read `./growth-engine/engines/ops/ops-workflow.md`.** It names the pack to publish first and holds the copy already written for it. Reuse that copy rather than writing a second version of the same email. A file made in the app calls that pack a snapshot, using one of six names: Lead follow-up, Discovery booking, Proposal chase, Comment-to-DM capture, DM qualify and book, or Review request. Comment-to-DM capture is the Comment to DM pack. Read the name as the pack to publish first. The file is not out of date, and nothing in it needs redoing. Their snapshot still comes from the Brain.
    - If it does not exist, offer the operations engine first: it finds their bottleneck and writes copy this step reuses (`/growth-engine:ops`, or "build my ops engine"). If they would rather carry on now, ask which pack in their snapshot answers the job they most want off their plate, from the lists in `references/values.md`, write Essentials and that pack first, fresh from the Brain, and suggest the operations engine afterwards.
 4. **When something is missing or thin.** If something this step needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
-5. **Check for existing values.** If `ghl-values.md` already exists, ask whether they want to change the words or start again, and go straight there. If `ops-workflow.md` or `inbound-scripts.md` has changed since `ghl-values.md` was written, say plainly that the values built from that copy are now out of date, and offer to rewrite those values.
+5. **Check for existing values.** If `engines/ops/ghl-values.md` already exists, ask whether they want to change the words or start again, and go straight there. If `engines/ops/ops-workflow.md` or `engines/audience/inbound-scripts.md` has changed since `engines/ops/ghl-values.md` was written, say plainly that the values built from that copy are now out of date, and offer to rewrite those values.
 
 ## Step 1: name their lists
 
@@ -44,12 +44,12 @@ Their track and hybrid flag decide their snapshot, and the snapshot decides the 
 
 **Write them all.** Every pack arrives as drafts, and a founder publishes only the packs whose words they wrote, Essentials among them. Words written now are what lets them switch a second pack on in October without coming back to this.
 
-**Write the pack `ops-workflow.md` names first,** then Essentials, then the rest. That is the pack that answers their bottleneck. If they run short of time, stop after any pack and say plainly which ones you have left, so nothing is published thinking it is finished.
+**Write the pack `engines/ops/ops-workflow.md` names first,** then Essentials, then the rest. That is the pack that answers their bottleneck. If they run short of time, stop after any pack and say plainly which ones you have left, so nothing is published thinking it is finished.
 
 In each `Essentials` list, 9 of the 11 must be filled before anything is published: the two client or customer welcome values are only needed if they switch that pair of workflows on. On Hybrid that pair is the customer welcome values, never the client ones.
 
-`Review request` has no custom values. Its two emails go into review templates instead, at `Reputation`, then the `Settings` tab, then the email request settings, then `Set Email Templates`: `Review Ask Email` in the `Live` slot and `Review Reminder Email` in the `Retry` slot. Still write both, on B2C and Hybrid, because no other step does unless `ops-workflow.md` names Review request.
-- **Where.** In `ghl-values.md`, under a `## Review request templates` heading. Take them from `ops-workflow.md` when it has them, and write them fresh from the Brain when it does not.
+`Review request` has no custom values. Its two emails go into review templates instead, at `Reputation`, then the `Settings` tab, then the email request settings, then `Set Email Templates`: `Review Ask Email` in the `Live` slot and `Review Reminder Email` in the `Retry` slot. Still write both, on B2C and Hybrid, because no other step does unless `engines/ops/ops-workflow.md` names Review request.
+- **Where.** In `engines/ops/ghl-values.md`, under a `## Review request templates` heading. Take them from `engines/ops/ops-workflow.md` when it has them, and write them fresh from the Brain when it does not.
 - **Review Ask Email.** A subject of a few plain words, and 2 to 4 short sentences that thank them, name the kind of work the founder does rather than one customer's own job, and ask for an honest review at the link below.
 - **Review Reminder Email.** A subject, and 1 or 2 sentences, shorter than the ask, saying it is the only reminder.
 - **Neither holds** a name, number, result or customer the Brain does not record, a bracket, a merge field, a star rating or a reward, and neither tells the customer what to write. Leave out the business name and postal address, because the template has its own lines for them.
@@ -63,13 +63,13 @@ Their voice is on paper already. Take it from there rather than inventing a seco
 
 | File | What to take from it |
 |---|---|
-| `ops-workflow.md` | The pack to publish first, and every message already written for it. A file from the app holds copy for that one pack only, which is complete as it is. Write the other packs fresh here |
-| `content-30.md` | Their 30 pieces: the clearest sample of how they actually write |
-| `outreach-sequence.md` | B2B: the subject lines and angles they already send |
-| `hook-bank.md` | B2C: hooks worth reworking into subject lines |
-| `dm-openers.md` | B2C: how they open a conversation |
-| `inbound-scripts.md` | B2C: their comment and DM wording, for the two Instagram packs |
-| `90-day-plan.md` | What they are pushing this quarter, so the ask matches |
+| `engines/ops/ops-workflow.md` | The pack to publish first, and every message already written for it. A file from the app holds copy for that one pack only, which is complete as it is. Write the other packs fresh here |
+| `engines/content/content-30.md` | Their 30 pieces: the clearest sample of how they actually write |
+| `engines/outreach/outreach-sequence.md` | B2B: the subject lines and angles they already send |
+| `engines/audience/hook-bank.md` | B2C: hooks worth reworking into subject lines |
+| `engines/audience/dm-openers.md` | B2C: how they open a conversation |
+| `engines/audience/inbound-scripts.md` | B2C: their comment and DM wording, for the two Instagram packs |
+| `engines/plan/90-day-plan.md` | What they are pushing this quarter, so the ask matches |
 
 Two rules when files disagree. **The Brain wins on voice and on what may be claimed.** A post naming a number the Brain does not record does not license that number here. **The list in `references/values.md` decides what exists.** Copy written in the app, or before the packs were settled, can hold a message with nowhere to go, such as a text message or a note to the founder. Leave those out and say plainly which ones, and why. That is a gap in the list, not a fault in their file.
 
@@ -97,7 +97,7 @@ Never ask for something the Brain or their files already say. After reading ever
 
 ## Step 5: write the file
 
-Write `./growth-engine/ghl-values.md`, grouped by pack.
+Write `./growth-engine/engines/ops/ghl-values.md`, grouped by pack.
 
 The one line values, which are the greeting, every subject, every button, every link and any Instagram message that is one line, go in a table:
 
@@ -121,9 +121,9 @@ Then two short sections:
 
 ## Step 6: check and save
 
-First add one line to the Decisions block of `growth-engine/memory.md`: `- YYYY-MM-DD ghl values: <count> written for <snapshot>`.
+First add one line to the Decisions block of `growth-engine/log/memory.md`: `- YYYY-MM-DD ghl values: <count> written for <snapshot>`.
 
-1. **Check.** Use the `rules-reviewer` agent on `ghl-values.md`. Give it every figure the founder gave in this conversation.
+1. **Check.** Use the `rules-reviewer` agent on `engines/ops/ghl-values.md`. Give it every figure the founder gave in this conversation.
 2. **Fix what it holds.** Ask about any held figure rather than guessing. Do this at most twice.
 3. **Save.** Run `git add growth-engine` then `git commit -m "GoHighLevel values: <snapshot>"`. Push if there is a remote. If the push fails, say it is saved on this computer.
 
@@ -133,26 +133,27 @@ First add one line to the Decisions block of `growth-engine/memory.md`: `- YYYY-
 
 **First, everything back to draft.** Straight after the load, they go to `Automation`, then `Workflows`, select the published ones and set them to draft under `Bulk Actions`, page by page, so nothing fires while they paste.
 
-**By hand, which is the normal way.** In their sub-account, open `Settings`, then `Custom Values`. Every name is already there, waiting, because the snapshot brought it. They open each one, paste the words from `ghl-values.md`, and save. Around fifteen minutes for the whole list. Read the names out one at a time if that helps, and keep their place.
+**By hand, which is the normal way.** In their sub-account, open `Settings`, then `Custom Values`. Every name is already there, waiting, because the snapshot brought it. They open each one, paste the words from `engines/ops/ghl-values.md`, and save. Around fifteen minutes for the whole list. Read the names out one at a time if that helps, and keep their place.
 
 **Change the words only, never the name.** GoHighLevel builds the key from the name when the value is made. Rename one later and every step using it goes blank.
 
-**Over the API, only if they would rather.** By hand is the route to recommend. This one is for a founder who is comfortable with it, and it needs a Private Integration Token, which they make themselves, in their own sub-account, at `Settings`, then `Private Integrations`, ticking the custom values scopes and nothing else. Before they decide, say that the token is a password for their whole account and that it stops working 90 days after they make it. Offer it once, never insist, and never make it sound like the real way.
+**Over the API, only if they would rather.** By hand is the route to recommend. This one is for a founder who is comfortable with it, and it needs a Private Integration Token, which they make themselves, in their own sub-account, at `Settings`, then `Private Integrations`, ticking the custom values scopes and nothing else. Before they decide, say that the token is a password for their whole account, and that it keeps working until they delete it, because GoHighLevel's help pages say these tokens do not expire on their own. That is why it is deleted at the end of this job. Offer it once, never insist, and never make it sound like the real way.
 
 If they choose it:
-- **How the token reaches you.** Ask them to put it in a plain text file outside their Launchhouse folder, their Documents folder is fine, and to tell you where it is. Check the path really is outside that folder before using it: a save runs `git add -A`, so a token left inside would reach GitHub. The command reads that file itself, so you write the path and never the token, building the header as `"Authorization: Bearer $(cat <path>)"`. Never open or print that file yourself, because anything you read lands in this conversation. Never ask them to type or paste the token into the chat, and never repeat it back.
-- **Never write it down and never print it.** Not in any file in their folder, not in `ghl-values.md`, `memory.md` or `ops-log.md`, not in a command you write out, and not in anything that reaches GitHub.
+- **How the token reaches you.** It goes in their computer's own password store, never in a file and never in the chat, as a second item beside the connection's. The steps are the ones in `connect-tools` step 3, with two changes: the name is exactly `Launchhouse GoHighLevel values`, and the password is this token, not the connection's key. The account name (Mac) or user name (Windows) is the Location ID, as there. Never use or change the `Launchhouse GoHighLevel` item for this.
+- **Only through the helper.** Every call goes through `sh .claude/scripts/ghl-values-api.sh`, which reads the token from the store itself and prints only GoHighLevel's answer: `list < /dev/null` reads what is in the account, `create < <file>` makes one value, and `update <id> < <file>` changes one. The file holds GoHighLevel's own JSON, `{"name": "...", "value": "..."}`. Write it outside their Launchhouse folder, in the system temp folder, and delete it after. On a Mac, tell them first that a box will ask whether to let "security" use the item: they type their Mac password and click **Allow**. Never read the store any other way.
+- **Never write it down and never print it.** Not in any file in their folder, not in `engines/ops/ghl-values.md`, `log/memory.md` or `log/ops-log.md`, not in a command you write out, and not in anything that reaches GitHub.
 - **Read what is in the account first, then ask.** Their sub-account id is in the address bar after `/location/`. Show the whole list before anything is written: every value you are about to create, every one you are about to change, what each of those holds now, and which of them already hold words they did not write. Wait for a yes. That one yes covers every create and change on the list you showed, and nothing else.
 - **Only their own snapshot's lists.** Never touch a value that is not on them, never delete one, and never write to a contact, a workflow, a tag or anything else in their account.
 - Create the ones that are missing and update the ones that are there. Creating a name twice fails rather than replacing it.
-- The endpoint is `https://services.leadconnectorhq.com/locations/<id>/customValues`, with a `Version: 2021-07-28` header.
-- **Delete the token with them before you close the job, whether it worked or not.** If they stop part way, a write fails, or they change their mind after making it, delete it then. Send them to `Settings`, then `Private Integrations`, and wait until they say it is gone. Then delete the file they put it in, and say so.
+- The helper calls `https://services.leadconnectorhq.com/locations/<id>/customValues` with a `Version: 2021-07-28` header, taking the id from the item.
+- **Delete the token with them before you close the job, whether it worked or not.** If they stop part way, a write fails, or they change their mind after making it, delete it then. Send them to `Settings`, then `Private Integrations`, and wait until they say it is gone. Then ask them to delete the `Launchhouse GoHighLevel values` item: in Keychain Access, right click it and choose **Delete**; in Credential Manager, open its arrow and choose **Remove**. Never delete the `Launchhouse GoHighLevel` item, which is the connection's.
 
 **Then, on B2C and Hybrid, the two review emails, every time.** They go in whether or not `Review request` is published, because a review request sent by hand uses the same templates and would otherwise send the word PLACEHOLDER. This part is always done by hand, even when the values went in over the API.
 - Open `Reputation`, then the `Settings` tab, then the email request settings, then `Set Email Templates`.
-- Paste `Review Ask Email` over the PLACEHOLDER words in the `Live` slot, and `Review Reminder Email` over the PLACEHOLDER words in the `Retry` slot. The subject and body of each come from `## Review request templates` in `ghl-values.md`.
+- Paste `Review Ask Email` over the PLACEHOLDER words in the `Live` slot, and `Review Reminder Email` over the PLACEHOLDER words in the `Retry` slot. The subject and body of each come from `## Review request templates` in `engines/ops/ghl-values.md`.
 - Keep the `Review Link` element below their words. It is what carries the link.
-- Type their business name and postal address over the last two PLACEHOLDER lines in each template. The words in `ghl-values.md` leave them out on purpose.
+- Type their business name and postal address over the last two PLACEHOLDER lines in each template. The words in `engines/ops/ghl-values.md` leave them out on purpose.
 - Only if they are publishing `Review request` do they also go to `Review Link` on the same tab, choose `Custom Link`, and paste their own review link over the example one.
 
 ## Step 8: prove it landed
@@ -177,7 +178,7 @@ Two stopping points, because this runs twice.
 - the snapshot named from the Brain, and its lists confirmed with them
 - every value written in their voice, none holding a bracket or a greeting, and any left for later named plainly
 - on B2C and Hybrid, both review emails written under `## Review request templates`
-- `ghl-values.md` saved, and read back to them
+- `engines/ops/ghl-values.md` saved, and read back to them
 - any value that waits for the day named plainly, and left blank
 
 **Pasting, once the snapshot is loaded:**

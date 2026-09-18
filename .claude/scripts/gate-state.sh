@@ -188,7 +188,7 @@ self_row() {
 
 # --- gate A, the Founder Brain ----------------------------------------------
 
-brain="$ge/founder-brain.md"
+brain="$ge/brain/founder-brain.md"
 # The contract writes it as "- **Locked:** 2026-09-08", so read it the way
 # lib.sh reads every other Brain label: strip the asterisks first.
 d=""
@@ -214,27 +214,27 @@ self_row A flags "The flags are answered honestly" brain
 
 # --- gate B, the content engine ---------------------------------------------
 
-c=$(num "$(idx_count content-30.md)")
+c=$(num "$(idx_count engines/content/content-30.md)")
 if [ "$c" -ge 30 ]; then row B pieces "Thirty pieces are written" done "$c pieces in content-30.md" content
 else row B pieces "Thirty pieces are written" "not done" "$c of 30 pieces in content-30.md" content; fi
 
-csv="$ge/content-30.csv"
-c=$(num "$(idx_count content-30.csv)")
+csv="$ge/engines/content/content-30.csv"
+c=$(num "$(idx_count engines/content/content-30.csv)")
 head_ok=0
 [ -f "$csv" ] && head -1 "$csv" | tr -d ' \r' | grep -qi '^content,platform,scheduled_date,media_note$' && head_ok=1
 if [ "$head_ok" = 1 ] && [ "$c" -ge 30 ]; then
   row B sheet "The posting sheet is written" done "$c rows in content-30.csv" content
-elif [ "$head_ok" = 0 ] && present content-30.csv; then
+elif [ "$head_ok" = 0 ] && present engines/content/content-30.csv; then
   row B sheet "The posting sheet is written" "not done" "content-30.csv does not start with the four column header" content
 else
   row B sheet "The posting sheet is written" "not done" "$c of 30 rows in content-30.csv" content
 fi
 
-n=$(chars "$ge/rss-feeds.md")
+n=$(chars "$ge/engines/content/rss-feeds.md")
 if [ "$n" -ge 40 ]; then row B refill "A source list for the refill exists" done "$n characters in rss-feeds.md" content
 else row B refill "A source list for the refill exists" "not done" "rss-feeds.md is missing or nearly empty" content; fi
 
-a=$(num2 "$(idx_count ledger.md)")
+a=$(num2 "$(idx_count log/ledger.md)")
 if [ "$a" -ge 30 ]; then row B approved "The pieces have been read and approved" done "$a approved in ledger.md" content
 else row B approved "The pieces have been read and approved" "not done" "$a of 30 approved in ledger.md" content; fi
 
@@ -242,8 +242,8 @@ self_row B sounds-like "The pieces sound like the founder" content
 
 # --- gate C ------------------------------------------------------------------
 
-seq="$ge/outreach-sequence.md"
-ops="$ge/ops-workflow.md"
+seq="$ge/engines/outreach/outreach-sequence.md"
+ops="$ge/engines/ops/ops-workflow.md"
 
 ops_row() {
   if [ ! -f "$ops" ] || [ "$(chars "$ops")" -lt 40 ]; then
@@ -284,11 +284,11 @@ if [ "$track" = b2b ]; then
     row C list "The list is built" unknown "kept off GitHub, so it cannot be checked on this computer" outreach
   elif [ "$p" -ge 25 ]; then row C list "The list is built" done "$p prospects in people/" outreach
   else row C list "The list is built" "not done" "$p of 25 prospects in people/" outreach; fi
-  fl="$ge/outreach-firstlines.csv"
-  c=$(num "$(idx_count outreach-firstlines.csv)")
+  fl="$ge/engines/outreach/outreach-firstlines.csv"
+  c=$(num "$(idx_count engines/outreach/outreach-firstlines.csv)")
   head_ok=0
   [ -f "$fl" ] && head -1 "$fl" | tr -d ' \r' | grep -qi '^email,first_name,company,first_line$' && head_ok=1
-  if carried outreach-firstlines.csv; then
+  if carried engines/outreach/outreach-firstlines.csv; then
     row C firstlines "First lines exist for the 25" unknown "kept off GitHub, so it cannot be checked on this computer" outreach
   elif [ "$head_ok" = 1 ] && [ "$c" -ge 25 ]; then
     row C firstlines "First lines exist for the 25" done "$c rows in outreach-firstlines.csv" outreach
@@ -298,8 +298,8 @@ if [ "$track" = b2b ]; then
   ops_row
   self_row C domain "Domain setup is done and sending has started" outreach
 elif [ "$track" = b2c ]; then
-  o=$(num "$(idx_count dm-openers.md)")
-  if carried dm-openers.md; then
+  o=$(num "$(idx_count engines/audience/dm-openers.md)")
+  if carried engines/audience/dm-openers.md; then
     row C openers "Twenty five openers are written" unknown "kept off GitHub, so it cannot be checked on this computer" audience
   elif [ "$o" -ge 25 ]; then row C openers "Twenty five openers are written" done "$o openers in dm-openers.md" audience
   else row C openers "Twenty five openers are written" "not done" "$o of 25 openers in dm-openers.md" audience; fi
@@ -308,12 +308,12 @@ elif [ "$track" = b2c ]; then
     row C targets "Twenty five targets are recorded" unknown "kept off GitHub, so it cannot be checked on this computer" audience
   elif [ "$t" -ge 25 ]; then row C targets "Twenty five targets are recorded" done "$t targets in people/" audience
   else row C targets "Twenty five targets are recorded" "not done" "$t of 25 targets in people/" audience; fi
-  if has "$ge/hook-bank.md" '^#+[[:space:]]*offer tests'; then
+  if has "$ge/engines/audience/hook-bank.md" '^#+[[:space:]]*offer tests'; then
     row C hooks "A hook bank with offer tests exists" done "hook-bank.md has an Offer tests heading" audience
   else
     row C hooks "A hook bank with offer tests exists" "not done" "hook-bank.md is missing its Offer tests heading" audience
   fi
-  n=$(chars "$ge/inbound-scripts.md")
+  n=$(chars "$ge/engines/audience/inbound-scripts.md")
   if [ "$n" -ge 40 ]; then row C inbound "Inbound scripts exist" done "$n characters in inbound-scripts.md" audience
   else row C inbound "Inbound scripts exist" "not done" "inbound-scripts.md is missing or nearly empty" audience; fi
   ops_row
@@ -368,7 +368,7 @@ if [ -z "$engine" ]; then
     if engine_open "$e" ask; then engine=$e; break; fi
   done
 fi
-if [ -z "$engine" ] && [ "$(chars "$ge/90-day-plan.md")" -lt 40 ]; then engine=plan; fi
+if [ -z "$engine" ] && [ "$(chars "$ge/engines/plan/90-day-plan.md")" -lt 40 ]; then engine=plan; fi
 [ -n "$engine" ] || engine=none
 
 paused_list=$(

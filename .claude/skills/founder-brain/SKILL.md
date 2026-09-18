@@ -7,7 +7,7 @@ description: Build or update the Founder Brain, the single locked record of a fo
 
 The Founder Brain is the input to every other engine. Nothing else runs without it.
 
-Output is a single file at `./growth-engine/founder-brain.md` in the founder's Launchhouse folder.
+Output is a single file at `./growth-engine/brain/founder-brain.md` in the founder's Launchhouse folder.
 
 **Where the work lives.** Every file this makes sits in the `growth-engine/` folder inside the folder the founder opened, and it is saved with git as you go, so any earlier version can be brought back. The same folder works in Cowork. Say this once, near the end: open this same folder every time.
 
@@ -18,7 +18,7 @@ Output is a single file at `./growth-engine/founder-brain.md` in the founder's L
 ## Before starting
 
 1. **Check the folder.** Read the session context at the top of the conversation. If it says this is not the founder folder, stop and tell them which folder to open instead. If the folder is not set up, run the `start` skill first.
-2. **Check for an existing Brain.** Look for `./growth-engine/founder-brain.md`. Most founders already have one, built in Session 1 and brought across from the Launchhouse app.
+2. **Check for an existing Brain.** Look for `./growth-engine/brain/founder-brain.md`. Most founders already have one, built in Session 1 and brought across from the Launchhouse app.
    - **It does not exist:** run the full intake below.
    - **It exists and they asked to update it:** go straight to the part they want to change. Never re-run the full intake for an update.
    - **It exists and they asked to build a new one:** show a three-line summary of the one they have, and ask whether to update it or start again.
@@ -79,7 +79,11 @@ If there is more than one founder, also ask who runs which part of the selling, 
 
 This is the most important question in the intake. Everything downstream branches from it.
 
-Ask: **does your revenue come mostly from selling to other businesses, or to individual consumers?**
+**How to ask.** The track and the Model question have predictable answers, so ask them with clickable choices (the AskUserQuestion tool). It adds a box for any other answer. If you cannot show choices, as in Cowork, ask the same questions in plain text.
+
+**Start from who pays them.** Their Group 1 answer to "who pays you" usually settles the track. Say the track you took from it in one plain sentence and ask them to confirm it, for example: "You said restaurants pay you, so you mostly sell to other businesses. Is that right?" Offer yes, and the other two choices below.
+
+Ask the full question only when Group 1 did not settle it, such as when they named both kinds of buyer or were vague: **does your revenue come mostly from selling to other businesses, or to individual consumers?**
 
 - Mostly businesses, so B2B
 - Mostly consumers, so B2C
@@ -89,7 +93,7 @@ If they say both, do not create a third track. Ask which motion produces more re
 
 Explain briefly why you are asking: the outreach engine works completely differently on each track, and getting this wrong means building the wrong machine.
 
-**If track is B2C**, ask one more question: do they sell a service people book, or products people buy from a shop? Record the answer as `Model`, either `service` or `ecommerce`. It shapes their content, and it guides which pack of their operations snapshot they publish first. Never ask this of a B2B founder.
+**If track is B2C**, ask one more question, with choices: do they sell a service people book, or products people buy from a shop? Record the answer as `Model`, either `service` or `ecommerce`. It shapes their content, and it guides which pack of their operations snapshot they publish first. Never ask this of a B2B founder.
 
 If neither fits, for example a subscription app, record the nearer of the two and add a Flag saying so, such as `- Model is service, the nearest fit. The business is really a subscription app.` Never write a third value on the Model line.
 
@@ -142,9 +146,9 @@ Three paths. Pick based on what they have. Nobody gets stuck here.
 
 ### Path A: they have writing
 
-Ask for 10 to 20 samples of anything they have written in their own voice. Posts, emails, newsletters, even long messages. They can paste them in, or drop them into `growth-engine/voice-samples/` from Finder, File Explorer or Cowork. Save anything pasted as its own file in `growth-engine/voice-samples/`, one piece per file, named after its first few words.
+Ask for 10 to 20 samples of anything they have written in their own voice. Posts, emails, newsletters, even long messages. They can paste them in, or drop them into `growth-engine/brain/voice-samples/` from Finder, File Explorer or Cowork. Save anything pasted as its own file in `growth-engine/brain/voice-samples/`, one piece per file, named after its first few words.
 
-Two folders hold what a founder gives you. `growth-engine/voice-samples/` holds their own writing. Read these for voice, and you may add to this folder yourself. `growth-engine/uploads/` holds reference documents they supplied. Read them for facts, topics and context, never for voice, because they may be AI-generated or written by somebody else.
+Two folders hold what a founder gives you. `growth-engine/brain/voice-samples/` holds their own writing. Read these for voice, and you may add to this folder yourself. `growth-engine/inbox/uploads/` holds reference documents they supplied. Read them for facts, topics and context, never for voice, because they may be AI-generated or written by somebody else.
 
 Read them and extract:
 - Sentence length and rhythm
@@ -185,7 +189,7 @@ Then show the founder a two-sentence sample written in their captured voice and 
 
 ## Writing the file
 
-Write `./growth-engine/founder-brain.md` in this shape:
+Write `./growth-engine/brain/founder-brain.md` in this shape:
 
 ```markdown
 # Founder Brain
@@ -242,7 +246,7 @@ Name them in plain words, say they are now out of date, and offer to rebuild eac
 
 Before showing the founder anything:
 
-1. **Check it.** Use the `rules-reviewer` agent on `growth-engine/founder-brain.md`. Give it every number and claim the founder said in this conversation, quoted as they said it, as the figures the founder gave.
+1. **Check it.** Use the `rules-reviewer` agent on `growth-engine/brain/founder-brain.md`. Give it every number and claim the founder said in this conversation, quoted as they said it, as the figures the founder gave.
 2. **Fix what it holds.** A held line is usually a number the founder did not give. Ask them about it rather than guessing: "you mentioned roughly 40 jobs a month, is that right?" Write their answer, or write unknown. Do this at most twice. If something is still held, show it to the founder and let them decide. A line held because it says what the product does with data, or who built or founded it, is always asked, never rewritten on a guess. If the founder says it is true, add it to `## Proof` as `- <the claim>, checked by me on <date>`.
 3. **Save it.** Run `git add growth-engine` then `git commit -m "Founder Brain locked"`, or "Founder Brain updated" for an update. If `git remote -v` shows a remote, run `git push`. If the push fails, say the work is saved on this computer and move on.
 

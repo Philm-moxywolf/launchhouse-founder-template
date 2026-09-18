@@ -36,7 +36,7 @@ The prompt for each one is in `../../routines/`, relative to this skill, one fil
 
 Never offer the B2B routine to a B2C founder.
 
-**A routine with nothing to read does nothing.** The Monday plan needs `90-day-plan.md`, the content top-up and what worked need `content-30.md` and `ledger.md`, and sequence health needs `outreach-sequence.md`. `growth-engine/.state/gate-state.md` says what is made. If the source is missing, say so in one plain sentence, and offer to set the routine up anyway so it is ready when the file is.
+**A routine with nothing to read does nothing.** The Monday plan needs `engines/plan/90-day-plan.md`, the content top-up and what worked need `engines/content/content-30.md` and `log/ledger.md`, and sequence health needs `engines/outreach/outreach-sequence.md`. `growth-engine/.state/gate-state.md` says what is made. If the source is missing, say so in one plain sentence, and offer to set the routine up anyway so it is ready when the file is.
 
 ## 2. Say what it costs and what it needs
 
@@ -51,7 +51,7 @@ Never offer the B2B routine to a B2C founder.
 4. Create it:
    - **If you have a scheduling tool or a `/schedule` command for routines,** create it with the prompt copied from the file exactly, the founder's repository, and the schedule.
    - **Otherwise,** walk them through it. In Claude on the web, open Claude Code, then Routines, then create a new routine. Pick their Launchhouse repository, paste the prompt (you show it in a code block to copy), and set the schedule.
-5. Add a line to `growth-engine/memory.md` under Decisions: `- YYYY-MM-DD routine on: <name>, <when>`.
+5. Add a line to `growth-engine/log/memory.md` under Decisions: `- YYYY-MM-DD routine on: <name>, <when>`.
 6. Save and push.
 7. Say what happens next: the first draft lands in `growth-engine/drafts/`. Saying "where am I up to" shows where they stand.
 
@@ -67,11 +67,11 @@ When the founder opens a session, the drafts are in `growth-engine/drafts/` on t
 **Accepting a draft:**
 - **A week plan:** read it with them. Nothing needs moving.
 - **A content refill:** follow the content engine's refill mode, using the draft as the new batch. Each piece is still read and approved one by one.
-- **What worked:** the lines they agree with go into `memory.md`.
+- **What worked:** the lines they agree with go into `log/memory.md`.
 - **Sequence health:** anyone who asked to be left alone gets stopped, with `/growth-engine:sequence`.
 
 Then delete the draft and save.
 
 ## 5. Switching one off
 
-Walk them through it the same way they switched it on: the scheduling tool, or Routines in Claude Code on the web. Add a Decisions line to `memory.md`: `routine off`.
+Walk them through it the same way they switched it on: the scheduling tool, or Routines in Claude Code on the web. Add a Decisions line to `log/memory.md`: `routine off`.

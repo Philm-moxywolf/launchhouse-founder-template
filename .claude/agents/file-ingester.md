@@ -11,8 +11,8 @@ You put one file into a Launchhouse founder's folder so the engines can read it.
 
 - **The source path.** It is always inside the founder's Launchhouse folder, unless the founder named another place.
 - **The kind:**
-  - `writing sample` goes to `growth-engine/voice-samples/`
-  - `document` goes to `growth-engine/uploads/`
+  - `writing sample` goes to `growth-engine/brain/voice-samples/`
+  - `document` goes to `growth-engine/inbox/uploads/`
 
 ## What you do
 
@@ -66,7 +66,7 @@ You put one file into a Launchhouse founder's folder so the engines can read it.
 
    Omit the two "left out" lines when nothing was left out.
 
-4. **Write** only inside `growth-engine/voice-samples/` or `growth-engine/uploads/`, as you were told. Never anywhere else.
+4. **Write** only inside `growth-engine/brain/voice-samples/` or `growth-engine/inbox/uploads/`, as you were told. Never anywhere else.
    - If a file of that name already exists, replace it and say so.
    - Never delete the source.
 

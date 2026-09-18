@@ -22,7 +22,7 @@ if ! lh_active; then
     printf 'Launchhouse: this is not the founder folder. Their Launchhouse folder is %s. Before doing any Launchhouse work, tell the founder in one sentence to open that folder instead, because files written here will not be found later.\n' "$all"
     exit 0
   fi
-  if [ -f "$root/growth-engine/founder-brain.md" ] || [ -f "$root/growth-engine/README-your-files.md" ]; then
+  if [ -f "$root/growth-engine/brain/founder-brain.md" ] || [ -f "$root/growth-engine/founder-brain.md" ] || [ -f "$root/growth-engine/README-your-files.md" ]; then
     printf 'Launchhouse: this folder has Launchhouse files but has not been set up. If the founder wants to work on Launchhouse, start with /growth-engine:start.\n'
   fi
   exit 0

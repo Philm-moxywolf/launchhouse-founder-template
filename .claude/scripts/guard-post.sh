@@ -14,7 +14,7 @@
 # After a shell command, every judged file the command changed is checked the
 # same way, against the copies guard-pre.sh kept before it ran. A new file it
 # brings in is an existing document, so it is kept and reported, never removed.
-# Nothing in uploads/ or voice-samples/ is ever held, removed or put back.
+# Nothing in inbox/uploads/ or brain/voice-samples/ is ever held, removed or put back.
 #
 # Notes do not stop anything. They go back to Claude as context, folded so a
 # founder never reads thirty of them.
@@ -34,7 +34,7 @@ finish() {
 
 # The track a file is judged on.
 track_for() {
-  if [ "$1" = founder-brain.md ]; then t=$(lh_track_of "$2"); else t=$(lh_track); fi
+  if [ "$1" = brain/founder-brain.md ]; then t=$(lh_track_of "$2"); else t=$(lh_track); fi
   case $t in b2b|b2c) printf '%s' "$t" ;; esac
 }
 
@@ -51,6 +51,11 @@ existing() {
   printf '%s\n' "$2" > "$pre/$3.told" 2>/dev/null
   printf 'In growth-engine/%s, some lines that were already there, or were copied in, break a Launchhouse rule. %sThey were left exactly as they are, because they may be the founder'"'"'s own words. Tell the founder in one plain sentence which line and why, and leave the choice to them. Change it only if they ask. ' "$1" "$(printf '%s\n' "$2" | lines_of)"
 }
+
+# A GoHighLevel key, pit- and eight hex characters, is never repeated back.
+pit='pit-[0-9A-Fa-f]{8}-'
+unkey() { printf '%s' "$1" | sed -E 's/pit-[0-9A-Fa-f]{8}-[A-Za-z0-9-]*/(a key, not shown)/g'; }
+json_nokey() { lh_json_escape "$(unkey "$1")"; }
 
 tool=$(lh_json_get tool_name "$input") || tool=""
 
@@ -80,6 +85,12 @@ if [ "$tool" = Bash ]; then
   while IFS= read -r f; do
     [ -n "$f" ] && [ -f "$ge/$f" ] && [ ! -L "$ge/$f" ] || continue
     old=""; [ -f "$pre/shell/$f" ] && old="$pre/shell/$f"
+    # A key never stays in a file here, where the next save would put it in git.
+    if grep -Eq "$pit" "$ge/$f" 2>/dev/null; then
+      if [ -n "$old" ]; then cp -p "$old" "$ge/$f" 2>/dev/null; else rm -f "$ge/$f"; fi
+      msg="${msg}HELD, NOT SAVED: growth-engine/$f had a GoHighLevel key put in it by a shell command, so it was taken out again. A key never goes in a file in this folder. It lives only in the computer's password store. "
+      continue
+    fi
     findings=$(lh_judge "$ge/$f" "$old" "$f" "$(track_for "$f" "$ge/$f")") || continue
     # A new file a shell command brings in is an existing document, such as the
     # founder's work copied across from the app. It is kept, and its held lines
@@ -102,9 +113,9 @@ if [ "$tool" = Bash ]; then
   rm -rf "$pre/shell" "$pre/shell.sums" "$pre/shell.list" "$pre/shell.now" "$pre/shell.changed" "$pre/shell.had" "$pre/shell.links"
   if [ -n "$msg" ]; then
     msg="$msg Write those files with the editing tools instead, and fix those lines. Tell the founder in one plain sentence what was held and why, never as an error code. $told"
-    printf '{"decision":"block","reason":"%s"}\n' "$(lh_json_escape "$msg")"
+    printf '{"decision":"block","reason":"%s"}\n' "$(json_nokey "$msg")"
   elif [ -n "$told" ]; then
-    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(lh_json_escape "$told")"
+    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(json_nokey "$told")"
   fi
   finish
 fi
@@ -142,7 +153,7 @@ if [ -n "$holds" ]; then
   extra=""
   [ "$more" -gt 3 ] && extra=" There are $((more - 3)) more held lines in this file."
   msg="HELD, NOT SAVED: growth-engine/$inner. $how $reason$extra Fix those lines and write the file again. Tell the founder in one plain sentence what was held and why, never as an error code. $told"
-  printf '{"decision":"block","reason":"%s"}\n' "$(lh_json_escape "$msg")"
+  printf '{"decision":"block","reason":"%s"}\n' "$(json_nokey "$msg")"
   sh "$here/index.sh" >/dev/null 2>&1
   exit 0
 fi
@@ -159,6 +170,6 @@ if [ -n "$notes" ]; then
 fi
 ctx="$ctx$told"
 if [ -n "$ctx" ]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(lh_json_escape "$ctx")"
+  printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(json_nokey "$ctx")"
 fi
 finish

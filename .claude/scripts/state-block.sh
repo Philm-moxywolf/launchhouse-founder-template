@@ -17,7 +17,7 @@ track=$(lh_track)
 # A file kept off GitHub that is not here cannot be checked from here, so it is
 # never counted as made: saying it is made when it is not is the worse mistake.
 made() {
-  [ -f "$ge/$1" ] && [ "$(tr -d ' \t\r\n' < "$ge/$1" | wc -c | tr -d ' ')" -ge 40 ]
+  p=$(lh_place "$1"); [ -n "$p" ] && [ -f "$ge/$p" ] && [ "$(tr -d ' \t\r\n' < "$ge/$p" | wc -c | tr -d ' ')" -ge 40 ]
 }
 
 present=""; absent=""
@@ -29,9 +29,9 @@ esac
 list="$list ops-workflow.md 90-day-plan.md"
 # Only once it exists: the words go in after the snapshot loads at the clinic, so
 # listing it as not made yet would read as a job they are late on for weeks.
-[ -f "$ge/ghl-values.md" ] && list="$list ghl-values.md"
+[ -f "$ge/engines/ops/ghl-values.md" ] && list="$list ghl-values.md"
 for f in $list; do
-  if made "$f"; then present="$present $f"; else absent="$absent $f"; fi
+  if made "$f"; then present="$present $(lh_place "$f")"; else absent="$absent $(lh_place "$f")"; fi
 done
 
 leftovers=""
@@ -47,11 +47,20 @@ if [ ! -f "$ge/.state/imported.md" ]; then
   done
 fi
 
+# Files still in the older, flat layout. Nothing moves them by itself: the start
+# skill does, when the founder says so.
+older=""
+for f in founder-brain.md content-30.md ledger.md memory.md ops-log.md uploads voice-samples; do
+  [ -e "$ge/$f" ] && older=1
+done
+
 if [ -n "$leftovers" ]; then
   next="bring their work across from the app (/growth-engine:import)"
+elif [ -n "$older" ]; then
+  next="move their files into the new folders, which the start skill does (/growth-engine:start)"
 elif [ ! -f "$ge/.state/profile.md" ]; then
   next="set the folder up (/growth-engine:start)"
-elif [ ! -f "$ge/founder-brain.md" ]; then
+elif [ ! -f "$ge/brain/founder-brain.md" ]; then
   next="build the Founder Brain (/growth-engine:brain)"
 elif [ -z "$track" ]; then
   next="finish the Founder Brain, which has no track yet (/growth-engine:brain)"

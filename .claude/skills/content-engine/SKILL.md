@@ -18,16 +18,16 @@ The shapes of every file this writes are in `../../references/contract.md`, rela
 **First, the gate this one is built on.** Read `growth-engine/.state/gate-state.md`. The `state` column is the answer: do not count anything yourself. If any Gate A row is at `not done`, say in one plain sentence what is missing, using that row's `evidence` as it is written, then offer to carry on anyway. Never stop them. A founder working out of order is still working, and the thirty pieces can be rebuilt later from a finished Brain. If that file is not there at all, carry straight on.
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
-2. **Read the Brain.** Read `./growth-engine/founder-brain.md`.
+2. **Read the Brain.** Read `./growth-engine/brain/founder-brain.md`.
    - If it genuinely does not exist, do not guess at their business or voice, and do not leave them stuck. Say in one plain sentence that the thirty pieces are written from their Founder Brain, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
 3. **Read the track.** Read the `Track` line. Everything below branches on it. If there is no track, do not pick one for them. Offer to finish the Brain with them now, which asks the one question that decides it, then come back here.
 4. **Check the voice.** If `## Voice` in the Brain is missing or nearly empty, do not write the thirty yet, because thirty pieces without a voice read like anybody's. Offer three ways to give it, and let them pick: paste a few things they have written, add old posts or emails with `/growth-engine:add-files`, or answer a few short questions with the Founder Brain, in update mode. Then carry on here.
 5. **When the Brain is not enough.** If something this engine needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
-6. **Check for writing samples.** If `growth-engine/voice-samples/` has files, read them. They are the founder's own writing and the best guide to how they sound.
+6. **Check for writing samples.** If `growth-engine/brain/voice-samples/` has files, read them. They are the founder's own writing and the best guide to how they sound.
    - If it is empty and the Brain's voice came from an interview, carry on.
    - If they mention they have old posts or emails, suggest adding them first (`/growth-engine:add-files`), because it takes five minutes and makes all 30 sound more like them.
 
-If `content-30.md` already exists, this is **refill mode** or **approval**. Go to "Refill mode" or "Approving pieces" below, as fits what they asked.
+If `engines/content/content-30.md` already exists, this is **refill mode** or **approval**. Go to "Refill mode" or "Approving pieces" below, as fits what they asked.
 
 ## Step 1: pillars
 
@@ -47,7 +47,7 @@ Both are true, both are theirs, and neither needs a number.
 
 Show the four with a one-line rationale each. Let the founder cut or swap. Four is the number. Fewer gets repetitive, more gets thin.
 
-When they agree, add one line to the Decisions block of `growth-engine/memory.md`: `- YYYY-MM-DD content pillars: <the four, short>`.
+When they agree, add one line to the Decisions block of `growth-engine/log/memory.md`: `- YYYY-MM-DD content pillars: <the four, short>`.
 
 ## Step 2: what they can actually post
 
@@ -118,7 +118,7 @@ If a piece genuinely needs a number, stop and ask the founder for it in one ques
 Generate in batches of 10, and check in with the founder between batches. Thirty in one dump is unreviewable, and the founder will approve it without reading.
 
 **Batch 1**
-1. Write the first 10 into `growth-engine/content-30.md`, in the shape in the contract: pillar headings, numbered piece headings with the format labelled.
+1. Write the first 10 into `growth-engine/engines/content/content-30.md`, in the shape in the contract: pillar headings, numbered piece headings with the format labelled.
 2. Use the `voice-reviewer` agent on these 10.
 3. If it says they do not sound like the founder, fix the pattern before writing more. Say what you changed in one line.
 
@@ -155,26 +155,26 @@ Set this up now, not later.
 
 **The refill routine.** Once a month, the founder runs this skill again in refill mode: 30 new pieces, same pillars, same voice, written against what has happened since. It takes about twenty minutes. Tell them that plainly, because most people assume regenerating means starting over. The `content-top-up` routine can draft the next batch for them automatically (`/growth-engine:routines`).
 
-**What feeds it.** Pull the Source material list from the Brain, and add three to five RSS feeds relevant to their audience. Record them in `./growth-engine/rss-feeds.md`, one per line with a short note of what each is for. This is a source list, not an automation. When they refill, it is what stops the new batch repeating the last one.
+**What feeds it.** Pull the Source material list from the Brain, and add three to five RSS feeds relevant to their audience. Record them in `./growth-engine/engines/content/rss-feeds.md`, one per line with a short note of what each is for. This is a source list, not an automation. When they refill, it is what stops the new batch repeating the last one.
 
-**What changes between batches.** Ask them to note new proof as it happens: a result, a customer story, a question they got asked twice. Add a `## New proof` heading at the bottom of `content-30.md` for it. Fresh proof is the difference between month two sounding like month one and month two sounding better.
+**What changes between batches.** Ask them to note new proof as it happens: a result, a customer story, a question they got asked twice. Add a `## New proof` heading at the bottom of `engines/content/content-30.md` for it. Fresh proof is the difference between month two sounding like month one and month two sounding better.
 
 ## Step 6: export
 
 Write the files, in the shapes in the contract:
 
-1. **`./growth-engine/content-30.md`**, already written in batches. Check it holds all 30 and the count line.
-2. **`./growth-engine/content-30.csv`**, the same 30 as a table.
+1. **`./growth-engine/engines/content/content-30.md`**, already written in batches. Check it holds all 30 and the count line.
+2. **`./growth-engine/engines/content/content-30.csv`**, the same 30 as a table.
    - Columns: `content`, `platform`, `scheduled_date`, `media_note`.
    - `platform` names where the piece goes, from `LinkedIn`, `X`, `Instagram`, `Facebook`, `TikTok`, with more than one separated by semicolons: `LinkedIn;X`.
    - Leave `scheduled_date` blank. When a piece goes out is decided when publishing, not here.
    - `media_note` names the founder's own clip or photo when the piece uses one they have. When it needs one they have not got, it says what to make, plainly, for example "record talking head, 30 seconds". A piece that needs no picture leaves it blank.
    - Quote any field holding a comma, a quote or a line break.
-3. **`./growth-engine/ledger.md`**: one row per piece, appended below the header lines, as `C|<n>|<pillar>|<format>|<lane>|draft|-|-`. The lane is `media` only for a piece still waiting on a clip or photo the founder has not got; everything ready to post, with or without a picture they already have, is `text`. Every row starts as `draft`.
+3. **`./growth-engine/log/ledger.md`**: one row per piece, appended below the header lines, as `C|<n>|<pillar>|<format>|<lane>|draft|-|-`. The lane is `media` only for a piece still waiting on a clip or photo the founder has not got; everything ready to post, with or without a picture they already have, is `text`. Every row starts as `draft`.
 
 ## Step 7: check and save
 
-1. **Check.** Use the `rules-reviewer` agent on `content-30.md` and `content-30.csv`. Give it every figure the founder gave in this conversation, quoted as they said it.
+1. **Check.** Use the `rules-reviewer` agent on `engines/content/content-30.md` and `engines/content/content-30.csv`. Give it every figure the founder gave in this conversation, quoted as they said it.
 2. **Fix what it holds.**
    - A held number: ask the founder whether it is real. If it is, add it to the Proof section of the Brain as `- <figure>, checked by me on <date>`, then keep the line. If not, rewrite the piece from observation.
    - A held `claim.data` or `claim.credit` line: ask the founder whether it is true, never rewrite it on a guess. If it is, add it to the Proof section of the Brain as `- <claim>, checked by me on <date>`, then keep the line. If not, rewrite it.
@@ -201,7 +201,7 @@ Whenever a piece is rewritten, say in plain words which files are now out of dat
 When the founder says they have read and approve pieces:
 
 1. Confirm which numbers, in one line, if it is not obvious.
-2. Set those rows in `ledger.md` to `approved`. Only rows at `draft` or already `approved` change.
+2. Set those rows in `log/ledger.md` to `approved`. Only rows at `draft` or already `approved` change.
 3. If a piece was changed after it was approved, by them or by you at their request, set it back to `draft` and say it needs approving again, because approval is of the words as they read now.
 4. Save: `git add growth-engine` and `git commit -m "Approved pieces <numbers>"`.
 5. Say how many are approved out of 30, and that publishing is `/growth-engine:publish` once GoHighLevel is connected.
@@ -211,22 +211,22 @@ Never approve a piece the founder has not named.
 
 ## Refill mode
 
-If `content-30.md` already exists and they want a new batch:
+If `engines/content/content-30.md` already exists and they want a new batch:
 
 0. **Check for a routine's draft.** If `growth-engine/drafts/` holds a `content-refill-*.md` from the content top-up routine, show it and offer it as the first 10 of the new batch.
    - Each of those pieces is still read and approved one by one, like any other.
    - Once its pieces are in the new file, delete the draft.
-1. **Read what exists.** Read `content-30.md`, the `## New proof` list, `rss-feeds.md`, and the What worked and What did not blocks in `memory.md`. Do not repeat angles already published.
-2. **Archive the old batch.** Run `git mv growth-engine/content-30.md growth-engine/content-30-YYYY-MM.md`, using the current year and month.
+1. **Read what exists.** Read `engines/content/content-30.md`, the `## New proof` list, `engines/content/rss-feeds.md`, and the What worked and What did not blocks in `log/memory.md`. Do not repeat angles already published.
+2. **Archive the old batch.** Run `git mv growth-engine/engines/content/content-30.md growth-engine/engines/content/content-30-YYYY-MM.md`, using the current year and month.
    - If that name is taken, add `-2`.
    - Keep the old CSV out of the way: rename it the same way with `.csv`.
-3. **Update the ledger.** A row's id says which file its words are in: a plain number is `content-30.md`, and `<suffix>-<n>` is `content-30-<suffix>.md`.
+3. **Update the ledger.** A row's id says which file its words are in: a plain number is `engines/content/content-30.md`, and `<suffix>-<n>` is `engines/content/content-30-<suffix>.md`.
    - Rename every row whose id is a plain number from `<n>` to `<suffix>-<n>`, where the suffix is the new archive's, such as `2026-09` or `2026-09-2`. Rows that already carry a suffix belong to an older archive and keep their ids.
    - Rows at `draft` become `archived`.
    - Rows at `approved`, `scheduled` or `posted` keep their status, so approved pieces can still be published from the archive.
 4. **Carry forward.** Copy the `## New proof` list into the new file, then add anything new to the Brain's Proof section only with the founder's yes.
 5. **Ask about media again.** New clips and photos may have arrived since the last batch. Ask Step 2's question once.
-6. **Write the new 30.** Run Steps 3, 4, 6 and 7 again, on the same pillars unless they want to change one. The new rows use plain numbers 1 to 30, because their words are in the new `content-30.md`.
+6. **Write the new 30.** Run Steps 3, 4, 6 and 7 again, on the same pillars unless they want to change one. The new rows use plain numbers 1 to 30, because their words are in the new `engines/content/content-30.md`.
 
 ## How these get published
 

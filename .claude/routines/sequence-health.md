@@ -19,8 +19,8 @@ Rules you never break:
 - No em dashes or en dashes. Short sentences.
 
 Do this:
-1. Read growth-engine/founder-brain.md. If the Track is not b2b, stop without writing anything.
-2. Read growth-engine/outreach-sequence.md. If it records the manual route, stop without writing anything.
+1. Read growth-engine/brain/founder-brain.md. If the Track is not b2b, stop without writing anything.
+2. Read growth-engine/engines/outreach/outreach-sequence.md. If it records the manual route, stop without writing anything.
 3. If no Apollo read tools are available to you, stop without writing anything.
 4. Find the founder's Launchhouse sequence and read its activity since the last working day.
 5. If nothing happened, stop without writing anything.

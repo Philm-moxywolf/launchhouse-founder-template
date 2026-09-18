@@ -15,12 +15,12 @@ The Sunday deliverable. It sequences everything built over the weekend into one 
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
 2. **Read the files that exist:**
-   - `./growth-engine/founder-brain.md`, especially Goal and Numbers
-   - `./growth-engine/content-30.md` and `./growth-engine/ledger.md`
-   - B2B: `./growth-engine/outreach-sequence.md`
-   - B2C: `./growth-engine/dm-openers.md`, `./growth-engine/hook-bank.md` and `./growth-engine/inbound-scripts.md`
-   - `./growth-engine/ops-workflow.md`
-   - the What worked and What did not blocks in `./growth-engine/memory.md`, and the last two weeks of `./growth-engine/ops-log.md`
+   - `./growth-engine/brain/founder-brain.md`, especially Goal and Numbers
+   - `./growth-engine/engines/content/content-30.md` and `./growth-engine/log/ledger.md`
+   - B2B: `./growth-engine/engines/outreach/outreach-sequence.md`
+   - B2C: `./growth-engine/engines/audience/dm-openers.md`, `./growth-engine/engines/audience/hook-bank.md` and `./growth-engine/engines/audience/inbound-scripts.md`
+   - `./growth-engine/engines/ops/ops-workflow.md`
+   - the What worked and What did not blocks in `./growth-engine/log/memory.md`, and the last two weeks of `./growth-engine/log/ops-log.md`
    - `./growth-engine/.state/setup.md`, which says what is actually connected
 3. **If the Brain is missing,** say plainly that the plan is built on the Founder Brain, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
 4. **If the Brain exists but engine files are missing,** build the plan from what exists and note the gaps honestly. Do not pretend an engine is running when it is not. Name the engine that fills each gap, so the plan says what to do about it.
@@ -55,14 +55,14 @@ A projection that does not say it is a projection becomes a fact the moment it g
 
 ## Output
 
-Write `./growth-engine/90-day-plan.md`.
+Write `./growth-engine/engines/plan/90-day-plan.md`.
 
 Keep it to two pages. A plan nobody reads is not a plan.
 
 ## Check and save
 
-1. **Record the number.** Add one line to the Decisions block of `memory.md`: `- YYYY-MM-DD 90 day number: <the number>`.
-2. **Check.** Use the `rules-reviewer` agent on `90-day-plan.md`. Give it every figure the founder gave in this conversation. Assumptions labelled with the word assume are not claims.
+1. **Record the number.** Add one line to the Decisions block of `log/memory.md`: `- YYYY-MM-DD 90 day number: <the number>`.
+2. **Check.** Use the `rules-reviewer` agent on `engines/plan/90-day-plan.md`. Give it every figure the founder gave in this conversation. Assumptions labelled with the word assume are not claims.
 3. **Fix what it holds.** Ask about held figures. Do this at most twice.
 4. **Save.** Run `git add growth-engine` then `git commit -m "90 day plan"`. Push if there is a remote.
 

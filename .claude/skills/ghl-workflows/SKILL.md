@@ -18,13 +18,13 @@ One workflow running on the founder's own business before they leave Atlanta.
 ## Prerequisites
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
-2. **Read the Brain.** Read `./growth-engine/founder-brain.md`.
+2. **Read the Brain.** Read `./growth-engine/brain/founder-brain.md`.
    - If it genuinely does not exist, do not leave them stuck. Say in one plain sentence that this engine writes from their Founder Brain, about an hour of their own answers that every engine reads, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
    - Do not ask them to describe their business again from scratch, and do not guess at their offer, audience or voice.
 3. **Use the Brain** for track, model, stage, offer and goal.
 4. **When the Brain is not enough.** If something this engine needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
 5. **Check the gate this builds on.** Read `growth-engine/.state/gate-state.md` and use the `state` column as it stands, without counting anything yourself. If a Gate A item is not done, say in one plain sentence what is missing, in the words of its `evidence`. Then ask whether they want to carry on anyway, and carry on if they say yes. Never make them go back first.
-6. **Check for an existing workflow.** If `ops-workflow.md` already exists, the bottleneck is already found, so do not run the diagnostic again.
+6. **Check for an existing workflow.** If `engines/ops/ops-workflow.md` already exists, the bottleneck is already found, so do not run the diagnostic again.
    - The pack it names is the pack to publish first, even when the file calls it a snapshot, as files from the app do (Comment-to-DM capture is the Comment to DM pack).
    - Keep the file as it is. Ask whether they want to change the copy or put a different pack first, and go straight there.
    - Change only what they ask for, and never replace their copy without their yes. The other packs get their words from the values step, not here.
@@ -87,7 +87,7 @@ The snapshot is the plumbing. The copy is the founder's.
 
 For the pack they publish first, write every message it sends: emails with subject lines, SMS, DM replies, internal notifications, and for an Instagram pack its public comment replies and the words on its buttons. Write in the captured voice, matched to track.
 
-**Reuse what exists.** For the two DM packs, if `inbound-scripts.md` already holds the comment to DM or qualify and book copy, use that copy, fitted to the pack's steps, rather than writing a second version. Say so in the file.
+**Reuse what exists.** For the two DM packs, if `engines/audience/inbound-scripts.md` already holds the comment to DM or qualify and book copy, use that copy, fitted to the pack's steps, rather than writing a second version. Say so in the file.
 
 **Placeholders in plain words.** The snapshot brings its own trigger, stages, tags and fields, and their exact names are only known once it loads at the clinic. Write personal details as plain placeholders, `[first name]`, `[business name]`, `[booking link]`, never merge-field code, and describe tags and stages in plain words. They are matched to the snapshot's own fields when it is loaded, and the values step takes the placeholders out, because the workflow step writes the greeting and the first name itself.
 
@@ -111,20 +111,20 @@ Most founders do not need this. If the founder does not clearly need it, do not 
 
 ## Step 5: export
 
-Write `./growth-engine/ops-workflow.md` containing:
+Write `./growth-engine/engines/ops/ops-workflow.md` containing:
 - the named bottleneck
 - the chosen snapshot, meaning the pack to publish first, and why
 - all message copy
 - the trigger, the timings, the exit condition and the tags
 - any gap in the library, or n8n requirement, for a mentor
 
-**If you are changing this file after it was written,** the values in `ghl-values.md` that reuse this copy, and `playbook-insert.md`, were built from it and no longer match. Say which of them exist and are now out of date, and offer to rebuild them. Never rebuild one quietly, and never leave it unsaid.
+**If you are changing this file after it was written,** the values in `engines/ops/ghl-values.md` that reuse this copy, and `export/playbook-insert.md`, were built from it and no longer match. Say which of them exist and are now out of date, and offer to rebuild them. Never rebuild one quietly, and never leave it unsaid.
 
 ## Step 6: check and save
 
-First add one line to the Decisions block of `growth-engine/memory.md`: `- YYYY-MM-DD ops workflow: <pack>, for <bottleneck in a few words>`.
+First add one line to the Decisions block of `growth-engine/log/memory.md`: `- YYYY-MM-DD ops workflow: <pack>, for <bottleneck in a few words>`.
 
-1. **Check.** Use the `rules-reviewer` agent on `ops-workflow.md`. Give it every figure the founder gave in this conversation.
+1. **Check.** Use the `rules-reviewer` agent on `engines/ops/ops-workflow.md`. Give it every figure the founder gave in this conversation.
 2. **Fix what it holds.** Ask about any held figure rather than guessing. Do this at most twice.
 3. **Save.** Run `git add growth-engine` then `git commit -m "Operations engine: <pack>"`. Push if there is a remote. If the push fails, say it is saved on this computer.
 

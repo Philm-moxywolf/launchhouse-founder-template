@@ -47,10 +47,11 @@ trap 'rm -rf "$work"' EXIT
 scripts=$(cd "$here/../scripts" && pwd)
 settings="$here/../settings.json"
 mkdir -p "$work/.claude" "$work/growth-engine/.state" "$work/growth-engine/drafts" \
-  "$work/growth-engine/uploads" "$work/growth-engine/voice-samples" "$work/src" || exit 1
+  "$work/growth-engine/inbox/uploads" "$work/growth-engine/brain/voice-samples" "$work/src" \
+  "$work/growth-engine/engines/audience" "$work/growth-engine/export" || exit 1
 cp -R "$scripts" "$work/.claude/" || exit 1
 : > "$work/growth-engine/.launchhouse"
-printf '# Founder Brain\n\n- **Track:** b2c\n\n## Thesis\nSmall batch bakery.\n' > "$work/growth-engine/founder-brain.md"
+printf '# Founder Brain\n\n- **Track:** b2c\n\n## Thesis\nSmall batch bakery.\n' > "$work/growth-engine/brain/founder-brain.md"
 cold='Use a bot to DM every new follower with the offer.'
 ge="$work/growth-engine"
 
@@ -88,23 +89,23 @@ check "the folder is recognised whatever the case of the path above it" has "$ou
 
 # LH-029: uploads/ and voice-samples/ get the sending rules, not the voice or track rules.
 # They hold the founder's own documents, so a finding there is raised, never removed.
-out=$(write uploads/plan.md "$cold")
+out=$(write inbox/uploads/plan.md "$cold")
 check "a cold DM offer written to uploads/ is raised with Claude" has "$out" 'already there, or were copied in'
-check "and the upload is not removed" test -f "$ge/uploads/plan.md"
-out=$(write voice-samples/promise.md 'Replies are guaranteed within a week.')
+check "and the upload is not removed" test -f "$ge/inbox/uploads/plan.md"
+out=$(write brain/voice-samples/promise.md 'Replies are guaranteed within a week.')
 check "a promised reply written to voice-samples/ is raised, not held" has "$out" 'DM\|repl'
-check "and the voice sample is kept" test -f "$ge/voice-samples/promise.md"
+check "and the voice sample is kept" test -f "$ge/brain/voice-samples/promise.md"
 printf 'We promise a reply to every customer email within one business day.\n' > "$work/src/policies.md"
-out=$(shell "cp src/policies.md growth-engine/uploads/policies.md" cp "$work/src/policies.md" "$ge/uploads/policies.md")
+out=$(shell "cp src/policies.md growth-engine/inbox/uploads/policies.md" cp "$work/src/policies.md" "$ge/inbox/uploads/policies.md")
 check "a founder upload with a promise, copied in by shell, is not held" hasnt "$out" 'HELD'
-check "and it stays on disk" test -f "$ge/uploads/policies.md"
+check "and it stays on disk" test -f "$ge/inbox/uploads/policies.md"
 printf 'We guarantee you a reply within 24 hours.\n' > "$work/src/newsletter.md"
-out=$(shell "cp src/newsletter.md growth-engine/voice-samples/newsletter.md" cp "$work/src/newsletter.md" "$ge/voice-samples/newsletter.md")
-check "a voice sample with a reply promise, copied in by shell, is kept" test -f "$ge/voice-samples/newsletter.md"
+out=$(shell "cp src/newsletter.md growth-engine/brain/voice-samples/newsletter.md" cp "$work/src/newsletter.md" "$ge/brain/voice-samples/newsletter.md")
+check "a voice sample with a reply promise, copied in by shell, is kept" test -f "$ge/brain/voice-samples/newsletter.md"
 check "and Claude is told to leave it to the founder" has "$out" 'leave the choice to them'
-out=$(write voice-samples/post.md 'Come and find me on LinkedIn. We never touch Apollo. It is a game changer.')
+out=$(write brain/voice-samples/post.md 'Come and find me on LinkedIn. We never touch Apollo. It is a game changer.')
 check "the founder's own writing in voice-samples/ is not held for track words or style" hasnt "$out" 'HELD'
-check "and it stays saved" test -f "$ge/voice-samples/post.md"
+check "and it stays saved" test -f "$ge/brain/voice-samples/post.md"
 
 # LH-029: a shell copy is checked like a write.
 printf '%s\n' "$cold" > "$work/src/offer.md"
@@ -114,10 +115,10 @@ check "a new file with a cold DM offer copied in with cp is not deleted" test -f
 check "and Claude is told, for the founder to decide" has "$out" 'already there, or were copied in'
 mkdir -p "$work/.lh-import/growth-engine"
 printf '# Hooks\n\n%s\n' "$cold" > "$work/.lh-import/growth-engine/hook-bank.md"
-out=$(shell "cp -R .lh-import/growth-engine/. growth-engine/" cp "$work/.lh-import/growth-engine/hook-bank.md" "$ge/hook-bank.md")
-check "an imported piece with a held line stays on disk" test -f "$ge/hook-bank.md"
+out=$(shell "cp -R .lh-import/growth-engine/. growth-engine/" cp "$work/.lh-import/growth-engine/hook-bank.md" "$ge/engines/audience/hook-bank.md")
+check "an imported piece with a held line stays on disk" test -f "$ge/engines/audience/hook-bank.md"
 check "and it is reported, not removed" hasnt "$out" 'HELD'
-rm -f "$ge/hook-bank.md" "$ge/drafts/offer.md"
+rm -f "$ge/engines/audience/hook-bank.md" "$ge/drafts/offer.md"
 out=$(shell "cp src/plan.md growth-engine/drafts/plan.md" cp "$work/src/plan.md" "$ge/drafts/plan.md")
 check "a harmless file copied in with cp is not held" hasnt "$out" 'HELD'
 check "and it stays" test -f "$ge/drafts/plan.md"
@@ -192,11 +193,233 @@ done
 out=$(hook ask-mcp.sh mcp__leadconnector__list_locations x y)
 check "list_locations, a read, does not ask" test -z "$out"
 
+# LH-025: the tools on the shipped HighLevel connection that change a contact,
+# which can start a workflow that sends, or post a blog, ask first. Mail rules
+# are refused.
+for t in mcp__highlevel__contacts_add-tags mcp__highlevel__contacts_create-contact mcp__highlevel__contacts_upsert-contact \
+         mcp__highlevel__contacts_update-contact mcp__highlevel__opportunities_update-opportunity \
+         mcp__highlevel__blogs_create-blog-post mcp__highlevel__blogs_update-blog-post mcp__highlevel__socialmediaposting_create-post; do
+  check "the ask check is wired to $t" sh -c 'printf "%s" "$1" | grep -Eq "^($2)"' _ "$t" "$matcher"
+  out=$(hook ask-mcp.sh "$t" x y)
+  check "$t asks the founder first" has "$out" '"ask"'
+done
+for t in mcp__highlevel__contacts_get-contacts mcp__highlevel__locations_get-location mcp__highlevel__conversations_get-messages; do
+  out=$(hook ask-mcp.sh "$t" x y)
+  check "$t, a read, does not ask" test -z "$out"
+done
+check "the refusal is wired to create_filter" sh -c 'printf "%s" "$1" | grep -Eq "^($2)"' _ mcp__286d__create_filter "$deny"
+out=$(hook deny-mcp.sh mcp__286d__create_filter x y)
+check "a mailbox rule is refused" has "$out" '"deny"'
+out=$(hook deny-mcp.sh mcp__claude_ai_Microsoft_365__outlook_email_search x y)
+check "outlook_email_search, a read, is not refused" test -z "$out"
+out=$(hook ask-mcp.sh mcp__claude_ai_Microsoft_365__outlook_email_search x y)
+check "and does not ask" test -z "$out"
+
+# LH-025: the GoHighLevel key lives in the computer's own password store and
+# reaches only GoHighLevel, only as Claude Code connects. The checks never show
+# it. The store is faked here: never a real Keychain or Credential Manager, and
+# never a real key.
+fb="$work/fakebin"
+store="$work/fakestore"
+mkdir -p "$fb" "$store"
+cat > "$fb/uname" <<'EOF'
+#!/bin/sh
+printf '%s\n' "${LH_FAKE_OS:-Darwin}"
+EOF
+cat > "$fb/security" <<'EOF'
+#!/bin/sh
+# A fake Keychain: one file per item, line 1 the account, line 2 the password.
+s= w=
+while [ $# -gt 0 ]; do
+  case $1 in -s) s=$2; shift ;; -w) w=1 ;; esac; shift
+done
+f="$LH_FAKE_STORE/$s"
+[ -f "$f" ] || { echo 'security: The specified item could not be found in the keychain.' >&2; exit 44; }
+if [ -n "$w" ]; then
+  [ -n "$LH_FAKE_DENY" ] && exit 51
+  sed -n 2p "$f"; exit 0
+fi
+printf 'keychain: "/fake/login.keychain-db"\nattributes:\n    "acct"<blob>="%s"\n    "svce"<blob>="%s"\n' "$(sed -n 1p "$f")" "$s"
+EOF
+cat > "$fb/powershell.exe" <<'EOF'
+#!/bin/sh
+# A fake Windows PowerShell: decodes the program, finds the item it reads.
+enc=
+while [ $# -gt 0 ]; do [ "$1" = -EncodedCommand ] && enc=$2; shift; done
+prog=$(printf '%s' "$enc" | base64 --decode | iconv -f UTF-16LE -t UTF-8)
+printf '%s' "$prog" > "$LH_FAKE_STORE/.last-program"
+t=$(printf '%s\n' "$prog" | sed -n "s/.*::Read('\(.*\)').*/\1/p")
+f="$LH_FAKE_STORE/$t"
+[ -f "$f" ] || exit 3
+printf '%s\r\n%s\r\n' "$(sed -n 1p "$f")" "$(sed -n 2p "$f")"
+EOF
+cat > "$fb/curl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" > "$LH_FAKE_STORE/.curl-args"
+cat > "$LH_FAKE_STORE/.curl-config"
+printf '{"customValues": []}\nstatus: 200\n'
+EOF
+chmod +x "$fb/uname" "$fb/security" "$fb/powershell.exe" "$fb/curl"
+
+fake='pit-test-0000-not-a-real-key'
+vfake='pit-test-1111-values-not-real'
+printf 'LOCtest123\n%s\n' "$fake" > "$store/Launchhouse GoHighLevel"
+printf 'LOCtest123\n%s\n' "$vfake" > "$store/Launchhouse GoHighLevel values"
+helper="$work/.claude/scripts/ghl-headers.sh"
+vhelper="$work/.claude/scripts/ghl-values-api.sh"
+ghlurl=https://services.leadconnectorhq.com/mcp/
+run() { PATH="$fb:$PATH" LH_FAKE_STORE="$store" "$@" < /dev/null; }
+want="{\"Authorization\": \"Bearer $fake\", \"locationId\": \"LOCtest123\"}"
+
+for os in Darwin MINGW64_NT-10.0-19045; do
+  export LH_FAKE_OS=$os
+  out=$(run env CLAUDE_CODE_MCP_SERVER_URL=$ghlurl sh "$helper")
+  check "$os: the helper gives GoHighLevel the key and Location ID as headers" test "$out" = "$want"
+  out=$(run env CLAUDE_CODE_MCP_SERVER_URL=https://example.com/mcp/ sh "$helper")
+  check "$os: it gives any other address nothing" test -z "$out"
+  out=$(run sh "$helper")
+  check "$os: it gives nothing when no connection asked for it" test -z "$out"
+  out=$(run sh "$helper" --check)
+  check "$os: the check finds the item in the right shape" has "$out" 'the Location ID: looks right'
+  check "$os: and never shows the key" hasnt "$out" "$fake"
+done
+check "on Windows it reads Credential Manager with the built-in credential reader" \
+  grep -q "CredReadW" "$store/.last-program"
+LH_FAKE_OS=Darwin
+
+out=$(LH_FAKE_DENY=1 run sh "$helper" --check)
+check "a Mac that refused to read the item is told to click Always Allow" has "$out" 'Always Allow'
+check "and the key is not shown" hasnt "$out" "$fake"
+
+# The connection file is not shipped. --connect writes it once the key checks out.
+check ".mcp.json is not shipped in the folder" test ! -e "$here/../../.mcp.json"
+check "git ignores .mcp.json" grep -qx '/.mcp.json' "$here/../../.gitignore"
+mv "$store/Launchhouse GoHighLevel" "$store/away"
+out=$(run sh "$helper" --connect)
+check "with no item, the check says it is not found" has "$out" 'not found'
+check "and no connection is written" test ! -e "$work/.mcp.json"
+mv "$store/away" "$store/Launchhouse GoHighLevel"
+out=$(run sh "$helper" --connect)
+check "--connect writes the connection when the key is right" has "$out" 'connection: written'
+check "and never shows the key" hasnt "$out" "$fake"
+mcp="$work/.mcp.json"
+check "the connection is GoHighLevel's documented address" grep -qF "\"url\": \"$ghlurl\"" "$mcp"
+check "with one server, highlevel" test "$(grep -c '"url"' "$mcp")" = 1 -a "$(grep -c '"highlevel"' "$mcp")" = 1
+check "and no key or Location ID in it" sh -c '! grep -qiE "bearer|pit-|LOCtest|authorization" "$1"' _ "$mcp"
+hh=$(sed -n 's/^ *"headersHelper": "\(.*\)"$/\1/p' "$mcp" | sed 's/\\"/"/g')
+check "its helper is named by this folder's own path" has "$hh" '/.claude/scripts/ghl-headers.sh"$'
+check "and on a Mac it is run with plain sh" has "$hh" '^sh "/'
+out=$(cd / && run env CLAUDE_CODE_MCP_SERVER_URL=$ghlurl sh -c "$hh")
+check "and run as written, from anywhere, it gives GoHighLevel the headers" test "$out" = "$want"
+# On Windows the app starts the helper through cmd.exe, which cannot find a bare
+# sh, so the connection names Git's sh.exe by its full path.
+fbw="$work/fakebin-win"
+mkdir -p "$fbw"
+cat > "$fbw/cygpath" <<'EOF'
+#!/bin/sh
+case $2 in */sh) printf 'C:/Program Files/Git/usr/bin/sh\n' ;; *) printf 'C:%s\n' "$2" ;; esac
+EOF
+chmod +x "$fbw/cygpath"
+rm -f "$mcp"
+out=$(LH_FAKE_OS=MINGW64_NT-10.0-19045 run env PATH="$fbw:$fb:$PATH" sh "$helper" --connect)
+check "on Windows --connect writes the connection too" has "$out" 'connection: written'
+hh=$(sed -n 's/^ *"headersHelper": "\(.*\)"$/\1/p' "$mcp" | sed 's/\\"/"/g')
+check "and names Git's sh.exe by its full path, quoted" test "$hh" = "\"C:/Program Files/Git/usr/bin/sh.exe\" \"C:$(cd "$work" && pwd)/.claude/scripts/ghl-headers.sh\""
+printf '{"mcpServers": {"other": {"type": "http", "url": "https://example.com/"}}}\n' > "$mcp"
+out=$(run sh "$helper" --connect)
+check "--connect never overwrites a .mcp.json it did not write" has "$out" 'not written'
+check "and leaves it as it was" grep -q '"other"' "$mcp"
+rm -f "$mcp"
+
+# ghl-values sends its own token from its own item, on curl's standard input.
+out=$(run sh "$vhelper" list)
+check "the values helper prints GoHighLevel's answer" has "$out" 'customValues'
+check "and never the token" hasnt "$out" "$vfake"
+check "the token is never on curl's command line" sh -c '! grep -q "pit-" "$1"' _ "$store/.curl-args"
+check "it goes in curl's settings, from the values item, not the connection's" grep -q "Authorization: Bearer $vfake" "$store/.curl-config"
+check "to the location's custom values" grep -q 'locations/LOCtest123/customValues' "$store/.curl-args"
+out=$(run sh "$vhelper" update 'x;y')
+check "the values helper refuses an id that is not plain" has "$out" 'needs the custom value id'
+
+# Nothing in the chat may read the store, or run a helper for its key.
+# The address check above is no guard here, because a command can set it.
+for c in 'CLAUDE_CODE_MCP_SERVER_URL=https://services.leadconnectorhq.com/mcp/ sh .claude/scripts/ghl-headers.sh < /dev/null' \
+         'sh .claude/scripts/ghl-headers.sh' \
+         'sh .claude/scripts/ghl-headers.sh --check; security find-generic-password -s x -w' \
+         'security find-generic-password -s \"Launchhouse GoHighLevel\" -w' \
+         'security dump-keychain -d' \
+         'powershell -EncodedCommand AAAA' \
+         'powershell -Command [Windows.Security.Credentials.PasswordVault]::new()' \
+         'sh -c \". .claude/scripts/ghl-store.sh; ghl_store_read x\"' \
+         'sh .claude/scripts/ghl-values-api.sh list | cat; env' \
+         'export CLAUDE_CODE_MCP_SERVER_URL=x' \
+         'sh .claude/scripts/ghl-headers.sh --check < /dev/null\nsh -x .claude/scripts/ghl-headers.sh --check < /dev/null' \
+         'sh .claude/scripts/ghl-values-api.sh list < /dev/null\nsh -x .claude/scripts/ghl-values-api.sh list < /dev/null' \
+         'sh /private/tmp/lh-wave-c/evil/ghl-headers.sh --check < /dev/null' \
+         'sh /private/tmp/lh-wave-c/evil/ghl-values-api.sh list < /dev/null'; do
+  out=$(hook guard-pre.sh Bash command "$c")
+  check "refused: $c" has "$out" '"deny"'
+done
+for c in 'sh .claude/scripts/ghl-headers.sh --check < /dev/null' \
+         'sh .claude/scripts/ghl-headers.sh --connect < /dev/null' \
+         'sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/ghl-headers.sh\" --check < /dev/null' \
+         'sh .claude/scripts/ghl-values-api.sh list < /dev/null' \
+         'sh .claude/scripts/ghl-values-api.sh update abc123 < /private/tmp/lh-value.json'; do
+  out=$(hook guard-pre.sh Bash command "$c")
+  check "allowed: $c" hasnt "$out" '"deny"'
+done
+out=$(hook guard-pre.sh Read file_path "$ge/brain/founder-brain.md")
+check "reading a file is allowed" hasnt "$out" '"deny"'
+
+# A key pasted into the chat never goes into a file here, where a save would
+# put it in git. Split in two so this file never holds the shape itself.
+pk="pit-0a1b2c3d""-1111-2222-3333-444455556666"
+out=$(printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"GoHighLevel key: %s"}}' "$ge/drafts/ghl-setup.md" "$pk" |
+  CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/guard-pre.sh" 2>/dev/null)
+check "writing a GoHighLevel key into a file is refused" has "$out" '"deny"'
+check "and the refusal never repeats the key" hasnt "$out" "$pk"
+out=$(printf '{"tool_name":"Edit","tool_input":{"file_path":"%s","old_string":"key: %s","new_string":"key: in the password store"}}' "$ge/drafts/ghl-setup.md" "$pk" |
+  CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/guard-pre.sh" 2>/dev/null)
+check "an edit that takes a key out of a file is allowed" hasnt "$out" '"deny"'
+c="echo 'GoHighLevel key: $pk' > growth-engine/drafts/ghl-setup.md"
+out=$(hook guard-pre.sh Bash command "$c")
+check "a shell command holding a key is refused" has "$out" '"deny"'
+out=$(shell "$c" sh -c 'printf "GoHighLevel key: %s\n" "$1" > "$2"' _ "$pk" "$ge/drafts/ghl-setup.md")
+check "a key a shell command put in drafts/ is taken out again" test ! -e "$ge/drafts/ghl-setup.md"
+check "and the key is never quoted back" hasnt "$out" "$pk"
+check "and Claude is told why" has "$out" 'password store'
+out=$(write drafts/ghl-note.md "GoHighLevel key: $pk")
+check "a note about a line never quotes a key back" hasnt "$out" "$pk"
+rm -f "$ge/drafts/ghl-note.md"
+
+# No key file anywhere: the key is never kept in a file.
+check "no key file is named anywhere in the folder" \
+  sh -c '! grep -rqiE "gohighlevel-key|Documents/launchhouse|key\.txt" "$1/.claude" "$1/START-HERE.md" "$1/README.md" "$1/CLAUDE.md" "$1/.gitignore" --exclude-dir=tests' _ "$here/../.."
+unset LH_FAKE_OS
+
 # LH-023: the printable insert is an allowed, checked file.
-out=$(hook guard-pre.sh Write file_path "$ge/playbook-insert.html")
+out=$(hook guard-pre.sh Write file_path "$ge/export/playbook-insert.html")
 check "writing playbook-insert.html is allowed" hasnt "$out" '"deny"'
-out=$(write playbook-insert.html "<p>$cold</p>")
+out=$(write export/playbook-insert.html "<p>$cold</p>")
 check "and it is checked" has "$out" 'HELD'
+
+# LH-022: every file has one place, in folders by kind.
+out=$(hook guard-pre.sh Write file_path "$ge/founder-brain.md")
+check "the Brain at the top of growth-engine is refused" has "$out" 'lives at growth-engine/brain/founder-brain.md'
+out=$(hook guard-pre.sh Write file_path "$ge/engines/ops/content-30.md")
+check "a file in the wrong engine folder is refused" has "$out" 'lives at growth-engine/engines/content/content-30.md'
+out=$(hook guard-pre.sh Write file_path "$ge/uploads/menu.md")
+check "the old uploads folder is refused, naming the new one" has "$out" 'growth-engine/inbox/uploads/menu.md'
+out=$(hook guard-pre.sh Write file_path "$ge/engines/content/notes.md")
+check "a stray file in an engine folder is refused" has "$out" 'not one of the Launchhouse files'
+for p in brain/founder-brain.md engines/content/content-30.md engines/content/content-30-2026-08.md \
+         engines/audience/hook-bank.md engines/ops/ops-workflow.md engines/plan/90-day-plan.md \
+         export/playbook-insert.md log/ledger.md inbox/uploads/menu.md brain/voice-samples/post.md; do
+  out=$(hook guard-pre.sh Write file_path "$ge/$p")
+  check "writing growth-engine/$p is allowed" hasnt "$out" '"deny"'
+done
+out=$(hook guard-pre.sh Write file_path "$work/content-30.md")
+check "a Launchhouse file outside the folder is sent to its place inside" has "$out" 'growth-engine/engines/content/content-30.md'
 
 # LH-003: never push to the public original.
 if command -v git >/dev/null 2>&1; then

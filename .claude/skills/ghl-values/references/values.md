@@ -1,6 +1,6 @@
 # Every custom value, by pack
 
-A founder fills the **Essentials** list for their snapshot, and the list for **every pack** in it. The B2B snapshot uses B2B Essentials. The B2C and Hybrid snapshots use B2C Essentials, so a Hybrid founder writes `Customer Welcome Subject` and `Customer Welcome Body`, never the Client pair, even on the B2B track. The Hybrid snapshot has that one Essentials list and all six packs. Nothing else. The pack named in `ops-workflow.md` is written first. A file made in the app calls that pack a snapshot, and `Comment-to-DM capture` there is the `Comment to DM` pack here.
+A founder fills the **Essentials** list for their snapshot, and the list for **every pack** in it. The B2B snapshot uses B2B Essentials. The B2C and Hybrid snapshots use B2C Essentials, so a Hybrid founder writes `Customer Welcome Subject` and `Customer Welcome Body`, never the Client pair, even on the B2B track. The Hybrid snapshot has that one Essentials list and all six packs. Nothing else. The pack named in `engines/ops/ops-workflow.md` is written first. A file made in the app calls that pack a snapshot, and `Comment-to-DM capture` there is the `Comment to DM` pack here.
 
 The key is what the workflow step uses, written `{{custom_values.<key>}}`. GoHighLevel builds the key from the name when the value is created, so a value must never be renamed afterwards: every step that uses it would go blank.
 
@@ -34,7 +34,7 @@ Values whose names appear in both Essentials packs are one value in an account. 
 
 | Value | Key | What goes in it |
 |---|---|---|
-| Lead Chase 1 Subject | `lead_chase_1_subject` | The subject of the first chase email, from your growth-engine/ops-workflow.md if it has one. A few plain words that make sense on their own. |
+| Lead Chase 1 Subject | `lead_chase_1_subject` | The subject of the first chase email, from your growth-engine/engines/ops/ops-workflow.md if it has one. A few plain words that make sense on their own. |
 | Lead Chase 1 Body | `lead_chase_1_body` | The body of the first chase email, two to four short sentences. It goes 2 days after the chase starts, usually 2 days after your welcome email. |
 | Lead Chase 2 Subject | `lead_chase_2_subject` | The subject of the second chase email. A few plain words, different from chase 1. |
 | Lead Chase 2 Body | `lead_chase_2_body` | The body of the second chase email, two to four short sentences, sent 4 days after chase 1. Take a different angle from chase 1, still with one question and no pitch. |
@@ -46,24 +46,24 @@ Values whose names appear in both Essentials packs are one value in an account. 
 | Value | Key | What goes in it |
 |---|---|---|
 | Call Booking Link | `call_booking_link` | Not words, and a value you cannot prepare in advance. At the clinic, open your own `Discovery call` calendar, click `Share`, then `Copy Link`, and paste the link and nothing else. |
-| Call Link Email Subject | `call_link_email_subject` | The subject line of the email that sends your booking link. Copy it from `ops-workflow.md` in your growth-engine folder if it is already written there. |
+| Call Link Email Subject | `call_link_email_subject` | The subject line of the email that sends your booking link. Copy it from `engines/ops/ops-workflow.md` in your growth-engine folder if it is already written there. |
 | Call Link Email Body | `call_link_email_body` | The body of that email, with the booking link taken out, because the step puts the link on its own line underneath. Two to four short sentences: why a short call is worth their time, and an ask to pick a time from the link below. |
-| Call Nudge Subject | `call_nudge_subject` | The subject line of the nudge sent 2 days after the booking link email to someone who has not booked or replied. Copy it from `ops-workflow.md` in your growth-engine folder if it is already written there. |
+| Call Nudge Subject | `call_nudge_subject` | The subject line of the nudge sent 2 days after the booking link email to someone who has not booked or replied. Copy it from `engines/ops/ops-workflow.md` in your growth-engine folder if it is already written there. |
 | Call Nudge Body | `call_nudge_body` | One to three sentences, with the link taken out. A light reminder with one reason to book, not the first email again. |
-| Call Last Nudge Subject | `call_last_nudge_subject` | The subject line of the last nudge, sent 3 days after the nudge. Copy it from `ops-workflow.md` in your growth-engine folder if it is already written there. |
+| Call Last Nudge Subject | `call_last_nudge_subject` | The subject line of the last nudge, sent 3 days after the nudge. Copy it from `engines/ops/ops-workflow.md` in your growth-engine folder if it is already written there. |
 | Call Last Nudge Body | `call_last_nudge_body` | Two to four sentences, with the link taken out. Say this is the last email you will send about booking. |
-| Call Missed Subject | `call_missed_subject` | The subject line of the email sent a day after you mark a call `No Show`. Copy it from `ops-workflow.md` in your growth-engine folder if it is already written there. |
+| Call Missed Subject | `call_missed_subject` | The subject line of the email sent a day after you mark a call `No Show`. Copy it from `engines/ops/ops-workflow.md` in your growth-engine folder if it is already written there. |
 | Call Missed Body | `call_missed_body` | Two or three sentences, with the link taken out. No blame, an easy way to book again through the link below, and a line saying this is the last email you will send about it. |
-| Call Cancelled Subject | `call_cancelled_subject` | The subject line of the email sent straight after a lead cancels their call. Copy it from `ops-workflow.md` in your growth-engine folder if it is already written there. |
+| Call Cancelled Subject | `call_cancelled_subject` | The subject line of the email sent straight after a lead cancels their call. Copy it from `engines/ops/ops-workflow.md` in your growth-engine folder if it is already written there. |
 | Call Cancelled Body | `call_cancelled_body` | Two or three sentences, with the link taken out. Thank them for letting you know, and invite them to pick a new time through the link below if they still want to talk. |
 
 ## B2B Proposal chase (6)
 
-If `ops-workflow.md` names a different pack, it holds no Proposal chase emails. Write these six fresh, to the shape each row gives.
+If `engines/ops/ops-workflow.md` names a different pack, it holds no Proposal chase emails. Write these six fresh, to the shape each row gives.
 
 | Value | Key | What goes in it |
 |---|---|---|
-| Proposal Check In Subject | `proposal_check_in_subject` | The subject line of your first follow-up email, the one that checks your proposal arrived. Copy it from ops-workflow.md in your growth-engine folder: it is the subject of the first Proposal chase email. |
+| Proposal Check In Subject | `proposal_check_in_subject` | The subject line of your first follow-up email, the one that checks your proposal arrived. Copy it from engines/ops/ops-workflow.md in your growth-engine folder: it is the subject of the first Proposal chase email. |
 | Proposal Check In Body | `proposal_check_in_body` | The body of that first follow-up email, from the same place in ops-workflow.md. Two to four short sentences. |
 | Proposal Talk It Through Subject | `proposal_talk_it_through_subject` | The subject line of your second follow-up email, the one that offers a short call to talk the proposal through. Copy it from the second Proposal chase email in ops-workflow.md. |
 | Proposal Talk It Through Body | `proposal_talk_it_through_body` | The body of that second email, from the same place in ops-workflow.md. Two to four short sentences offering a short call to go through the proposal and answer their questions. |
@@ -122,7 +122,7 @@ If `ops-workflow.md` names a different pack, it holds no Proposal chase emails. 
 
 ## B2C Review request (0)
 
-No custom values. This pack's words live in two review templates, not in the custom values list. The values step still writes both, under `## Review request templates` in `ghl-values.md`, so they are ready to paste. Go to `Reputation`, the `Settings` tab, then the email request settings, and open `Set Email Templates`. Write `Review Ask Email` in the `Live` slot and `Review Reminder Email` in the `Retry` slot. Both arrive holding PLACEHOLDER text, neither carries a merge field, and your business name and postal address are typed into the template's own lines rather than merged, never into the words.
+No custom values. This pack's words live in two review templates, not in the custom values list. The values step still writes both, under `## Review request templates` in `engines/ops/ghl-values.md`, so they are ready to paste. Go to `Reputation`, the `Settings` tab, then the email request settings, and open `Set Email Templates`. Write `Review Ask Email` in the `Live` slot and `Review Reminder Email` in the `Retry` slot. Both arrive holding PLACEHOLDER text, neither carries a merge field, and your business name and postal address are typed into the template's own lines rather than merged, never into the words.
 
 **Contact fields this pack brings.** Not copy: they hold information about one person, and the workflow merges them into the message.
 

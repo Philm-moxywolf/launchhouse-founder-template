@@ -58,7 +58,7 @@ Other work a co-founder does, such as partnerships, is not built here.
 ## Prerequisites
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
-2. **Read the Brain.** Read `./growth-engine/founder-brain.md`.
+2. **Read the Brain.** Read `./growth-engine/brain/founder-brain.md`.
    - If it genuinely does not exist, do not leave them stuck. Say in one plain sentence that this engine writes from their Founder Brain, about an hour of their own answers that every engine reads, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
    - Do not ask them to describe their business again from scratch, and do not guess at their offer, audience or voice.
 3. **Check the track.** If `Track` is not `b2c`, stop and route the founder to the outreach engine (`/growth-engine:outreach`).
@@ -106,7 +106,7 @@ For each opener:
 - write it into the Opener block of that person's file
 - set their status to `opener_written`
 
-**Output** to `./growth-engine/dm-openers.md`, numbered 1 to 25, with the target handle against each.
+**Output** to `./growth-engine/engines/audience/dm-openers.md`, numbered 1 to 25, with the target handle against each.
 
 **Pacing warning, which goes in the output file:** 25 DMs fired in a rapid burst can trigger Instagram action blocks, especially on younger or low-activity accounts. Send them spread across the Saturday afternoon, a few at a time with gaps, from an account that has been used normally in the weeks before. Never race through the list.
 
@@ -121,13 +121,13 @@ Hooks do more work per word than anything else a B2C founder writes. Spend real 
 - If the Brain has no results yet, write more mistake hooks and more story-open hooks instead, and tell the founder that is what you did and why.
 - Never build a hook around a number the founder did not give you, however modest it sounds. The modest ones are the ones that get published.
 
-**Output** to `./growth-engine/hook-bank.md`, under the six category headings in the contract.
+**Output** to `./growth-engine/engines/audience/hook-bank.md`, under the six category headings in the contract.
 
 ## Step 4: offer tests
 
 Write three variants of how the offer is framed, to test against each other: a different angle, not different wording. Note what each one is testing.
 
-Add them to `./growth-engine/hook-bank.md` under an `## Offer tests` heading, so the hook bank and the offer tests travel as one file.
+Add them to `./growth-engine/engines/audience/hook-bank.md` under an `## Offer tests` heading, so the hook bank and the offer tests travel as one file.
 
 ## Step 5: the inbound machine
 
@@ -153,13 +153,13 @@ Two reasons, and the first is the one that matters to the founder:
 1. Every message in this file goes out only because somebody did something first. A label that says so is the difference between a flow they can check and a flow they have to take on trust. A reader scanning the file should be able to see, at each step, what opened the window.
 2. The practical one. A label that does not name the trigger reads as the thing rule 2 refuses, and the Launchhouse checks will hold the file. Naming the trigger is not a workaround. It is the sentence being accurate about what it describes.
 
-**Output** to `./growth-engine/inbound-scripts.md`.
+**Output** to `./growth-engine/engines/audience/inbound-scripts.md`.
 
-**If you are changing this file after it was written,** the values in `ghl-values.md` that reuse this copy, and `playbook-insert.md`, were built from it and no longer match. Say which of them exist and are now out of date, and offer to rebuild them. Never rebuild one quietly, and never leave it unsaid.
+**If you are changing this file after it was written,** the values in `engines/ops/ghl-values.md` that reuse this copy, and `export/playbook-insert.md`, were built from it and no longer match. Say which of them exist and are now out of date, and offer to rebuild them. Never rebuild one quietly, and never leave it unsaid.
 
 ## Step 6: check and save
 
-1. **Check.** Use the `rules-reviewer` agent on `dm-openers.md`, `hook-bank.md` and `inbound-scripts.md`. Give it every figure the founder gave in this conversation.
+1. **Check.** Use the `rules-reviewer` agent on `engines/audience/dm-openers.md`, `engines/audience/hook-bank.md` and `engines/audience/inbound-scripts.md`. Give it every figure the founder gave in this conversation.
 2. **Fix what it holds.** Ask about any held figure rather than guessing. Do this at most twice, then show the founder anything still held.
 3. **Save.** Run `git add growth-engine` then `git commit -m "Audience engine: openers, hooks and inbound scripts"`. Person files stay out of git by design. If there is a remote, run `git push`. If the push fails, say the work is saved on this computer.
 
@@ -170,7 +170,7 @@ The 25 go out by hand on the Saturday in Atlanta. If the founder records sends b
 When the founder says they have sent an opener:
 1. Add a touch line to that person's file: `- YYYY-MM-DD dm out: sent the opener`.
 2. Set their status to `sent`.
-3. Add a result line to `ops-log.md`, for example `- 15:40 result: 8 openers sent by hand`.
+3. Add a result line to `log/ops-log.md`, for example `- 15:40 result: 8 openers sent by hand`.
 4. Save: `git add growth-engine` and `git commit -m "Recorded sends"`. Person files stay out of git, so the ops log line is the record GitHub keeps.
 
 When someone replies, set them to `replied`. When they book, set them to `booked`.
