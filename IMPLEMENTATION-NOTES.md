@@ -1,6 +1,6 @@
 # Implementation notes: standalone system
 
-Branch `standalone-system`. Two commits: the standalone change (`bdadb23`) and wave A (`f2d20db`). Waves B and C are in the working tree and not committed. Final check run on 18 September 2026.
+Merged to `main` through pull requests #32 to #35 (commits `0a77551`, `726bc4a`, `d42a0c6`, `5c559fd`). The whole set is offered to the original repo as Philm-moxywolf/launchhouse-founder-template#1, open, ready for review. Final check run on 18 September 2026.
 
 This repository is a complete standalone system. Everything Launchhouse does lives in `.claude/`: 19 skills, 21 commands, 4 agents, the references, 5 routines, 17 shell scripts and `rules.awk`, the output style, the tests, and the hooks in `settings.json`. The plugin distribution is out of scope here, by the owner's decision, and gets its own changes later. Nobody uses this repository yet.
 
@@ -29,7 +29,7 @@ This repository is a complete standalone system. Everything Launchhouse does liv
 - **#22** The playbook insert is stamped, checked for staleness, and has a printable HTML beside it.
 - **#24, #25** `connections.md` names each connector; Gmail drafts after a yes; mailbox sending refused.
 
-## Waves B and C (working tree, not committed)
+## Waves B and C (`0ee29bc`)
 
 - **GoHighLevel connects from the folder (#24).** The key lives in the computer's own password store, never in a file: an item named `Launchhouse GoHighLevel` in the login keychain on a Mac, or a generic credential in Credential Manager on Windows. Its account or user name is the Location ID, its password the Private Integration key. `connect-tools` walks the founder through making the key and adding the item by clicking. `sh .claude/scripts/ghl-headers.sh --check < /dev/null` says whether the item is there and in the right shape, never what is in it. `--connect` does the same check and then writes `.mcp.json` at the top of the folder: one server, `highlevel`, at `https://services.leadconnectorhq.com/mcp/`, whose `headersHelper` names `ghl-headers.sh` by this computer's absolute path. On a Mac the helper is started with `sh`; on Windows with Git's `sh.exe` by its full path, quoted, because the app runs the helper through cmd.exe and a default Git for Windows install does not put `sh` on the PATH. `.mcp.json` is not shipped and git ignores it. `settings.json` pre-approves the server with `enabledMcpjsonServers`. The helper gives the headers only to GoHighLevel's own address. The shared store reader is `ghl-store.sh`. `START-HERE.md` sends the founder to "connect my tools" for GoHighLevel, and to Settings, Connectors only for Apollo and the mailbox. In Cowork, `connect-tools` says GoHighLevel connects from Code on this folder and goes on to the other tools.
 - **How long the key lasts.** `connect-tools` and `connections.md` say, once and plainly, that GoHighLevel's help pages say the key does not expire on its own, that it stops when deleted or rotated, and that GoHighLevel recommends rotating it every 90 days. `ghl-values` agrees. A state check keeps the three in step.
@@ -43,18 +43,26 @@ This repository is a complete standalone system. Everything Launchhouse does liv
 - **Folders by kind (#21).** `growth-engine/` now holds `brain/` (with `voice-samples/`), `inbox/uploads/`, `drafts/`, `engines/content|outreach|audience|ops|plan/`, `export/` and `log/`, with `people/` and `.state/` unchanged. The contract table is the one list of paths, `lh_place` in `lib.sh` mirrors it, and a state check keeps the two in step. `move-layout.sh` moves an older folder: `git mv` for tracked files, a plain move for ignored ones, never overwrites or deletes, safe to run twice, one line in `log/ops-log.md`. The start skill runs it, the session line points at it, nothing moves by itself, and import-from-app puts the app's work in the new layout in its holding folder before copying. The five tracked template files are staged as renames; git pairs the two empty `.gitkeep` files crosswise, which is harmless.
 - **No plugin build (#27).** The plugin build script, its README, its `dist/` ignore line and its state checks were removed. `settings.json` switches the old `growth-engine@launchhouse-v3` plugin off with `enabledPlugins`, so a founder who has it installed never gets two copies, and `CLAUDE.md` says so in one line. It declares no marketplace. State checks guard both.
 
+## Gates lock (`3d59855`)
+
+Gates now lock each engine, with a way through and no gate form. Three engines were checking the wrong gate; that is fixed. The engine-to-gate map lives only in `gates.md`, so it is read in one place, not copied into each engine.
+
+## The status file (`726bc4a`, `d42a0c6`, `5c559fd`)
+
+`growth-engine/.state/index.md` stopped being committed (`726bc4a`), so a fresh copy would open clean. It started being committed again, without dates (`d42a0c6`), because the Monday plan and countdown routines read it straight from GitHub, and countdown takes its people count from it since `people/` is never on GitHub. It then had to be regenerated from a clean folder (`5c559fd`), because local test data had leaked into it through the `refresh.sh` hook.
+
 ## Results of the final check
 
-1. **Tests.** `.claude/tests/run.sh`: 191 of 191 passed, exit 0. `.claude/tests/state.sh`: 75 of 75 passed, exit 0.
-2. **Syntax.** All 19 shell scripts (17 in `.claude/scripts/`, including the untracked `ghl-headers.sh`, `ghl-store.sh`, `ghl-values-api.sh` and `move-layout.sh`, and the 2 test suites) pass `sh -n`. `settings.json` is valid JSON. `rules.awk` loads.
+1. **Tests.** `.claude/tests/run.sh`: 191 of 191 passed, exit 0. `.claude/tests/state.sh`: 94 of 94 passed, exit 0.
+2. **Syntax.** All 19 shell scripts (17 in `.claude/scripts/`, all tracked, and the 2 test suites) pass `sh -n`. `settings.json` is valid JSON. `rules.awk` loads.
 3. **Old paths.** No flat `growth-engine/<file>` path is used as a live path. The only matches are on purpose: `context.sh` and the start skill detect an older folder, import-from-app describes the app's flat layout, and the tests build old folders to move.
 4. **Plugin remnants.** None that does anything. `enabledPlugins` switches the old plugin off on purpose and is tested. One stale comment: `lib.sh` line 14 calls the hooks "the plugin". Harmless, left as is.
 5. **Secrets.** No key, token or password in any file, tracked, untracked or ignored. The only `pit-` matches are the guards' own patterns and the test keys: `pit-test-0000-not-a-real-key`, `pit-test-1111-values-not-real`, and a real-shaped one `run.sh` builds from two halves so no file holds the shape. No `.mcp.json` in the worktree.
 6. **Privacy.** `git status`, including ignored files, shows nothing under `people/`, `dm-openers` or `firstlines` at any depth. The only tracked file in `people/` is its placeholder `README.md`. `.gitignore` covers `**/people/*`, `**/outreach-firstlines.csv` and `**/dm-openers.md`.
 
-## Every open issue on GitHub
+## Where every issue on GitHub stands
 
-All 30 are still open on GitHub. None is closed until the branch is merged. "Closed" below means closed by this branch.
+The branch merged via #32 to #35. Open on GitHub: #2, #24, #25, #29, all still "partly", as described below. Everything else from #3 to #31 is closed on GitHub.
 
 - **#2 LH-001, changed file on open:** partly. `settings.json` ships in the key order the issue describes (permissions first, `defaultMode` after the lists). Left, and only a hand check in the app can settle it: where the app puts `outputStyle`, `enabledMcpjsonServers` and `enabledPlugins`, whether approving the `highlevel` server writes a file git sees, and whether `.claude/settings.local.json`, which the app writes on an "always allow", is ignored on a founder's machine. This repository's `.gitignore` does not list it (hand check 2). No more code until that is seen.
 - **#3 LH-003, the public original:** closed. Pushes to `Philm-moxywolf` are refused, with tests.
@@ -81,17 +89,19 @@ All 30 are still open on GitHub. None is closed until the branch is merged. "Clo
 - **#24 LH-025, tools not shipped:** partly. GoHighLevel connects from the folder with its key in the password store, and Apollo and the mailbox are named exactly as Claude's own connectors. Left: the connection has never been made on a real account, on a Mac or a Windows PC. That needs a real GoHighLevel sub-account and a hand check (13), not more code. Apollo and the mailbox cannot ship in a folder, since they are Claude account connectors.
 - **#25 LH-026, the mailbox:** partly. Gmail: connect, prove, draft after a yes, check replies, never send. Left: Microsoft 365 has no draft tool, so the 25 go by hand there, and its search tool name and whether it shows the sender have never been seen on a real account. That needs a real Gmail and a real Microsoft 365 account (hand check 11).
 - **#26 LH-027, keeping on track:** closed, with state checks. How the nudge feels in use is a hand check (6).
-- **#27 LH-028, standalone system:** closed for this repository. The issue also asks for the plugin as a second distribution built from the same source. That half is out of scope here by the owner's decision, so the issue should stay open, or be split, for the plugin work.
+- **#27 LH-028, standalone system:** closed for this repository, and closed on GitHub, even though the issue also asks for the plugin as a second distribution built from the same source. That half is still out of scope here by the owner's decision. Whether it stays closed or gets split for the plugin work is still waiting on the maintainer.
 - **#28 LH-029, ways past the checks:** closed, with tests for all four. The guards' own known gaps are listed under hand check 13.
 - **#29 LH-030, word rules:** partly. Every listed input has a fixture. Left: "we guarantee it" and invented proof rest on the rules reviewer, a model, and no test can show it holds them. Hand check 12 settles it.
 - **#30 LH-031, the founder's own lines:** closed.
 - **#31 LH-032, output style:** closed in files. Whether the app selects it, and whether Cowork honours it, is a hand check (7).
 
-Tally: 25 closed (of which #13, #14, #18, #22, #23, #26 and #31 still want their hand check), 4 partly (#2, #24, #25, #29), and #27 closed for this repository only, with its plugin half out of scope.
+Tally: 26 closed on GitHub (of which #13, #14, #18, #22, #23, #26 and #31 still want their hand check, and #27 closed even though its plugin half is still out of scope), 4 partly and still open (#2, #24, #25, #29).
 
 ## Decisions waiting on the maintainer
 
-1. Whether #27 stays open for the plugin distribution or is split into a new issue.
+1. Whether #27 stays closed for the plugin distribution or is split into a new issue.
+2. Whether to merge Philm-moxywolf/launchhouse-founder-template#1. Merging it switches off the v3 plugin in new founder folders.
+3. Whether and when to carry these changes into `launchhouse-v3`'s `plugins/growth-engine`. That work has not started.
 
 ## What a maintainer should check by hand
 
