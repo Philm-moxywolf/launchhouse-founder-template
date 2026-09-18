@@ -19,9 +19,9 @@ You might be wondering whether this is more setup than the app was. It is less. 
 
 1. Open the Claude desktop app and choose **Code**.
 2. Choose this folder. Always this same folder.
-3. If Claude offers to install the Launchhouse plugin, say yes.
+3. There is nothing to install. Everything Launchhouse needs is already in the folder, so Claude knows the programme the moment it opens.
 
-If it does not offer, press the **+** button next to the message box, choose **Plugins**, add the marketplace `Philm-moxywolf/launchhouse-v3`, and install **growth-engine**.
+If Claude does not seem to know about Launchhouse, quit the app and open it again on this same folder.
 
 ## 4. Say "start launchhouse"
 

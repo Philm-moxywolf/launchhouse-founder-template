@@ -1,3 +1,119 @@
+# The starting contents of a Launchhouse folder
+
+Create a file only when it is missing. Never overwrite one that exists.
+
+## growth-engine/.launchhouse
+
+```
+This is a Launchhouse founder folder. Everything the growth engine makes lives in this growth-engine folder.
+```
+
+## growth-engine/ledger.md
+
+```markdown
+# Ledger
+
+One row per content piece. Format: C|id|pillar|format|lane|status|post id|goes out
+Status is draft, approved, scheduled, posted, failed or archived. A piece becomes approved only when the founder says so.
+```
+
+## growth-engine/memory.md
+
+```markdown
+# Memory
+
+Curated. What matters, not everything. The full record is in ops-log.md.
+Add one line per entry inside the marked blocks, dated. Anything under Notes is the founder's own.
+
+## Decisions
+<!-- GE:DECISIONS:START -->
+<!-- GE:DECISIONS:END -->
+
+## What worked
+<!-- GE:WORKED:START -->
+<!-- GE:WORKED:END -->
+
+## What did not
+<!-- GE:DIDNOT:START -->
+<!-- GE:DIDNOT:END -->
+
+## Voice notes
+<!-- GE:VOICE:START -->
+<!-- GE:VOICE:END -->
+
+## Angles used
+<!-- GE:ANGLES:START -->
+<!-- GE:ANGLES:END -->
+
+## Open threads
+<!-- GE:THREADS:START -->
+<!-- GE:THREADS:END -->
+
+## Notes
+Anything below this heading is the founder's own.
+```
+
+## growth-engine/ops-log.md
+
+```markdown
+# Ops log
+
+Append only. Every day gets its own heading, as ## YYYY-MM-DD, then lines as - HH:MM decision|result|blocker|note: text
+```
+
+## growth-engine/people/README.md
+
+```markdown
+# people
+
+One file per person the founder is selling to.
+
+These files hold real people's names, companies and contact details. They are kept out of git on purpose and never shared.
+```
+
+## .gitignore, in the folder the founder opened
+
+Add any of these lines that are missing. Keep whatever else is there.
+
+```
+# Real people's details. Never in git.
+**/people/*
+!growth-engine/people/README.md
+**/outreach-firstlines.csv
+**/dm-openers.md
+# A copy unzipped in the wrong place, or twice.
+growth-engine/growth-engine/
+growth-engine */
+# Working copies the Launchhouse checks keep for a moment.
+growth-engine/.state/.pre/
+# Worked out from the folder and rebuilt in seconds. Keeping them in git would
+# make a conflict out of a file the founder must never edit.
+growth-engine/.state/gate-state.md
+growth-engine/.state/nudges.md
+# Downloads from the app, once brought across.
+*.zip
+.lh-import/
+.DS_Store
+```
+
+## .claude/, in the folder the founder opened
+
+Launchhouse itself is the `.claude/` folder in the Launchhouse repository: the skills, the commands, the agents, the references, the routines, the checks that run on every write, and the `settings.json` that turns them on. It only works where that folder is.
+
+- **The folder is a copy of the repository.** It already has `.claude/`. Leave it alone.
+- **The folder is not a copy of the repository.** Copy the whole `.claude/` folder across from the founder's copy of the repository. Copy it, never retype it: a settings file written out by hand goes stale the moment a check is added, and the founder is told they are set up while half the checks never run.
+- **There is no copy of the repository to hand.** Stop. Launchhouse runs inside a copy of the Launchhouse repository. Tell the founder in one sentence to open their Launchhouse folder instead, and tell a mentor if they do not have one.
+
+If `.claude/settings.json` already exists in the folder they opened, leave it alone, and tell a mentor if the founder is being asked permission for everything.
+
+## CLAUDE.md, in the folder the founder opened
+
+Claude reads this at the start of every conversation in the folder, in Code and in Cowork. It carries the six rules and how to talk with the founder.
+- **No `CLAUDE.md`:** create it with exactly this.
+- **A `CLAUDE.md` that does not start with `# This is a Launchhouse founder folder`:** keep everything in it, and add this at the end, after one blank line.
+- **Otherwise** leave it alone.
+
+```markdown
 # This is a Launchhouse founder folder
 
 Claude reads this file at the start of every conversation in this folder. The founder can read it too.
@@ -60,3 +176,4 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 - Wait for a yes before anything goes out.
 
 The Launchhouse checks enforce most of this automatically. When a file is held or a tool is stopped, tell the founder in one plain sentence what happened and what to do, never as an error.
+```

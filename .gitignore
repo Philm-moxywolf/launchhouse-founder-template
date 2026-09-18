@@ -8,6 +8,10 @@ growth-engine/growth-engine/
 growth-engine */
 # Working copies the Launchhouse checks keep for a moment.
 growth-engine/.state/.pre/
+# Worked out from the folder and rebuilt in seconds. Keeping them in git would
+# make a conflict out of a file the founder must never edit.
+growth-engine/.state/gate-state.md
+growth-engine/.state/nudges.md
 # Downloads from the app, once brought across.
 *.zip
 .lh-import/
