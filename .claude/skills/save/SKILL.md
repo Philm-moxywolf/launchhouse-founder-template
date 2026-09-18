@@ -29,8 +29,7 @@ Any of those can lose work, and none of them is ever needed here.
 5. **Push.**
    - If `git remote -v` shows a remote, run `git push`.
    - If the push is refused because GitHub has newer saves (for example, a routine drafted something), run `git pull --no-rebase`, then push again.
-   - If the only conflict is `growth-engine/.state/index.md`, that file is worked out from the folder, not written by anyone. Run `git checkout --ours growth-engine/.state/index.md`, add it, finish the merge, and let it rebuild itself.
-   - If the pull stops on any other conflict, do not resolve it by guessing. Run `git merge --abort`, say their work is saved on this computer, and tell them a mentor will sort the GitHub copy.
+   - If the pull stops on a conflict, do not resolve it by guessing. Run `git merge --abort`, say their work is saved on this computer, and tell them a mentor will sort the GitHub copy. (`growth-engine/.state/index.md` is never committed, so it can never be the file in conflict.)
    - If the push asks for a login or fails another way, say their work is saved on this computer, and it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**. If they do not use GitHub Desktop, a mentor can connect it.
 
 6. End by saying what to do next, and name the plain way to check where they stand: say "where am I up to". If they have not seen them yet, "set up my routines" or "add a file" can be the one you name instead. One, once.

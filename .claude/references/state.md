@@ -167,10 +167,10 @@ touches a founder's own folder.
 ## What never happens here
 
 - No file under `.state/` holds a real person's name, email or handle.
-- `gate-state.md` and `nudges.md` are kept out of git. They are worked out from
-  the folder, so a second computer rebuilds them in seconds rather than pulling
-  a conflict on a file nobody may edit. `index.md` stays in git, because a copy
-  of the folder that cannot see the private files reads the last row from it.
+- `gate-state.md`, `nudges.md` and `index.md` are kept out of git. They are
+  worked out from the folder, so a second computer rebuilds them in seconds
+  rather than pulling a conflict on a file nobody may edit, or seeing a file
+  that shows changed the moment a fresh copy is opened on a later day.
 - Nothing in here counts replies.
 - Nothing in here lists the other track's items.
 - An override in `gate-overrides.md` never marks a gate itself as met, and
