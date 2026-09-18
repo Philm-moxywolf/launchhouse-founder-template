@@ -73,6 +73,8 @@ A founder who cannot see the end of a conversation does not know whether to give
 
 Question 5 decides two things later: whether the founder's own story is theirs to tell, and who is in front of the camera. Record the answer on the `Team` line of the Brain, in their words.
 
+If there is more than one founder, also ask who runs which part of the selling, such as who is the voice to customers and who handles partnerships. Record it on the same `Team` line, one name per part, for example `Team: Maya runs the customer voice; Sam builds the product and handles partnerships`. The engines build for the whole team, and this line tells them whose work each part is.
+
 ### Group 2: the track fork
 
 This is the most important question in the intake. Everything downstream branches from it.
@@ -88,6 +90,8 @@ If they say both, do not create a third track. Ask which motion produces more re
 Explain briefly why you are asking: the outreach engine works completely differently on each track, and getting this wrong means building the wrong machine.
 
 **If track is B2C**, ask one more question: do they sell a service people book, or products people buy from a shop? Record the answer as `Model`, either `service` or `ecommerce`. It shapes their content, and it guides which pack of their operations snapshot they publish first. Never ask this of a B2B founder.
+
+If neither fits, for example a subscription app, record the nearer of the two and add a Flag saying so, such as `- Model is service, the nearest fit. The business is really a subscription app.` Never write a third value on the Model line.
 
 ### Group 3: audience
 
@@ -189,10 +193,10 @@ Write `./growth-engine/founder-brain.md` in this shape:
 - **Founder:**
 - **Business:**
 - **Track:** b2b | b2c
-- **Model:** service | ecommerce, B2C only, leave out for B2B
+- **Model:** service | ecommerce, B2C only, leave out for B2B. If neither fits, the nearer one, plus a Flag saying so
 - **Hybrid:** true | false
 - **Stage:**
-- **Team:** just them, or who else, and their own part in the work
+- **Team:** just them, or who else, and their own part in the work. With more than one founder, who runs which part of the selling
 - **Locked:** YYYY-MM-DD
 
 ## Thesis
@@ -223,7 +227,7 @@ Five to ten accounts, competitors, newsletters or feeds their audience already r
 Description of how they write or speak, plus three or four verbatim phrases.
 
 ## Flags
-Anything the mentor team needs to know. Thin proof, no list, personal IG, fresh domain, unclear offer.
+Anything the mentor team needs to know. Thin proof, no list, personal IG, fresh domain, unclear offer, a Model that is only the nearest fit.
 ```
 
 The Flags section is what the mentor team reads before the session. Be honest in it. A brain that hides a problem is worse than one that names it.
@@ -239,7 +243,7 @@ Name them in plain words, say they are now out of date, and offer to rebuild eac
 Before showing the founder anything:
 
 1. **Check it.** Use the `rules-reviewer` agent on `growth-engine/founder-brain.md`. Give it every number and claim the founder said in this conversation, quoted as they said it, as the figures the founder gave.
-2. **Fix what it holds.** A held line is usually a number the founder did not give. Ask them about it rather than guessing: "you mentioned roughly 40 jobs a month, is that right?" Write their answer, or write unknown. Do this at most twice. If something is still held, show it to the founder and let them decide.
+2. **Fix what it holds.** A held line is usually a number the founder did not give. Ask them about it rather than guessing: "you mentioned roughly 40 jobs a month, is that right?" Write their answer, or write unknown. Do this at most twice. If something is still held, show it to the founder and let them decide. A line held because it says what the product does with data, or who built or founded it, is always asked, never rewritten on a guess. If the founder says it is true, add it to `## Proof` as `- <the claim>, checked by me on <date>`.
 3. **Save it.** Run `git add growth-engine` then `git commit -m "Founder Brain locked"`, or "Founder Brain updated" for an update. If `git remote -v` shows a remote, run `git push`. If the push fails, say the work is saved on this computer and move on.
 
 If a write is held by the Launchhouse checks while you are writing the file, the message says which line and why. Fix that line and write the file again. Never tell the founder about a check in technical terms.

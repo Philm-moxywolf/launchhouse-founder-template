@@ -42,6 +42,7 @@
     ],
     "defaultMode": "acceptEdits"
   },
+  "outputStyle": "Launchhouse Guide",
   "enabledPlugins": {
     "growth-engine@launchhouse-v3": false
   },
@@ -76,7 +77,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|Bash",
         "hooks": [
           {
             "type": "command",
@@ -85,7 +86,7 @@
         ]
       },
       {
-        "matcher": "mcp__.*(apollo_emailer_messages_send_now|apollo_emailer_messages_create|apollo_emailer_campaigns_approve|apollo_sequences_create|apollo_sequences_update|apollo_email_account_purchase_create)",
+        "matcher": "mcp__.*(apollo_emailer_messages_send_now|apollo_emailer_messages_create|apollo_emailer_campaigns_approve|apollo_sequences_create|apollo_sequences_update|apollo_email_account_purchase_create|__send_message|__reply|__forward|__send_inbox_draft)",
         "hooks": [
           {
             "type": "command",
@@ -94,7 +95,7 @@
         ]
       },
       {
-        "matcher": "mcp__.*(conversations_send-a-new-message|apollo_people_match|apollo_people_bulk_match|apollo_organizations_enrich|apollo_organizations_bulk_enrich|apollo_emailer_campaigns_add_contact_ids|apollo_contacts_create|apollo_contacts_bulk_create|social-media-posting_create-post|social-media-posting_edit-post|emails_create-template)",
+        "matcher": "mcp__.*(apollo_.*|conversations_send-a-new-message|social-media-posting_create-post|social-media-posting_edit-post|socialmediaposting_create-post|socialmediaposting_edit-post|emails_create-template|__execute_operation|__create_draft|__update_draft)",
         "hooks": [
           {
             "type": "command",
@@ -105,7 +106,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|Bash",
         "hooks": [
           {
             "type": "command",

@@ -22,13 +22,16 @@ function quote(s) {
   return s
 }
 
-function emit(kind, ln, code, q, msg) {
+# The sixth field is the whole sentence or line, never cut short, so the write
+# checks can tell an old held line from a changed one.
+function emit(kind, ln, code, q, msg,    full) {
+  full = trim(q); gsub(/\t/, " ", full)
   if (kind == "HOLD") {
-    if (held[ln SUBSEP code]++) return
+    if (held[ln SUBSEP code SUBSEP full]++) return
   } else {
     if (noted[code]++) { notecount[code]++; return }
   }
-  printf "%s\t%d\t%s\t%s\t%s\n", kind, ln, code, quote(q), msg
+  printf "%s\t%d\t%s\t%s\t%s\t%s\n", kind, ln, code, quote(q), msg, full
 }
 
 # ---------------------------------------------------------------- masking
@@ -42,7 +45,7 @@ function mask(s) {
 }
 
 # ---------------------------------------------------------------- rule 1
-function other_track_words(ln, raw, m,    lo, ctxlink, ctxseq, ctxspf) {
+function other_track_words(ln, raw, m,    lo, l2, ctxlink, ctxseq, ctxspf) {
   lo = tolower(m)
   cur_lo = lo
   if (track == "b2c") {
@@ -57,7 +60,12 @@ function other_track_words(ln, raw, m,    lo, ctxlink, ctxseq, ctxspf) {
     if (match(lo, W("spf")) && match(lo, ctxspf)) return hold_word(ln, raw, "SPF records")
     ctxlink = "urls?|connection requests?|connect with|invites?|inmail|outreach|prospect|sequence|sales navigator|export|scrape"
     if (match(lo, W("linkedin"))) {
-      if (match(lo, ctxlink)) return hold_word(ln, raw, "LinkedIn prospecting")
+      # "Connect with me on LinkedIn" builds an audience. It is not prospecting.
+      # Blanked with the same number of characters, so positions still line up.
+      l2 = lo
+      while (match(l2, /connect with (me|us)([^a-z]|$)/))
+        l2 = substr(l2, 1, RSTART - 1) sprintf("%" RLENGTH "s", "") substr(l2, RSTART + RLENGTH)
+      if (match(l2, ctxlink)) return hold_word(ln, raw, "LinkedIn prospecting")
       emit("NOTE", ln, "track.wrong-track-word-maybe", raw, "Mentions LinkedIn, which is usually part of the B2B method. Probably fine. Worth a glance.")
       return
     }
@@ -78,10 +86,12 @@ function other_track_words(ln, raw, m,    lo, ctxlink, ctxseq, ctxspf) {
 
 function hold_word(ln, raw, label,    other, before, p) {
   other = (track == "b2c") ? "B2B" : "B2C"
-  # "This is not cold email" and "No Apollo here" say the right thing.
+  # "This is not cold email" and "No Apollo here" say the right thing. The
+  # negation counts only with at most three words between it and the term, so
+  # "No problem, we set up an Apollo sequence" is still held.
   p = RSTART
   before = substr(cur_lo, (p > 24 ? p - 24 : 1), (p > 24 ? 24 : p))
-  if (match(before, /(^|[^a-z])(not|no|never|without|nothing to do with|isn't)([^a-z][^.!?;:]*)?$/)) return
+  if (match(before, /(^|[^a-z'])(not|no|never|without|nothing to do with|isn't)([^a-z.!?;:]+[a-z'-]+)?([^a-z.!?;:]+[a-z'-]+)?([^a-z.!?;:]+[a-z'-]+)?[^a-z.!?;:]*$/)) return
   emit("HOLD", ln, "track.wrong-track-word", raw, "This uses " label ", which is part of the " other " method, and this founder is on the " toupper(track) " track. Never write, offer or mention the other track's material.")
 }
 
@@ -91,19 +101,28 @@ function cancels_before(s) {
       || match(s, /refus|declin|overclaim|overpromis|n't|rather than|instead of|short of|other than|far from|no one/)
 }
 
-function promise_check(ln, sent,    lo, p, clauses, n, i, c, before, rest) {
+# A promise of replies, in either word order: "we guarantee you a reply",
+# "guaranteed replies", "replies are guaranteed".
+function promise_at(c) {
+  return match(c, /(guarantee[ds]?|guaranteeing|promise[ds]?|promising)( (you|them|your|their|a|an|at least|every|each|some|more|real|quick|fast))*( (you'll|you will|you|they'll|they will|they) get| get)? (repl(y|ies)|responses?)/) \
+      || match(c, /(repl(y|ies)|responses?)( [a-z']+)? (are|is|will be|get|gets|come|comes)( [a-z']+)? (guaranteed|promised)/)
+}
+
+function promise_check(ln, sent,    lo, p, pl, clauses, n, i, c, before, rest) {
   lo = tolower(sent)
-  if (!match(lo, /(guarantee[ds]?|promise[ds]?) (a )?(reply|replies|response)/)) return
+  if (!promise_at(lo)) return
   gsub(/;|:/, "|", lo)
   gsub(/, (and|but|or|so|yet|then) /, "|", lo)
   gsub(W("and|but|or|so|yet|then|because|although|though|while|whereas"), "|", lo)
   n = split(lo, clauses, "|")
   for (i = 1; i <= n; i++) {
     c = clauses[i]
-    if (match(c, /(guarantee[ds]?|promise[ds]?) (a )?(reply|replies|response)/)) {
-      before = substr(c, 1, RSTART - 1)
-      if (cancels_before(before)) return
-      rest = substr(c, RSTART)
+    if (promise_at(c)) {
+      p = RSTART; pl = RLENGTH
+      before = substr(c, 1, p - 1)
+      # "Replies are not guaranteed" says the right thing.
+      if (cancels_before(before) || cancels_before(substr(c, p, pl))) return
+      rest = substr(c, p)
       if (cancels_before(rest) || match(c, /that (guarantee|promise)|which (guarantee|promise)/)) {
         emit("NOTE", ln, "prose.promise-reply-unclear", sent, "This may read as promising replies. Nothing here promises a reply, because replies depend on the list, the offer and the timing. Worth a glance.")
         return

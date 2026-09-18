@@ -9,10 +9,46 @@
 #   - a person file whose name is not a plain slug
 # Then keeps a copy of the file as it was, so guard-post.sh can put it back if
 # the new words break a rule.
+#
+# Also PreToolUse on Bash: a shell command (cp, mv, a redirect) can write under
+# growth-engine/ without the editing tools, so before it runs, keep a copy of
+# every judged file. guard-post.sh then checks whatever the command changed.
 
 . "$(dirname "$0")/lib.sh" 2>/dev/null || exit 0
 
 input=$(cat) || exit 0
+
+tool=$(lh_json_get tool_name "$input") || tool=""
+if [ "$tool" = Bash ]; then
+  lh_active || exit 0
+  pre="$(lh_root)/growth-engine/.state/.pre"
+  rm -rf "$pre/shell" "$pre/shell.sums" "$pre/shell.list" 2>/dev/null
+  cmd=$(lh_json_get command "$input") || cmd=""
+  # Never push to the public original every founder copies (LH-003).
+  lh_push_to_original "$cmd" && lh_deny_pre "Not pushed: that copy on GitHub is the public Launchhouse original, so the founder's work would be public. Tell the founder in one plain sentence that their work is saved on this computer, and that their own private copy on GitHub is where it should go."
+  # Bringing back work already saved in this folder is not checked again: an
+  # undo must never be undone. Only these exact forms, on one line.
+  nl=$(printf '\n\rx'); nl=${nl%x}
+  case $cmd in
+    *[$nl]*|*'>'*|*'<'*|*'|'*|*';'*|*'&'*|*'`'*|*'$('*) ;;
+    'git restore '*|'git checkout '*' -- '*|'git pull --no-rebase'|'git merge --abort') exit 0 ;;
+  esac
+  mkdir -p "$pre/shell" 2>/dev/null || exit 0
+  ge="$(lh_root)/growth-engine"
+  lh_judged_files > "$pre/shell.list" 2>/dev/null || exit 0
+  if [ -s "$pre/shell.list" ]; then
+    ( cd "$ge" && tar -cf - -T "$pre/shell.list" ) 2>/dev/null | ( cd "$pre/shell" && tar -xf - ) 2>/dev/null
+    sums=$(lh_sums "$ge" < "$pre/shell.list")
+    # Fail open: if the copy is not exact, check nothing rather than risk
+    # removing a file that could not be put back.
+    [ "$sums" = "$(lh_sums "$pre/shell" < "$pre/shell.list")" ] || { rm -rf "$pre/shell" "$pre/shell.list"; exit 0; }
+    printf '%s\n' "$sums" > "$pre/shell.sums"
+  else
+    : > "$pre/shell.sums"
+  fi
+  exit 0
+fi
+
 path=$(lh_json_get file_path "$input") || exit 0
 [ -n "$path" ] || exit 0
 
@@ -32,6 +68,13 @@ if ! lh_active; then
 fi
 
 rel=$(lh_rel "$path")
+
+# The folder is growth-engine in lower case. On a Mac, Growth-Engine/ is the
+# same folder, but the checks below would not see it as ours.
+top=${rel%%/*}
+if [ "$top" != growth-engine ] && [ "$(printf '%s' "$top" | LC_ALL=C tr 'A-Z' 'a-z')" = growth-engine ]; then
+  lh_deny_pre "Not written: the folder is called growth-engine, all in lower case. Write it to growth-engine/${rel#*/} instead."
+fi
 
 case $rel in
   growth-engine/*) ;;

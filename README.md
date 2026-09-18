@@ -20,13 +20,13 @@ You never open a terminal. Everything happens in the Claude app, GitHub Desktop 
 |---|---|
 | `START-HERE.md` | Getting set up, step by step, for Mac and Windows |
 | `CLAUDE.md` | What Claude reads every time it opens this folder: who you are, where your work lives, and the six rules |
-| `.claude/` | The Launchhouse system itself: the skills, the checks, the helpers and the routines, plus the settings that let Claude save your work without asking every time |
+| `.claude/` | The Launchhouse system itself: the skills, the checks, the helpers, the routines and the plain way Claude talks with you, plus the settings that let Claude save your work without asking every time |
 | `.gitignore` | Keeps real people's details and downloads off GitHub |
 | `growth-engine/` | Your work. Starts nearly empty and fills as you go |
 
 ## Your work and your privacy
 
-- **Keep your copy private.** It holds your business.
+- **Keep your copy private.** It holds your business. Claude never sends your work to the public original.
 - **Some files never leave your computer.** Your list of people, your first lines and your DM openers hold real people's names, emails and handles, so they are kept out of GitHub on purpose.
 - **Backing up** is one button: open GitHub Desktop and press **Push origin**.
 - **Keep the folder name.** Do not rename or move the `growth-engine` folder inside it. Every engine looks for it there.

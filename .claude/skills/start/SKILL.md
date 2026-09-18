@@ -47,18 +47,22 @@ Create only what is missing, and never overwrite a file that exists. A founder's
 
 Do not create `founder-brain.md`. The Founder Brain makes it.
 
-## 3. Two questions
+## 3. A few quick questions
 
-Open with: "Two quick questions, then you are set up. About 30 seconds."
+Open with: "A few quick questions, then you are set up. About 30 seconds."
 
-**"What should we call you?"** Their first name, or whatever they prefer.
+**How to ask.** Where the answers are predictable, ask with clickable choices (the AskUserQuestion tool), all in one go. It adds a box for any other answer. If you cannot show choices, as in Cowork, ask the same questions in plain text. Anything they must approve goes in full inside the question itself.
+
+**"What should we call you?"** Run `git config user.name` and offer its first name as a choice. They can type another.
 
 **Where they are.** Work out their timezone yourself first:
 - Run `date '+%H:%M %Z'`.
 - On a Mac, `readlink /etc/localtime` gives a path ending in the full name, such as `/var/db/timezone/zoneinfo/Europe/London`. Use the part after `zoneinfo/`.
 - On Windows, or if that does not work, skip the lookup: ask which city they are nearest and use its timezone.
 
-Then ask: "It is 14:05 where you are, the Europe/London time. Is that right?" If they say no, ask which city they are nearest and use its timezone. Always record a full name like `America/New_York`, never an abbreviation.
+Then ask with the everyday name and example cities, never the full name: "It is 14:05 where you are. Is that Pacific time, like Los Angeles or San Diego?" Use their zone's everyday name and two cities in it. Offer that as a choice, and "Somewhere else". If it is somewhere else, ask which city they are nearest and use its timezone. The full name like `America/Los_Angeles` goes only in the saved file, never an abbreviation.
+
+**Earlier work.** If step 5 finds no work from the app in the folder, ask its question now, in the same go, with three choices: starting fresh, work in the Launchhouse app, work in Claude with the older toolkit.
 
 Write `growth-engine/.state/profile.md`:
 
@@ -80,7 +84,8 @@ The folder is saved with git, so every change can be seen and undone, and so it 
    - If either is empty, ask for the email address they use for GitHub. Set both for this folder only: `git config user.name "<name>"` and `git config user.email "<email>"`.
 3. **Commit.** Run `git add -A` then `git commit -m "Set up the Launchhouse folder"`. If there is nothing new to commit, that is fine.
 4. **Check for GitHub.** Run `git remote -v`.
-   - If there is a remote, run `git push`. If the push asks for a login or fails, do not troubleshoot. Say their work is saved on this computer, and that it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**.
+   - If the remote you would push to names `Philm-moxywolf`, do not push. That is the public original every founder copies. Tell them in one sentence: "Your work is saved on this computer, but this folder points at the public Launchhouse original, so I will not send your business there." Ask them to show a mentor.
+   - If there is another remote, run `git push`. If the push asks for a login or fails, do not troubleshoot. Say their work is saved on this computer, and that it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**.
    - If there is no remote, say nothing about GitHub now.
 
 ## 5. Hand on
@@ -94,7 +99,7 @@ Check for work from the app. Any of these means the founder has brought files ac
 
 **If there is app work,** say: "I can see your work from the app. I will bring it across and tidy it for the new setup. Nothing you wrote gets rewritten." Then follow the `import-from-app` skill.
 
-**If there is no app work in the folder, ask once:** "Did you build anything already, in the Launchhouse app or in Claude with the older Launchhouse toolkit?" Most founders did, in Session 1.
+**If there is no app work in the folder,** use their answer from step 3. If you have not asked yet, ask once: "Did you build anything already, in the Launchhouse app or in Claude with the older Launchhouse toolkit?" Most founders did, in Session 1.
 
 **If their work is still in the app,** tell them how to get it:
 1. In the app, open Files and press the button that downloads everything.
@@ -104,8 +109,8 @@ Then follow `import-from-app`.
 
 **If their work is in a folder they used with the older toolkit,** follow `import-from-app`, which copies it across and never moves the original.
 
-**If there is no app work and no Founder Brain,** say that the Founder Brain comes next. It is the record of their business that everything else reads, about an hour of their own words. Offer to start now, and follow the `founder-brain` skill if they say yes.
+**If they are starting fresh and there is no Founder Brain,** do not ask again. Say in one sentence that the Founder Brain comes next: the record of their business that everything else reads, about an hour of their own words. Then follow the `founder-brain` skill straight away.
 
 **If the Brain already exists and nothing needs importing,** tell them they are set up and ask what they would like to work on.
 
-End with two short lines. Where their work lives: "Everything we make goes in the growth-engine folder here. Open this same folder whenever you work on Launchhouse, in Claude or in Cowork." Then how to find their way around: say "what can you do" any time and you will list everything Launchhouse can build for them.
+Before you hand on, or at the end if there is nothing to hand on to, add two short lines. Where their work lives: "Everything we make goes in the growth-engine folder here. Open this same folder whenever you work on Launchhouse, in Claude or in Cowork." Then how to find their way around: say "what can you do" any time and you will list everything Launchhouse can build for them.

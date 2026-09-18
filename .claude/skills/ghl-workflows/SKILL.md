@@ -77,7 +77,7 @@ Every pack arrives as drafts. Nothing runs until the founder publishes it, so wh
 
 **Name the platform from the table, never from memory.** A B2C pack runs on Instagram, or on email. Saying one runs on LinkedIn puts the other track's platform in front of a founder who is not on it, and it sends them to the wrong place on the day.
 
-A B2C founder with `Model: ecommerce` usually publishes review request or comment to DM first. With `Model: service`, DM qualify and book is usually the one. Recommend, never force.
+A B2C founder with `Model: ecommerce` usually publishes review request or comment to DM first. With `Model: service`, DM qualify and book is usually the one. If a Flag says the Model is only the nearest fit, go by the bottleneck instead. Recommend, never force.
 
 Name the pack that answers their bottleneck, say why, and let them override. That one pack is what the output file records as the chosen snapshot, exactly as files from the app do. The rest of their snapshot stays as drafts until they want it.
 

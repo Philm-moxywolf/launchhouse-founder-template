@@ -177,6 +177,7 @@ Write the files, in the shapes in the contract:
 1. **Check.** Use the `rules-reviewer` agent on `content-30.md` and `content-30.csv`. Give it every figure the founder gave in this conversation, quoted as they said it.
 2. **Fix what it holds.**
    - A held number: ask the founder whether it is real. If it is, add it to the Proof section of the Brain as `- <figure>, checked by me on <date>`, then keep the line. If not, rewrite the piece from observation.
+   - A held `claim.data` or `claim.credit` line: ask the founder whether it is true, never rewrite it on a guess. If it is, add it to the Proof section of the Brain as `- <claim>, checked by me on <date>`, then keep the line. If not, rewrite it.
    - Anything else held: rewrite the line.
    - Do this at most twice. Anything still held gets shown to the founder to decide.
 3. **Save.** Run `git add growth-engine` then `git commit -m "Content engine: 30 pieces"`. If `git remote -v` shows a remote, run `git push`. If the push fails, say the work is saved on this computer and move on.

@@ -296,6 +296,103 @@ prompt_case "don't pick this back up yet does not resume" \
 
 rm -rf "$prompt_dir"
 
+# The founder's voice and first run. These read the files the founder and
+# Claude read, so a later edit cannot quietly undo them.
+ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %s\n' "$2"; fail=1; fi; }
+
+style="$repo/.claude/output-styles/launchhouse-guide.md"
+grep -q '^name: Launchhouse Guide$' "$style" 2>/dev/null && grep -q '^keep-coding-instructions: true$' "$style"
+ok $? "the Launchhouse Guide output style is in place"
+
+# The start skill writes this copy into a folder with no CLAUDE.md, so it must
+# never drift from the real one.
+awk '/^```markdown$/ { buf = ""; f = 1; next } /^```$/ { if (f) last = buf; f = 0; next } f { buf = buf $0 "\n" } END { printf "%s", last }' \
+  "$repo/.claude/skills/start/references/scaffold.md" | cmp -s - "$repo/CLAUDE.md"
+ok $? "the start skill's copy of CLAUDE.md matches the real one"
+
+dashes=$(printf '\342\200\224|\342\200\223|!')
+grep -Eq "$dashes" "$style" "$repo/CLAUDE.md" "$repo/README.md" "$repo/START-HERE.md"
+[ $? = 1 ]; ok $? "founder-facing text has no em or en dashes and no exclamation points"
+
+start="$repo/.claude/skills/start/SKILL.md"
+grep -q 'Philm-moxywolf.*do not push' "$start"
+ok $? "the start skill never pushes to the public original"
+
+grep -q 'AskUserQuestion' "$start" && grep -q 'Pacific time, like Los Angeles or San Diego' "$start" && ! grep -q 'the Europe/London time' "$start"
+ok $? "the start skill offers choices and names the timezone the everyday way"
+
+grep -q 'follow the `founder-brain` skill straight away' "$start"
+ok $? "a fresh start goes straight into the Founder Brain"
+
+grep -q 'set once, in the Founder Brain intake' "$repo/CLAUDE.md" && ! grep -q 'never ask them which track' "$repo/CLAUDE.md"
+ok $? "rule 1 lets the Brain intake ask the track once"
+
+# LH-014: a held data or credit claim in the content engine is asked, never rewritten on a guess.
+ce="$repo/.claude/skills/content-engine/SKILL.md"
+if grep -q 'A held `claim.data` or `claim.credit` line: ask the founder whether it is true, never rewrite it on a guess' "$ce"; then
+  printf 'PASS  %s\n' "the content engine asks about a held data or credit claim"
+else
+  printf 'FAIL  %s\n' "the content engine asks about a held data or credit claim"; fail=1
+fi
+
+# The connections and the playbook insert. No unproven HighLevel address is
+# shipped, and the check that an insert is out of date must spot a source file
+# changed after it was built.
+conn_ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %s\n' "$2"; fail=1; fi; }
+
+[ ! -e "$repo/.mcp.json" ] && ! grep -rqF --exclude-dir=tests 'mcp/anthropic' "$repo/.claude" "$repo/START-HERE.md"
+conn_ok $? "no unproven HighLevel server address is shipped, so nothing asks for approval on first open"
+
+grep -q 'Find \*\*HighLevel\*\* and connect it' "$repo/.claude/skills/connect-tools/SKILL.md" \
+  && grep -q 'Connect \*\*HighLevel\*\*' "$repo/START-HERE.md"
+conn_ok $? "START-HERE and connect-tools send the founder to the same HighLevel connector"
+
+grep -q 'Microsoft 365 reads mail but cannot write drafts' "$repo/.claude/references/connections.md" \
+  && grep -qF 'Never call a tool that does' "$repo/.claude/references/connections.md" \
+  && grep -q 'drafts only, never send' "$repo/.claude/skills/publish-content/SKILL.md"
+conn_ok $? "the mailbox is drafts only, and never sends"
+
+pb="$repo/.claude/skills/playbook-export/SKILL.md"
+grep -q 'git diff --name-only <version> --' "$pb" && grep -q 'built-from:' "$pb" && grep -q 'playbook-insert.html' "$pb"
+conn_ok $? "the playbook skill stamps the insert and checks it before handing it over"
+
+pbdir=${TMPDIR:-/tmp}/lh-state-playbook.$$
+mkdir -p "$pbdir/growth-engine" || exit 1
+(
+  cd "$pbdir" || exit 1
+  g() { git -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false "$@" >/dev/null 2>&1; }
+  g init
+  printf 'brain\n' > growth-engine/founder-brain.md
+  printf 'pieces\n' > growth-engine/content-30.md
+  g add growth-engine && g commit -m "Before the playbook insert"
+  version=$(git rev-parse --short HEAD)
+  files="growth-engine/founder-brain.md growth-engine/content-30.md"
+  # Nothing changed yet: the insert is current.
+  [ -z "$(git diff --name-only "$version" -- $files)" ] || exit 1
+  # An edit not yet saved is caught.
+  printf 'pieces, fixed\n' > growth-engine/content-30.md
+  [ "$(git diff --name-only "$version" -- $files)" = growth-engine/content-30.md ] || exit 2
+  # And still caught once it is saved.
+  g add growth-engine && g commit -m "Fixed a piece"
+  [ "$(git diff --name-only "$version" -- $files)" = growth-engine/content-30.md ] || exit 3
+  exit 0
+)
+conn_ok $? "a source file changed after the insert was built marks it out of date"
+rm -rf "$pbdir"
+
+# Without git, as on a Windows PC with no Git for Windows or a shared Cowork
+# folder, git diff fails. The skill must then fall back to file dates, and a
+# founder who turns down a rebuild must still get the insert.
+nogit=${TMPDIR:-/tmp}/lh-state-nogit.$$
+mkdir -p "$nogit/growth-engine" && printf 'brain\n' > "$nogit/growth-engine/founder-brain.md"
+( cd "$nogit" && GIT_CEILING_DIRECTORIES="$nogit/.." git diff --name-only none -- growth-engine/founder-brain.md >/dev/null 2>&1 )
+nogit_rc=$?
+rm -rf "$nogit"
+[ "$nogit_rc" != 0 ] && grep -q 'use `none` as the version' "$pb" \
+  && grep -q 'look at the date each file on the line was last changed' "$pb" \
+  && grep -q 'If they say no, hand it over' "$pb" && ! grep -q 'do not hand it over' "$pb"
+conn_ok $? "with no git the insert is checked by file dates, and a founder who says no to a rebuild still gets it"
+
 if [ "$fail" = 0 ]; then
   printf '\nAll state checks passed.\n'
 else

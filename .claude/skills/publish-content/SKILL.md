@@ -1,6 +1,6 @@
 ---
 name: publish-content
-description: Publish the founder's approved content through their GoHighLevel connector, as drafts or scheduled posts on the accounts they choose, after showing exactly what will go out, where and when, and getting a yes. Records every post in the ledger. Also shows what has gone out and how it did. Trigger on "publish my posts", "post the next five pieces", "schedule my content", "put my posts into GoHighLevel", "what did I publish", "how did my posts do".
+description: Publish the founder's approved content through their GoHighLevel connector, as drafts or scheduled posts on the accounts they choose, after showing exactly what will go out, where and when, and getting a yes. Records every post in the ledger. Also shows what has gone out and how it did. Also puts a B2B founder's 25 outreach emails into their own Gmail drafts, never sending them. Trigger on "publish my posts", "post the next five pieces", "schedule my content", "put my posts into GoHighLevel", "what did I publish", "how did my posts do", "put my outreach emails in my drafts".
 ---
 
 # Publish content
@@ -9,6 +9,8 @@ Puts approved pieces from `content-30.md` into GoHighLevel's Social Planner, on 
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
 
+**Tools.** GoHighLevel's tools come in two shapes. `../../references/connections.md` says which tool does each job named here. Use it for every step below.
+
 **The promise.** Nothing goes out that the founder has not read, approved, and said yes to publishing, with the account, the time and the words in front of them.
 
 ## 0. Before starting
@@ -16,7 +18,7 @@ Puts approved pieces from `content-30.md` into GoHighLevel's Social Planner, on 
 **Check the gate first.** Read `growth-engine/.state/gate-state.md`. Publishing reads the Gate B rows `pieces` and `approved`. If either is `not done`, say in one plain sentence what is missing, using the row's evidence, then offer to carry on and publish whatever is approved. Never hold a founder up for working out of order.
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
-2. **Check GoHighLevel is connected.** You need tools whose names end in `social-media-posting_create-post` and `social-media-posting_get-account`. If they are not there, stop and run `/growth-engine:connect`.
+2. **Check GoHighLevel is connected,** in either shape. If it is not, stop and run `/growth-engine:connect`.
 3. **Read these:**
    - `growth-engine/founder-brain.md`, for the track
    - `growth-engine/content-30.md`
@@ -57,7 +59,7 @@ The founder may have edited pieces by hand since they were written. Use the `rul
 
 ## 3. Choose where and when
 
-1. **Get the accounts.** Call the tool ending `social-media-posting_get-account`, and match each piece to the right accounts by its `platform` in the matching sheet: `content-30.csv` for a plain id, `content-30-<suffix>.csv` for an archived one.
+1. **Get the accounts to post to,** and match each piece to the right accounts by its `platform` in the matching sheet: `content-30.csv` for a plain id, `content-30-<suffix>.csv` for an archived one.
    - B2B pieces usually go to LinkedIn.
    - B2C pieces go to Instagram and the Facebook Page.
    - If a platform is not connected, say so, and do not post that piece there.
@@ -82,8 +84,8 @@ Then say: "Nothing goes out until you say yes. Shall I put these into GoHighLeve
 For each post, one at a time:
 
 1. **Read the tool's own parameters.** Use them as they are. Never guess at a field it does not list. If the tool cannot do what the table promised (a draft, a scheduled time, an account), stop, say what it cannot do, and ask what they would like instead.
-2. **Call the tool ending `social-media-posting_create-post`,** with the piece's words exactly as approved, the chosen accounts, and draft or the scheduled time.
-3. **Read it back.** Call the tool ending `social-media-posting_get-post` with the id it returned, and check the words and the time match.
+2. **Create the post,** with the piece's words exactly as approved, the chosen accounts, and draft or the scheduled time.
+3. **Read it back.** Read the post with the id it returned, and check the words and the time match.
 4. **Update the ledger row:**
    - post id: the id GoHighLevel returned
    - status: `scheduled` for a scheduled post. A draft stays `approved` with the post id set, because it has not been scheduled yet.
@@ -95,7 +97,7 @@ For each post, one at a time:
 - say which piece, and the reason in plain words
 - carry on with the rest only if the founder says so
 
-**Never** delete, move or edit a post the founder did not name. To change a post already in GoHighLevel, show the change and use the tool ending `social-media-posting_edit-post` only after a yes.
+**Never** delete, move or edit a post the founder did not name. To change a post already in GoHighLevel, show the change and edit the post only after a yes.
 
 ## 6. Save and report
 
@@ -110,10 +112,23 @@ For each post, one at a time:
 
 When they ask what was published:
 - Read the ledger rows at `scheduled` and `posted`.
-- Check any past their time against the tool ending `social-media-posting_get-posts`.
+- Check any past their time against the posts GoHighLevel returns.
 - A scheduled post that has gone out becomes `posted`.
 
 When they ask how posts did:
-- Call the tool ending `social-media-posting_get-social-media-statistics`.
+- Read how the posts did from GoHighLevel.
 - Report what it returns, in plain words. Never invent a figure it did not return, and never compare it to a benchmark nobody gave you.
 - If something clearly worked or clearly did not, offer to note it in the What worked or What did not block of `memory.md`, dated, so the next refill uses it.
+
+## The 25 outreach emails, into the founder's drafts
+
+B2B only. This puts each person's finished first email into the founder's own Gmail drafts, so they read it and press Send, instead of copying and pasting. Follow the mailbox rules in `../../references/connections.md`: **drafts only, never send.**
+
+1. **Check it fits.**
+   - The Brain's track is `b2b`, and `outreach-sequence.md` records the manual route. On the Apollo route, Apollo sends the sequence through their mailbox once they start it, so there is nothing to draft. Say so.
+   - Gmail is connected: a tool whose name ends in `create_draft`. If not, run `/growth-engine:connect`. On Microsoft 365 there is no draft tool, so say plainly that the 25 go by hand from each person's file.
+2. **Gather the emails.** For each person in `people/` at `kind: prospect`, not at `cut`, and not yet sent to, take their email address and the finished touch 1 in their Opener block. Take the subject line from touch 1 in `outreach-sequence.md`. Skip anyone with no address or no Opener block, and say who.
+3. **Show, then wait.** Show a table, one row per email: first name, company, subject, the first line. Say: "These go into your Gmail drafts, not out. You read each one and press Send yourself. Shall I put them in?" Wait for a clear yes. A yes covers exactly this table.
+4. **Draft them,** one at a time, to that one person, with the subject and the Opener block exactly as written. Never send, reply or forward.
+5. **Record it** in each person's file as a touch line: `- YYYY-MM-DD email drafted: touch 1 in Gmail drafts`. Leave their status as it is: nothing is sent until they press Send. When they say they have sent to someone, record it the way the outreach engine says.
+6. **Tell them** in two lines how many drafts went in and who was skipped. Person files stay out of git, so there is nothing to save.

@@ -20,6 +20,7 @@ Every file a founder's `growth-engine/` folder can hold, the shape each one must
 | `90-day-plan.md` | both | none | growth-plan |
 | `playbook-insert.md` | both | none | playbook-export |
 | `content-30-YYYY-MM.md`, `content-30-YYYY-MM.csv` | both | none | content-engine, refill archive. A second archive in one month adds `-2` |
+| `playbook-insert.html` | both | none | playbook-export |
 | `playbook-insert.pdf` | both | none | playbook-export |
 | `ledger.md` | both | B evidence | content-engine, publish-content |
 | `memory.md` | both | none | any skill |
@@ -67,6 +68,7 @@ The dates a skill talks about are not in this file. They are in `gates.md`, in o
 - **Model:** service | ecommerce, B2C only, leave out for B2B
 - **Hybrid:** true | false
 - **Stage:**
+- **Team:**
 - **Locked:** YYYY-MM-DD
 
 ## Thesis
@@ -83,8 +85,11 @@ The dates a skill talks about are not in this file. They are in `gates.md`, in o
 
 - **Header labels** are read case-insensitively, as the text before the first colon, above the first `## ` line.
 - **Track** must be exactly `b2b` or `b2c`.
+- **Model** is `service` or `ecommerce`, nothing else. When neither fits, it holds the nearer one and a Flag says so.
+- **Team** says who else is in the business. With more than one founder, it says who runs which part of the selling.
 - **Flags** are bullets. A bullet starting `- [x]`, or containing the word resolved, is done.
 - **Confirmed figures** go under `## Proof` as `- <figure>, checked by me on YYYY-MM-DD`.
+- **Confirmed claims** about what the product does with data, or who built it, go under `## Proof` the same way as figures.
 - **Numbers** holds labelled lines such as `Customers now:`, `Average monthly value:` and `Target in 90 days:`, with `unknown` where the founder does not know.
 
 ## content-30.md

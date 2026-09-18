@@ -47,6 +47,14 @@ So build the inbound side properly, and write the 25 as finished messages the fo
 
 Then go straight to Step 5 and build it with them. A founder who gets a no and nothing else goes and asks somebody else.
 
+## When there is more than one founder
+
+Read the Brain's `Team` line. This engine builds the consumer side of the business for the whole team, even when the founder in front of you is not the one who will run it. Say that plainly, once, and name who the `Team` line says runs the customer voice. If it does not say, ask.
+
+The 25 still go by hand, from the Instagram account of whoever runs that side. Write the openers and hooks in the Brain's `## Voice`. If that voice belongs to someone other than the person who will send them, say so and let the founder decide.
+
+Other work a co-founder does, such as partnerships, is not built here.
+
 ## Prerequisites
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.

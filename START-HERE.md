@@ -25,7 +25,7 @@ If Claude does not seem to know about Launchhouse, quit the app and open it agai
 
 ## 4. Say "start launchhouse"
 
-It checks your computer is ready, asks your name and where you are, and gets the folder ready. About two minutes.
+It checks your computer is ready, asks your name and where you are, and gets the folder ready. About two minutes. If you are starting fresh, it goes straight on to your Founder Brain.
 
 ## 5. Bring your work across from the app
 
@@ -37,7 +37,7 @@ If you built anything in the Launchhouse app, bring it over once.
 
 Your work arrives as it was. It gets tidied for the new setup, and nothing you wrote is rewritten without your yes. After this you do not need the app.
 
-If you are new and have nothing in the app, say **"build my founder brain"** instead.
+If you are new and have nothing in the app, skip this step. "start launchhouse" already took you to your Founder Brain.
 
 ## 6. Connect your tools
 

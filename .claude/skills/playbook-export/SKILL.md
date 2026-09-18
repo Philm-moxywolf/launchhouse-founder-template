@@ -1,6 +1,6 @@
 ---
 name: playbook-export
-description: Compile the founder's personalised playbook insert from their own files, four to six pages, delivered as a PDF alongside the generic Growth Engine playbook body. Made after Session 3, and again after the Sunday plan. Trigger on "generate my playbook", "playbook insert", "print my playbook", "make my playbook PDF".
+description: Compile the founder's personalised playbook insert from their own files, four to six pages, delivered as a PDF alongside the generic Growth Engine playbook body. Made after Session 3, and again after the Sunday plan. Checks the insert still matches those files before handing it over. Trigger on "generate my playbook", "playbook insert", "print my playbook", "make my playbook PDF", "send my playbook to my mentor".
 ---
 
 # Playbook Export
@@ -33,23 +33,51 @@ Produces the four to six page personalised insert that goes with the printed gen
 
 ## Output
 
-Write `./growth-engine/playbook-insert.md`, formatted for print:
-- clean headings, no clutter, generous white space
-- a page break between sections, as a line holding only `<div style="page-break-after: always"></div>`
+1. **Save first,** so the insert can be matched to the files it was built from. Run `git add growth-engine` then `git commit -m "Before the playbook insert"`. If there is nothing to save, carry on. Then run `git rev-parse --short HEAD`. That is the version the insert is built from. If git is not available or gives an error, use `none` as the version.
+2. **Write `./growth-engine/playbook-insert.md`,** formatted for print:
+   - clean headings, no clutter, generous white space
+   - a page break between sections, as a line holding only `<div style="page-break-after: always"></div>`
+3. **Stamp it.** The last lines of the cover say when it was built and from what:
+   - `Built on <date, as 17 September 2026> from <each file that fed a section, by name>.`
+   - under it, a line holding only `<!-- built-from: <version> | <the same file names, separated by spaces> -->`
+4. **Write `./growth-engine/playbook-insert.html`,** the same words and stamp as one printable web page, so any computer can print it or save it as a PDF with its own web browser:
+   - everything in the one file: no outside fonts, pictures, scripts or links to load
+   - black text on white, 11 point, margins of about 18 mm, set with `@page`
+   - each section starts on a new page, with `break-before: page`
 
-**Limits.** Six pages maximum. Format it so it converts cleanly to PDF: no wide tables, and no colour dependence.
+**Limits.** Six pages maximum. About 450 words fill a printed page at that size, so keep the whole insert under 2,700 words. No wide tables, and no colour dependence.
 
 ## Check and save
 
 1. **Check.** Use the `rules-reviewer` agent on `playbook-insert.md`. It should find nothing new, because it only compiles. Anything it holds came from a source file, so fix it there, then compile again.
 2. **Save.** Run `git add growth-engine` then `git commit -m "Playbook insert"`. Push if there is a remote.
 
+## Is it current
+
+Check this before handing the insert over in any form: when they ask for it, want to print it or send it, and before the PDF.
+
+1. Read the `built-from` line in `playbook-insert.md`. If there is none, it is out of date.
+2. Run `git diff --name-only <version> -- <each file on that line, with growth-engine/ in front>`. Every file it lists has changed since the insert was built.
+3. If the version is `none`, or git is not available or gives an error, look at the date each file on the line was last changed instead. A file changed after the date on the stamp has changed. Say plainly that this could not be fully checked.
+4. It is also out of date if a file the Contents would now use exists and is not on the line, such as the plan after the Sunday.
+
+**If it is out of date,** say which files changed since it was built, in plain words, and offer to build it again now. It takes a few minutes. If they say no, hand it over, with one plain sentence naming the files that changed since it was built. If it is current, say it matches their files as of the date on it.
+
 ## The PDF
 
 **The personalised insert is delivered as a PDF, not printed.** The generic playbook body is printed in two variants, B2B and B2C. Founders receive the insert digitally before Atlanta, and can print it themselves if they want a hard copy.
 
-To make the PDF:
-- **If a PDF skill or tool is available to you,** make `growth-engine/playbook-insert.pdf` from the markdown, and tell them where it is.
-- **Otherwise,** tell them to open `playbook-insert.md` in any Markdown viewer, and use Print, then Save as PDF.
+Their web browser makes the PDF, on a Mac or a Windows PC, with nothing to install.
+
+1. **Check it is current,** as above.
+2. **Tell them:**
+   - Open `playbook-insert.html` in their growth-engine folder. It opens in their web browser.
+   - Press Command and P on a Mac, or Control and P on Windows.
+   - Choose **Save as PDF** as the printer. On Windows it may be called **Microsoft Print to PDF**.
+   - Save it in their growth-engine folder, named `playbook-insert.pdf`.
+3. **Check the page count.** When they say it is saved, read `growth-engine/playbook-insert.pdf` and count its pages.
+   - Six or fewer: say how many.
+   - More than six: say plainly how many pages over it is, and which section is longest. Offer to shorten that section and build it again. Never hand over an insert that runs over without saying so.
+4. **Save.** Run `git add growth-engine` then `git commit -m "Playbook insert PDF"`. Push if there is a remote.
 
 Then name the next step, which is compiling it again after the Sunday plan, and say that "where am I up to" shows where they stand.
