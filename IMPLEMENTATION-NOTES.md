@@ -1,6 +1,6 @@
 # Implementation notes: standalone system
 
-Merged to `main` through pull requests #32 to #35 (commits `0a77551`, `726bc4a`, `d42a0c6`, `5c559fd`). The whole set is offered to the original repo as Philm-moxywolf/launchhouse-founder-template#1, open, ready for review. Final check run on 18 September 2026.
+Merged to `main` through pull requests #32 to #35 (merge commits `0a77551`, `9ffcbe9`, `0832c38`, `da87698`). The whole set is offered to the original repo as Philm-moxywolf/launchhouse-founder-template#1, open, ready for review. Final check run on 18 September 2026.
 
 This repository is a complete standalone system. Everything Launchhouse does lives in `.claude/`: 19 skills, 21 commands, 4 agents, the references, 5 routines, 17 shell scripts and `rules.awk`, the output style, the tests, and the hooks in `settings.json`. The plugin distribution is out of scope here, by the owner's decision, and gets its own changes later. Nobody uses this repository yet.
 
