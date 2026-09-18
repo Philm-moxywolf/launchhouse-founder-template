@@ -625,15 +625,32 @@ ok $? "the contract table and the checks agree on where every file lives"
 
 # A fresh folder, as the template ships it, is already in the new layout.
 tracked=$(git -C "$repo" ls-files growth-engine | sort | tr '\n' ' ')
-[ "$tracked" = "growth-engine/.launchhouse growth-engine/.state/.gitkeep growth-engine/brain/voice-samples/.gitkeep growth-engine/drafts/.gitkeep growth-engine/inbox/uploads/.gitkeep growth-engine/log/ledger.md growth-engine/log/memory.md growth-engine/log/ops-log.md growth-engine/people/README.md " ]
+[ "$tracked" = "growth-engine/.launchhouse growth-engine/.state/.gitkeep growth-engine/.state/index.md growth-engine/brain/voice-samples/.gitkeep growth-engine/drafts/.gitkeep growth-engine/inbox/uploads/.gitkeep growth-engine/log/ledger.md growth-engine/log/memory.md growth-engine/log/ops-log.md growth-engine/people/README.md " ]
 ok $? "a fresh folder ships in the new layout, folders by kind"
 
-# index.md is rebuilt by the hooks and records file dates, so a copy made on a
-# later day would show it as changed before the founder did anything. It is
-# never committed, only rebuilt on the first message.
-( cd "$repo" && git check-ignore -q --no-index growth-engine/.state/index.md ) \
-  && ! git -C "$repo" ls-files growth-engine/.state/index.md | grep -q .
-ok $? "the status file is ignored and never tracked, so a fresh copy opens clean"
+# index.md is rebuilt by the hooks, but it stays in git: the cloud routines
+# read it from the founder's GitHub copy, and it is the only source for the
+# people count there, since people/ itself never goes to GitHub. It carries no
+# date, so a fresh copy opens clean rather than showing changed on a later day.
+git -C "$repo" ls-files growth-engine/.state/index.md | grep -q . \
+  && ! ( cd "$repo" && git check-ignore -q --no-index growth-engine/.state/index.md ) \
+  && ! grep -Eq '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$repo/growth-engine/.state/index.md"
+ok $? "the status file is tracked and carries no date, so a fresh copy opens clean"
+
+# Regenerating index.md twice in a row over an unchanged folder must produce
+# the exact same file: nothing in it may vary run to run.
+idx_dir=${TMPDIR:-/tmp}/lh-state-idx.$$
+mkdir -p "$idx_dir/.claude" "$idx_dir/growth-engine/.state" "$idx_dir/growth-engine/log" || exit 1
+cp -R "$repo/.claude/scripts" "$idx_dir/.claude/" || exit 1
+: > "$idx_dir/growth-engine/.launchhouse"
+: > "$idx_dir/growth-engine/log/ledger.md"
+( cd "$idx_dir" && CLAUDE_PROJECT_DIR="$idx_dir" sh .claude/scripts/index.sh </dev/null >/dev/null 2>&1 )
+sum1=$(cksum "$idx_dir/growth-engine/.state/index.md" 2>/dev/null)
+( cd "$idx_dir" && CLAUDE_PROJECT_DIR="$idx_dir" sh .claude/scripts/index.sh </dev/null >/dev/null 2>&1 )
+sum2=$(cksum "$idx_dir/growth-engine/.state/index.md" 2>/dev/null)
+[ -n "$sum1" ] && [ "$sum1" = "$sum2" ]
+ok $? "regenerating index.md twice over an unchanged folder gives byte for byte the same file"
+rm -rf "$idx_dir"
 
 old=0
 for f in founder-brain.md content-30.md ledger.md memory.md ops-log.md uploads voice-samples; do

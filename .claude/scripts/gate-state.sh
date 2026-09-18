@@ -109,7 +109,7 @@ case $track in b2b|b2c) ;; *) track= ;; esac
 # The count column of a row in the index, or empty.
 idx_count() {
   [ -f "$index" ] || return 0
-  grep -F "| $1 |" "$index" 2>/dev/null | head -1 | awk -F '|' '{ v = $7; gsub(/^[ \t]+|[ \t]+$/, "", v); print v }'
+  grep -F "| $1 |" "$index" 2>/dev/null | head -1 | awk -F '|' '{ v = $6; gsub(/^[ \t]+|[ \t]+$/, "", v); print v }'
 }
 
 # The status column of a row in the index, or empty.
