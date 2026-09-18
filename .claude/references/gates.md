@@ -16,7 +16,6 @@ Every date the programme uses is written here, once. A new cohort is one edit to
 | Atlanta starts | Fri 25 September 2026 |
 | The Saturday, when the 25 messages go by hand | Sat 26 September 2026 |
 | The Sunday, when the 90 day plan is built | Sun 27 September 2026 |
-| Gate form link | not recorded yet |
 
 The computed state reads **The Saturday** row from this table, so the B2C sends row is never checked against a date written anywhere else. If that row is missing or cannot be read, the sends row says it is not recorded here rather than guessing.
 
@@ -45,13 +44,22 @@ Also in the programme, with no gate:
 - **The 90 day plan:** built in Atlanta on the Sunday.
 - **The playbook insert:** made after Session 3, and again after the Sunday plan.
 
-## Where the gate submission goes
+## Which gate an engine needs
 
-The gate block is not read by anything in this folder. The founder pastes it into their cohort's gate form, and their mentors read it before the next session.
+The one mapping. It lives here, and every engine skill reads it from here rather than carrying its own copy.
 
-- The link is the **Gate form link** row in the cohort block above. Print it with the block, so the founder does not have to go looking for it.
-- While that row says `not recorded yet`, say plainly that the link comes from their mentor, and hand over the block anyway. Never guess a link, and never send the block anywhere on the founder's behalf.
-- Once a founder has been given the link, it goes in that row, so the next founder gets it printed with their block.
+| Engine | Needs |
+|---|---|
+| The Founder Brain | none |
+| The content engine | Gate A |
+| The outreach engine (B2B) | Gate B |
+| The audience engine (B2C) | Gate B |
+| The operations engine | Gate B |
+| The 90 day plan | Gate C |
+
+**How this behaves.** An engine whose gate is not met does not start. Say in one or two plain sentences what is missing, from the `not done` rows for that gate in `growth-engine/.state/gate-state.md`, and offer to do that first. If the founder says to go ahead anyway, record an override for that one engine, then run it. Overrides never mark a gate as met, and never reach beyond the one engine they were recorded for. How an override is recorded, and how `gate-state.md` reports a locked, overridden or done engine, is in `state.md`.
+
+With no track chosen yet, `gate-state.md` writes no row at all for the outreach, audience or ops engines: only `content`, `brain` and `plan` get rows. Treat "no row for this engine" the same as `locked`. What is missing is the track, which comes from the Founder Brain.
 
 ## How an item is proved
 

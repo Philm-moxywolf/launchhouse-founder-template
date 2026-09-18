@@ -256,7 +256,7 @@ If a write is held by the Launchhouse checks while you are writing the file, the
 
 1. Show the founder a short summary and confirm it is right.
 2. Tell them the Brain is now locked and every other engine reads from it. Locked means nothing rewrites it behind their back. It does not mean it can never change, and if they ask later they are not being difficult.
-3. For a new Brain, tell them their Gate A submission is ready whenever they want it: `/growth-engine:gate`.
+3. For a new Brain, tell them Gate A now unlocks the content engine, and that "where am I up to" shows exactly where the rest of the gates stand.
 4. Say once how they check where they stand at any point: "where am I up to" lists every gate item, what is done and what is next.
 5. Tell them what happens next, based on track:
    - **B2B**: if the domain is fresh, set up SPF, DKIM and DMARC today and start sending ten to twenty real messages a day. Correct setup beats long warmup at 25-message volume, but it needs the weeks between now and Atlanta, not the last one.

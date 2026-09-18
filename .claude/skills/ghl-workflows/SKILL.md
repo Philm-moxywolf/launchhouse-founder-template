@@ -23,7 +23,15 @@ One workflow running on the founder's own business before they leave Atlanta.
    - Do not ask them to describe their business again from scratch, and do not guess at their offer, audience or voice.
 3. **Use the Brain** for track, model, stage, offer and goal.
 4. **When the Brain is not enough.** If something this engine needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
-5. **Check the gate this builds on.** Read `growth-engine/.state/gate-state.md` and use the `state` column as it stands, without counting anything yourself. If a Gate A item is not done, say in one plain sentence what is missing, in the words of its `evidence`. Then ask whether they want to carry on anyway, and carry on if they say yes. Never make them go back first.
+5. **Check the gate this builds on.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `ops` row in its engine table. This engine needs Gate B, from the mapping in `../../references/gates.md`.
+
+   If there is no `ops` row, no track is chosen yet. Treat it as locked: what is missing is the track, from the Founder Brain.
+
+   If the row reads `locked`, or is still missing after the refresh, this engine does not start. Say in one or two plain sentences what is missing, using the `not done` Gate B rows' evidence, and offer to do that first. Before offering to go ahead anyway, check `growth-engine/.state/gate-overrides.md` for a line already naming `ops`. If one is there, treat the row as overridden and carry on; do not add a second line.
+
+   Otherwise, only record an override when the founder says, in their own words, to go ahead anyway. A no, or "later", is not consent. If it is unclear, ask once: "Build it without that?" Then add a line to `growth-engine/.state/gate-overrides.md`: `<today's date> | B | ops | <their exact words>`, run `sh .claude/scripts/refresh.sh < /dev/null`, and carry on.
+
+   If the row reads `done` or `overridden`, carry straight on.
 6. **Check for an existing workflow.** If `engines/ops/ops-workflow.md` already exists, the bottleneck is already found, so do not run the diagnostic again.
    - The pack it names is the pack to publish first, even when the file calls it a snapshot, as files from the app do (Comment-to-DM capture is the Comment to DM pack).
    - Keep the file as it is. Ask whether they want to change the copy or put a different pack first, and go straight there.

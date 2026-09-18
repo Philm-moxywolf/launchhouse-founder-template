@@ -119,11 +119,16 @@ want() { # description, pattern
 
 want "the track is read from the Brain" '^Track: b2b$'
 want "the bold Locked date the contract writes is read" '| brain-locked |.*| done |'
-want "gate A is four of five while a question is unanswered" '^Gate A: 4 of 5 done$'
+want "gate A is four of five while a question is unanswered, and says so" '^Gate A: 4 of 5 done, 1 to confirm$'
 want "thirty pieces count as done" '| pieces |.*| done |'
 want "thirty approved count as done" '| approved |.*| done |'
 want "the list of 25 counts as done" '| list |.*| done |'
 want "an unanswered question waits on the founder" '| domain |.*| ask |'
+# Fix 1, the core regression test: a gate with one row still at "ask" (nothing
+# on file yet, the founder has not been asked or has not answered) must not
+# lock the engine that gate gates. Answering was deliberately dropped as a
+# gating requirement, so only a "not done" row may lock an engine.
+want "the content engine is not locked by a self-reported item awaiting an answer" '| content | A | done |'
 if grep -q '| openers |' "$state"; then printf 'FAIL  the other track is never listed\n'; fail=1; else printf 'PASS  the other track is never listed\n'; fi
 
 # An answer on file turns a question into an answer, never into evidence.
@@ -228,12 +233,132 @@ if grep -q '| sends |.*| not due |' "$b2c_state" 2>/dev/null; then
 else
   printf 'FAIL  the sends row is not due before the cohort Saturday\n'; fail=1
 fi
-if grep -q '^Gate C: 0 of 6 done$' "$b2c_state" 2>/dev/null; then
+if grep -q '^Gate C: 0 of 6 done, 1 to confirm$' "$b2c_state" 2>/dev/null; then
   printf 'PASS  a not due item counts toward neither the done nor the total\n'
 else
   printf 'FAIL  a not due item counts toward neither the done nor the total\n'; fail=1
 fi
 rm -rf "$b2c"
+
+# Fix 2: an item kept off GitHub, not present on this computer, must not lock
+# an engine either, the same as an "ask" row. A b2b founder's second computer,
+# where people/ and the first lines file are absent but were seen on the
+# first one, carries their rows forward as unknown, never as missing and
+# never as done. Everything else this founder needs for Gate B is done, so
+# the outreach engine (which needs Gate B) must read done, not locked.
+unk=${TMPDIR:-/tmp}/lh-state-unknown.$$
+mkdir -p "$unk/.claude" "$unk/growth-engine/.state" "$unk/growth-engine/brain" \
+  "$unk/growth-engine/engines/content" "$unk/growth-engine/engines/outreach" \
+  "$unk/growth-engine/engines/ops" "$unk/growth-engine/log" "$unk/growth-engine/people" || exit 1
+cp -R "$repo/.claude/scripts" "$unk/.claude/" || exit 1
+cp -R "$repo/.claude/references" "$unk/.claude/" || exit 1
+cp "$repo/.gitignore" "$unk/.gitignore" || exit 1
+: > "$unk/growth-engine/.launchhouse"
+
+cat > "$unk/growth-engine/brain/founder-brain.md" <<'EOF'
+# Founder Brain
+
+- **Founder:** Test Founder
+- **Business:** Test Works
+- **Track:** b2b
+- **Stage:** trading
+- **Team:** just them
+- **Locked:** 2026-09-08
+
+## Thesis
+A long enough thesis line to be past the forty characters that are not spaces.
+
+## Voice
+A long enough voice line to be past the forty characters that are not spaces.
+
+## Flags
+- [ ] Sending domain is new.
+EOF
+
+i=1
+{
+  printf '# Thirty pieces\n\n'
+  while [ "$i" -le 30 ]; do printf '## %s. Piece %s\nA line of body text that is long enough to be real.\n\n' "$i" "$i"; i=$((i + 1)); done
+} > "$unk/growth-engine/engines/content/content-30.md"
+
+i=1
+{
+  printf 'content,platform,scheduled_date,media_note\n'
+  while [ "$i" -le 30 ]; do printf '"Piece %s body",linkedin,2026-10-01,none\n' "$i"; i=$((i + 1)); done
+} > "$unk/growth-engine/engines/content/content-30.csv"
+
+i=1
+{
+  printf '# Ledger\n\n'
+  while [ "$i" -le 30 ]; do printf 'C|%s|proof|post|organic|approved||2026-10-01\n' "$i"; i=$((i + 1)); done
+} > "$unk/growth-engine/log/ledger.md"
+
+printf '# Refill\n- A trade newsletter the founder already reads every week.\n' > "$unk/growth-engine/engines/content/rss-feeds.md"
+
+cat > "$unk/growth-engine/engines/outreach/outreach-sequence.md" <<'EOF'
+# Sequence
+
+Route: by hand.
+
+## Criteria
+Tight: one kind of shop. Medium: the wider trade. Broad: anyone who quotes.
+
+## Touch 1
+Say no and I will stop.
+
+## Touch 2
+Say no and I will stop.
+
+## Touch 3
+Say no and I will stop.
+
+## Touch 4
+Say no and I will stop.
+EOF
+
+cat > "$unk/growth-engine/engines/ops/ops-workflow.md" <<'EOF'
+# Workflow
+The bottleneck is quotes going out late.
+The pack to publish first is Lead follow-up.
+The copy is written below and reads like the founder.
+EOF
+
+printf '2026-09-17 | flags | Domain is old, SPF DKIM DMARC all set\n2026-09-17 | domain | Domain is old, sending has started\n' \
+  > "$unk/growth-engine/.state/gate-answers.md"
+
+i=1
+while [ "$i" -le 25 ]; do
+  printf 'kind: prospect\nstatus: candidate\n' > "$unk/growth-engine/people/p$i.md"
+  i=$((i + 1))
+done
+i=1
+{
+  printf 'email,first_name,company,first_line\n'
+  while [ "$i" -le 25 ]; do printf 'a%s@example.com,Name%s,Co%s,"A first line"\n' "$i" "$i" "$i"; i=$((i + 1)); done
+} > "$unk/growth-engine/engines/outreach/outreach-firstlines.csv"
+
+( cd "$unk" && git init >/dev/null 2>&1 )
+CLAUDE_PROJECT_DIR="$unk" sh "$unk/.claude/scripts/gate-state.sh" --force >/dev/null 2>&1
+
+# Pretend this is a different computer from the one that last saw the private
+# files: overwrite the "seen here" marker with a host that is not this one, so
+# index.sh's carry-forward treats a now-missing private file as unknown rather
+# than as really gone.
+mkdir -p "$unk/growth-engine/.state/.pre"
+printf 'a-different-computer\n' > "$unk/growth-engine/.state/.pre/private-seen"
+rm -rf "$unk/growth-engine/people" "$unk/growth-engine/engines/outreach/outreach-firstlines.csv"
+mkdir -p "$unk/growth-engine/people"
+
+unk_state="$unk/growth-engine/.state/gate-state.md"
+CLAUDE_PROJECT_DIR="$unk" sh "$unk/.claude/scripts/gate-state.sh" --force >/dev/null 2>&1
+
+want() { # local helper against $unk_state, same shape as the one above
+  if grep -q "$2" "$unk_state" 2>/dev/null; then printf 'PASS  %s\n' "$1"; else printf 'FAIL  %s\n' "$1"; fail=1; fi
+}
+want "the list is unknown on a second computer, not missing and not done" '| list |.*| unknown |'
+want "first lines are unknown on a second computer, not missing and not done" '| firstlines |.*| unknown |'
+want "the outreach engine is not locked by an unknown row" '| outreach | B | done |'
+rm -rf "$unk"
 
 # Bug: the change fingerprint (Stamp) must be stable across repeated runs when
 # nothing under growth-engine has changed, on this machine's own stat. Two
@@ -646,6 +771,146 @@ grep -q 'sh .claude/scripts/move-layout.sh < /dev/null' "$repo/.claude/skills/st
   && grep -q 'sh .claude/scripts/move-layout.sh .lh-import/growth-engine < /dev/null' "$repo/.claude/skills/import-from-app/SKILL.md"
 ok $? "the start skill runs the move, and the import puts the app's work in the new layout"
 
+# Gates lock, with a way through. A fresh folder with no Brain at all: the
+# content engine's gate (A) is not met, so its row in the engine table reads
+# locked, and so does ops, which needs Gate B, also not met, and has no
+# override on file.
+lockdir=${TMPDIR:-/tmp}/lh-state-lock.$$
+mkdir -p "$lockdir/.claude" "$lockdir/growth-engine/.state" "$lockdir/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$lockdir/.claude/" || exit 1
+cp -R "$repo/.claude/references" "$lockdir/.claude/" || exit 1
+: > "$lockdir/growth-engine/.launchhouse"
+cat > "$lockdir/growth-engine/brain/founder-brain.md" <<'EOF'
+# Founder Brain
+
+- **Founder:** Test Founder
+- **Business:** Test Works
+- **Track:** b2b
+EOF
+lock_state="$lockdir/growth-engine/.state/gate-state.md"
+CLAUDE_PROJECT_DIR="$lockdir" sh "$lockdir/.claude/scripts/gate-state.sh" --force
+want() { # local helper against $lock_state, same shape as the one above
+  if grep -q "$2" "$lock_state" 2>/dev/null; then printf 'PASS  %s\n' "$1"; else printf 'FAIL  %s\n' "$1"; fail=1; fi
+}
+want "an unmet gate reports its engine as locked" '| content | A | locked |'
+want "a second engine on an unmet gate is locked too, with no override" '| ops | B | locked |'
+
+# Recording an override for one engine only reads that engine as overridden,
+# and leaves every other locked engine exactly as it was.
+printf '2026-09-18 | A | content | Let us just get started, I will fill in the brain later\n' \
+  >> "$lockdir/growth-engine/.state/gate-overrides.md"
+CLAUDE_PROJECT_DIR="$lockdir" sh "$lockdir/.claude/scripts/gate-state.sh" --force
+want "an override makes its own engine read overridden" '| content | A | overridden |'
+want "an override for one engine leaves another engine locked" '| ops | B | locked |'
+if grep -q '| A | brain-locked |.*| done |' "$lock_state"; then
+  printf 'FAIL  an override never marks the gate itself as done\n'; fail=1
+else
+  printf 'PASS  an override never marks the gate itself as done\n'
+fi
+
+# A gate that is actually met reads its engine as done, override or not.
+cat > "$lockdir/growth-engine/brain/founder-brain.md" <<'EOF'
+# Founder Brain
+
+- **Founder:** Test Founder
+- **Business:** Test Works
+- **Track:** b2b
+- **Locked:** 2026-09-08
+
+## Thesis
+A long enough thesis line to be past the forty characters that are not spaces.
+
+## Voice
+A long enough voice line to be past the forty characters that are not spaces.
+
+## Flags
+- [ ] Sending domain is new.
+EOF
+printf '2026-09-18 | flags | Domain is new, DKIM going in today\n' >> "$lockdir/growth-engine/.state/gate-answers.md"
+CLAUDE_PROJECT_DIR="$lockdir" sh "$lockdir/.claude/scripts/gate-state.sh" --force
+want "a gate that is actually met reads its engine as done" '| content | A | done |'
+rm -rf "$lockdir"
+
+# Fix 4, the shell-testable half: an override already on file reads the engine
+# as overridden. (The other half, that a skill never adds a second line for
+# an engine that already has one, is skill-level behaviour, enforced by the
+# wording in each skill's gate-check paragraph, not by this script. There is
+# nothing here for a shell test to check beyond gate-state.sh correctly
+# reporting "overridden" once a line exists, which the lockdir tests above
+# already do: "an override makes its own engine read overridden".)
+
+# Fix 3: with no track chosen, gate-state.md must write no row at all for
+# outreach, audience or ops, only content, brain and plan. This is existing,
+# intentional behaviour, now written down in gates.md; this test guards it.
+notrack=${TMPDIR:-/tmp}/lh-state-notrack.$$
+mkdir -p "$notrack/.claude" "$notrack/growth-engine/.state" "$notrack/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$notrack/.claude/" || exit 1
+cp -R "$repo/.claude/references" "$notrack/.claude/" || exit 1
+: > "$notrack/growth-engine/.launchhouse"
+cat > "$notrack/growth-engine/brain/founder-brain.md" <<'EOF'
+# Founder Brain
+
+- **Founder:** Test Founder
+- **Business:** Test Works
+EOF
+CLAUDE_PROJECT_DIR="$notrack" sh "$notrack/.claude/scripts/gate-state.sh" --force
+notrack_state="$notrack/growth-engine/.state/gate-state.md"
+want() { # local helper against $notrack_state, same shape as the one above
+  if grep -q "$2" "$notrack_state" 2>/dev/null; then printf 'PASS  %s\n' "$1"; else printf 'FAIL  %s\n' "$1"; fail=1; fi
+}
+if grep -qE '^\| (outreach|audience|ops) \|' "$notrack_state"; then
+  printf 'FAIL  no engine row for outreach, audience or ops with no track chosen\n'; fail=1
+else
+  printf 'PASS  no engine row for outreach, audience or ops with no track chosen\n'
+fi
+want "the content engine still gets a row with no track chosen" '^| content | A |'
+want "the plan engine still gets a row with no track chosen" '^| plan | C |'
+rm -rf "$notrack"
+
+# Fix 5: the five gated skills carry the identical refresh-then-read sentence,
+# byte for byte apart from the engine name, so they can never drift apart
+# again the way they had before this fix.
+shared_sentence='Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md`'
+skill_miss=0
+for f in content-engine outreach-b2b audience-b2c ghl-workflows growth-plan; do
+  sf="$repo/.claude/skills/$f/SKILL.md"
+  grep -qF "$shared_sentence" "$sf" || { printf 'FAIL  %s carries the shared refresh-then-read sentence\n' "$f"; skill_miss=1; fail=1; }
+done
+[ "$skill_miss" = 0 ] && printf 'PASS  all five gated skills carry the identical refresh-then-read sentence\n'
+
+# Fix 6: none of the five skills carry the old, unhooked "carry straight on"
+# escape when gate-state.md is simply missing.
+if grep -rqF 'is not there at all, carry straight on' \
+  "$repo/.claude/skills/content-engine/SKILL.md" "$repo/.claude/skills/outreach-b2b/SKILL.md" \
+  "$repo/.claude/skills/audience-b2c/SKILL.md" "$repo/.claude/skills/ghl-workflows/SKILL.md" \
+  "$repo/.claude/skills/growth-plan/SKILL.md"; then
+  printf 'FAIL  no gated skill carries straight on when gate-state.md is missing\n'; fail=1
+else
+  printf 'PASS  no gated skill carries straight on when gate-state.md is missing\n'
+fi
+
+# The settings allow list lets refresh.sh run without a permission prompt, in
+# exactly the command form the skills above use.
+if grep -qF 'Bash(sh .claude/scripts/refresh.sh < /dev/null)' "$repo/.claude/settings.json"; then
+  printf 'PASS  refresh.sh is in the settings allow list\n'
+else
+  printf 'FAIL  refresh.sh is in the settings allow list\n'; fail=1
+fi
+
+# No file anywhere in the repo talks about a form, a hand-off to a mentor, or
+# pasting a block into anything: the gates lock and unlock in this folder,
+# nowhere else. This test file itself has to hold the patterns to look for
+# them, so it is the one file left out of its own search.
+form_hits=$(grep -rIn --exclude-dir=.git --exclude=state.sh -i \
+  -e 'gate form' -e 'form link' -e 'mentor submission' -e 'gate submission' -e 'gate block' \
+  "$repo" 2>/dev/null)
+if [ -z "$form_hits" ]; then
+  printf 'PASS  %s\n' "no file mentions a gate form, a form link, or pasting a gate block"
+else
+  printf 'FAIL  %s\n' "no file mentions a gate form, a form link, or pasting a gate block"
+  printf '%s\n' "$form_hits"
+  fail=1
+fi
 
 if [ "$fail" = 0 ]; then
   printf '\nAll state checks passed.\n'

@@ -11,7 +11,7 @@ This repository is a complete standalone system. Everything Launchhouse does liv
 - `gate-state.sh` works out the gate state once and writes `growth-engine/.state/gate-state.md`. The session line, the status and gate skills, the engine skills and the end of turn check all read that file.
 - `park.sh`, with `prompt-state.sh`, lets a founder say "park this" to stop the nudges for an engine.
 - `rules.awk` reads the heading or bold label above a message, so a blank line no longer changes the result, and a label that names the inbound trigger passes.
-- Programme dates, and the gate form link, live only in the cohort block in `.claude/references/gates.md`.
+- Programme dates live only in the cohort block in `.claude/references/gates.md`.
 - The contract records which files go stale when another changes. The Brain has a `Team` line and a "give me what you already have" line. The content engine asks who is on camera and drops a borrowed founder story. Engines check the gate they depend on and say where the founder stands.
 
 ## Wave A (`f2d20db`)
@@ -68,7 +68,7 @@ All 30 are still open on GitHub. None is closed until the branch is merged. "Clo
 - **#11 LH-012, who is on camera:** closed. The content engine asks, and drops the founder story when this founder did not live it.
 - **#12 LH-013, more than one founder:** closed.
 - **#13 LH-014, product and privacy claims:** closed in the reviewer's instructions. Whether a model holds them is a hand check (8).
-- **#14 LH-015, where the gate block goes:** partly. The gate skill prints the link from `gates.md` and, while the row says `not recorded yet`, says the link comes from the mentor. Left: the programme has to supply the link. That is a decision, not code.
+- **#14 LH-015, gates without a hand-off step:** closed, reframed by the owner. Nothing is pasted anywhere, and nothing goes to anyone outside this folder. `gate-state.md` is the report, and every engine reads its own row from the engine table in it.
 - **#15 LH-016, approved wording blocked:** closed. A label naming the inbound trigger passes, a bare "Automatic DM" heading is still held, in every file alike, with fixtures.
 - **#16 LH-017, programme dates:** closed. One cohort block in `gates.md`.
 - **#17 LH-018, the blank line:** closed, with fixtures both ways.
@@ -77,7 +77,7 @@ All 30 are still open on GitHub. None is closed until the branch is merged. "Clo
 - **#20 LH-021, changes never reach built files:** closed as far as text can. The contract lists what goes stale, and skills must name it and offer a rebuild. Nothing rebuilds by itself, which is what the issue asked.
 - **#21 LH-022, one flat folder:** closed, with 14 state checks. A hand check (14) runs the move on a copy of an older folder in the app.
 - **#22 LH-023, the playbook insert:** closed in code. The PDF from the printable HTML, and the page count, are a hand check (9) on a Mac and a Windows PC.
-- **#23 LH-024, gates as paperwork:** closed. Each engine reads the gate it depends on, says what is missing, and offers to carry on (hand check 5).
+- **#23 LH-024, gates as paperwork:** closed. Gates lock, with a way through. Only a `not done` row blocks an engine: a self-reported item still awaiting an answer, or a row hidden by gitignore on a second computer, is never treated as something that must be answered first. Each engine reads its own row in the gate-state engine table; a locked engine does not start, and says what is missing before offering to do that first. Going ahead anyway records a dated override for that one engine, in `growth-engine/.state/gate-overrides.md`, never for the whole gate, and an override already on file is honoured without asking twice (hand check 5).
 - **#24 LH-025, tools not shipped:** partly. GoHighLevel connects from the folder with its key in the password store, and Apollo and the mailbox are named exactly as Claude's own connectors. Left: the connection has never been made on a real account, on a Mac or a Windows PC. That needs a real GoHighLevel sub-account and a hand check (13), not more code. Apollo and the mailbox cannot ship in a folder, since they are Claude account connectors.
 - **#25 LH-026, the mailbox:** partly. Gmail: connect, prove, draft after a yes, check replies, never send. Left: Microsoft 365 has no draft tool, so the 25 go by hand there, and its search tool name and whether it shows the sender have never been seen on a real account. That needs a real Gmail and a real Microsoft 365 account (hand check 11).
 - **#26 LH-027, keeping on track:** closed, with state checks. How the nudge feels in use is a hand check (6).
@@ -87,13 +87,11 @@ All 30 are still open on GitHub. None is closed until the branch is merged. "Clo
 - **#30 LH-031, the founder's own lines:** closed.
 - **#31 LH-032, output style:** closed in files. Whether the app selects it, and whether Cowork honours it, is a hand check (7).
 
-Tally: 24 closed (of which #13, #18, #22, #23, #26 and #31 still want their hand check), 5 partly (#2, #14, #24, #25, #29), and #27 closed for this repository only, with its plugin half out of scope.
+Tally: 25 closed (of which #13, #14, #18, #22, #23, #26 and #31 still want their hand check), 4 partly (#2, #24, #25, #29), and #27 closed for this repository only, with its plugin half out of scope.
 
 ## Decisions waiting on the maintainer
 
-1. The gate form link for the cohort block in `gates.md` (#14).
-2. Whether #27 stays open for the plugin distribution or is split into a new issue.
-3. When to commit waves B and C, and merge the branch.
+1. Whether #27 stays open for the plugin distribution or is split into a new issue.
 
 ## What a maintainer should check by hand
 
@@ -103,7 +101,7 @@ Use a machine without a personal `.claude/settings.local.json` in the folder. Th
 2. Look at GitHub Desktop straight after opening, after the first "always allow", and after approving the `highlevel` server. Note which files show as changed, whether the app moved keys in `settings.json`, and whether `.claude/settings.local.json` shows up. This is #2.
 3. Type `/growth-engine:` and confirm all 21 commands appear.
 4. With the old plugin also installed, confirm only one set of checks runs and that this folder's copy is the one in use.
-5. Run each engine with its gate not met. Confirm it says what is missing, offers to carry on, and ends with the next step and "where am I up to".
+5. Run each engine with its gate not met. Confirm it does not start, says what is missing in one or two plain sentences, and offers to do that first. Say to go ahead anyway, and confirm it records a dated override in `growth-engine/.state/gate-overrides.md`, runs the engine, and that `gate-state.md` then reads that one engine as `overridden`, not `done`, and leaves the other engines `locked`. Confirm it ends with the next step and "where am I up to".
 6. Say "park this" in the middle of an engine, then "pick it back up", and confirm the end of turn nudge stops and starts again.
 7. Restart and run `/output-style`. Confirm Launchhouse Guide is selected and replies change. Try `keep-coding-instructions` true and false, and check whether Cowork honours the style.
 8. Write "no personal text leaves the device", and a co-founder line "as the one building this". Confirm the reviewer holds both and the founder is asked.

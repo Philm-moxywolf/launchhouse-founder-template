@@ -31,6 +31,10 @@ Gate C: 5 of 6 done
 | gate | key | item | state | evidence | engine |
 |---|---|---|---|---|---|
 | B | approved | The pieces have been read and approved | not done | 29 of 30 approved in ledger.md | content |
+
+| engine | needs | state |
+|---|---|---|
+| outreach | B | locked |
 ```
 
 - **gate** is A, B or C.
@@ -46,6 +50,32 @@ Gate C: 5 of 6 done
 - **evidence** is the short fact that decided it, with a count where there is one.
 - **engine** is the engine the item belongs to: `brain`, `content`, `outreach`,
   `audience`, `ops` or `plan`.
+
+Below the item table is a second table, one row per engine on this founder's
+track, with the gate it needs (from the mapping in `gates.md`) and its own
+state: `done`, `overridden` or `locked` (`none` for the Brain, which needs no
+gate). An engine skill reads its own row here to decide whether it starts.
+
+## Gate lock and override
+
+The gates are a guardrail, not paperwork. An engine whose gate is not met does
+not start on its own. The engine skill says in one or two plain sentences what
+is missing, using that gate's `not done` rows, and offers to do that first. If
+the founder says to go ahead anyway, the engine records an override and runs.
+
+An override is recorded as a dated line in
+`growth-engine/.state/gate-overrides.md`, one line each:
+
+```
+2026-09-17 | A | content | Let's just get started, I will fill the brain in later
+```
+
+Date, then the gate, then the engine, then the founder's own words. It is
+never evidence that the gate itself is met: `gate-state.md` still reports the
+gate's items exactly as the files show them. It only changes that one
+engine's row in the engine table, from `locked` to `overridden`. Saying yes to
+run content anyway never unlocks outreach, audience or ops, and never touches
+the gate for another founder or another engine.
 
 `Computed` and `Newest change` say when it was worked out and the newest file it
 looked at. If `Newest change` is older than a file you just wrote, the state is
@@ -143,3 +173,5 @@ touches a founder's own folder.
   of the folder that cannot see the private files reads the last row from it.
 - Nothing in here counts replies.
 - Nothing in here lists the other track's items.
+- An override in `gate-overrides.md` never marks a gate itself as met, and
+  never unlocks any engine beyond the one it names.

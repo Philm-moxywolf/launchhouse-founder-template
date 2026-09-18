@@ -176,6 +176,24 @@ answer() {
   printf '%s' "$a"
 }
 
+# An engine whose gate is not met still has a way through: the founder can say
+# to go ahead anyway, recorded as a dated line in
+# growth-engine/.state/gate-overrides.md: "<date> | <gate> | <engine> | <words>".
+# This is never evidence that the gate is met. It only lets that one engine run.
+ovr_file="$ge/.state/gate-overrides.md"
+overridden_for() {
+  [ -f "$ovr_file" ] || return 1
+  awk -v e="$1" '
+    {
+      line = $0
+      sub(/^[ \t]*\|/, "", line)
+      n = split(line, c, "|")
+      for (i = 1; i <= n; i++) gsub(/^[ \t]+|[ \t]+$/, "", c[i])
+      if (n >= 4 && tolower(c[3]) == tolower(e)) found = 1
+    }
+    END { exit (found ? 0 : 1) }' "$ovr_file" 2>/dev/null
+}
+
 rows="$ge/.state/gate-state.rows.$$"
 : > "$rows" || exit 0
 row() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" >> "$rows"; }
@@ -377,6 +395,71 @@ paused_list=$(
 )
 [ -n "$paused_list" ] || paused_list=none
 
+# --- which gate an engine needs ----------------------------------------------
+
+# The one mapping, kept in step with the table in ../references/gates.md:
+# content needs Gate A; outreach, audience and ops need Gate B; the plan needs
+# Gate C. The Brain needs no gate. An engine that is not on this founder's
+# track (outreach for a b2c founder, audience for a b2b one) is left out.
+gate_for_engine() {
+  case "$1" in
+    brain) printf '' ;;
+    content) printf A ;;
+    outreach|audience|ops) printf B ;;
+    plan) printf C ;;
+  esac
+}
+
+# One shared counting pass per gate, so gate_done() (whether an engine may
+# run) and the "Gate X: n of n done" summary line can never disagree about
+# what a row means. Prints four numbers: not-done count, total count (every
+# row for this gate except "not due"), done count (done + answered), and
+# to-confirm count (ask + unknown).
+#
+# Only "not done" rows block an engine. "ask", "answered" and "unknown" are
+# all self-reported or off-this-computer states, never proof that something
+# is wrong, so none of them may hold an engine locked. An answer was
+# deliberately dropped as a gating requirement by this project's owner, so
+# treating "ask" as blocking would put it straight back as paperwork.
+gate_counts() {
+  awk -F '\t' -v g="$1" '
+    $1 == g && $4 != "not due" {
+      t++
+      if ($4 == "not done") nd++
+      else if ($4 == "done" || $4 == "answered") d++
+      else if ($4 == "ask" || $4 == "unknown") tc++
+    }
+    END { printf "%d %d %d %d\n", nd + 0, t + 0, d + 0, tc + 0 }' "$rows"
+}
+
+# An engine's gate is met only when the gate has at least one row and none of
+# them are "not done". "ask" and "unknown" rows do not block: this is the
+# fix for the bug where a self-reported question awaiting an answer, or a
+# row hidden by gitignore on a second computer, could lock an engine forever.
+gate_done() {
+  set -- $(gate_counts "$1")
+  gd_nd=$1
+  gd_t=$2
+  [ "$gd_t" -gt 0 ] && [ "$gd_nd" = 0 ]
+}
+
+engine_state() {
+  g=$(gate_for_engine "$1")
+  if [ -z "$g" ]; then printf 'none'; return; fi
+  if gate_done "$g"; then printf 'done'
+  elif overridden_for "$1"; then printf 'overridden'
+  else printf 'locked'; fi
+}
+
+erows="$ge/.state/gate-state.erows.$$"
+: > "$erows" || exit 0
+for e in brain content outreach audience ops plan; do
+  case $track:$e in b2b:audience|b2c:outreach) continue ;; esac
+  case $track:$e in :outreach|:audience|:ops) continue ;; esac
+  g=$(gate_for_engine "$e")
+  printf '%s\t%s\t%s\n' "$e" "${g:-none}" "$(engine_state "$e")" >> "$erows"
+done
+
 # --- write it out ------------------------------------------------------------
 
 when=$(date '+%Y-%m-%d %H:%M')
@@ -394,16 +477,26 @@ tmp="$out.tmp.$$"
   printf 'Engine in progress: %s\n' "$engine"
   printf 'Paused: %s\n\n' "$paused_list"
   for g in A B C; do
-    d=$(awk -F '\t' -v g="$g" '$1 == g && ($4 == "done" || $4 == "answered") { n++ } END { print n + 0 }' "$rows")
-    t=$(awk -F '\t' -v g="$g" '$1 == g && $4 != "not due" { n++ } END { print n + 0 }' "$rows")
-    printf 'Gate %s: %s of %s done\n' "$g" "$d" "$t"
+    set -- $(gate_counts "$g")
+    gs_nd=$1
+    gs_t=$2
+    gs_d=$3
+    gs_tc=$4
+    if [ "$gs_tc" -gt 0 ]; then
+      printf 'Gate %s: %s of %s done, %s to confirm\n' "$g" "$gs_d" "$gs_t" "$gs_tc"
+    else
+      printf 'Gate %s: %s of %s done\n' "$g" "$gs_d" "$gs_t"
+    fi
   done
   printf '\n| gate | key | item | state | evidence | engine |\n|---|---|---|---|---|---|\n'
   awk -F '\t' '{ printf "| %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6 }' "$rows"
   printf '\nState is done, not done, ask (waiting on the founder), answered (they told us), unknown (kept off GitHub, not in this copy) or not due.\n'
   printf 'An answer is never evidence. Answers live in .state/gate-answers.md.\n'
-} > "$tmp" 2>/dev/null || { rm -f "$tmp" "$rows"; exit 0; }
+  printf '\n| engine | needs | state |\n|---|---|---|\n'
+  awk -F '\t' '{ printf "| %s | %s | %s |\n", $1, $2, $3 }' "$erows"
+  printf '\nEngine state is done, overridden or locked (none for an engine that needs no gate). A locked engine does not start. An override in .state/gate-overrides.md unlocks one engine only, never the gate for every engine that reads it.\n'
+} > "$tmp" 2>/dev/null || { rm -f "$tmp" "$rows" "$erows"; exit 0; }
 
 mv "$tmp" "$out" 2>/dev/null
-rm -f "$rows"
+rm -f "$rows" "$erows"
 exit 0

@@ -15,7 +15,15 @@ The shapes of every file this writes are in `../../references/contract.md`, rela
 
 ## Prerequisites
 
-**First, the gate this one is built on.** Read `growth-engine/.state/gate-state.md`. The `state` column is the answer: do not count anything yourself. If any Gate A row is at `not done`, say in one plain sentence what is missing, using that row's `evidence` as it is written, then offer to carry on anyway. Never stop them. A founder working out of order is still working, and the thirty pieces can be rebuilt later from a finished Brain. If that file is not there at all, carry straight on.
+**First, the gate this one is built on.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `content` row in its engine table. This engine needs Gate A, from the mapping in `../../references/gates.md`.
+
+If there is no `content` row, no track is chosen yet. Treat it as locked: what is missing is the track, from the Founder Brain.
+
+If the row reads `locked`, or is still missing after the refresh, this engine does not start. Say in one or two plain sentences what is missing, using the `not done` Gate A rows' evidence, and offer to do that first. Before offering to go ahead anyway, check `growth-engine/.state/gate-overrides.md` for a line already naming `content`. If one is there, treat the row as overridden and carry on; do not add a second line.
+
+Otherwise, only record an override when the founder says, in their own words, to go ahead anyway. A no, or "later", is not consent. If it is unclear, ask once: "Build it without that?" Then add a line to `growth-engine/.state/gate-overrides.md`: `<today's date> | A | content | <their exact words>`, run `sh .claude/scripts/refresh.sh < /dev/null`, and carry on.
+
+If the row reads `done` or `overridden`, carry straight on.
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
 2. **Read the Brain.** Read `./growth-engine/brain/founder-brain.md`.

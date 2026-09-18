@@ -11,7 +11,15 @@ The Sunday deliverable. It sequences everything built over the weekend into one 
 
 ## Prerequisites
 
-**Check the gate first.** Read `./growth-engine/.state/gate-state.md`. The plan sequences the engines, so any row at `not done` is a gap the plan has to name. Say in one plain sentence what is missing, using the row's evidence, then offer to carry on anyway. Never hold a founder up for working out of order.
+**Check the gate first.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `plan` row in its engine table. This engine needs Gate C, from the mapping in `../../references/gates.md`.
+
+If there is no `plan` row, no track is chosen yet. Treat it as locked: what is missing is the track, from the Founder Brain.
+
+If the row reads `locked`, or is still missing after the refresh, the plan does not start. Say in one or two plain sentences what is missing, using the `not done` Gate C rows' evidence, and offer to do that first. Before offering to go ahead anyway, check `growth-engine/.state/gate-overrides.md` for a line already naming `plan`. If one is there, treat the row as overridden and carry on; do not add a second line.
+
+Otherwise, only record an override when the founder says, in their own words, to go ahead anyway. A no, or "later", is not consent. If it is unclear, ask once: "Build it without that?" Then add a line to `growth-engine/.state/gate-overrides.md`: `<today's date> | C | plan | <their exact words>`, run `sh .claude/scripts/refresh.sh < /dev/null`, and carry on.
+
+If the row reads `done` or `overridden`, carry straight on.
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
 2. **Read the files that exist:**

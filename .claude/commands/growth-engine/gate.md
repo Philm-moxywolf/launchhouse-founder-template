@@ -1,5 +1,5 @@
 ---
-description: Prepare the plain-text block for your gate submission
+description: Show the computed gate report for this founder's track
 ---
 
 Use the gate skill.

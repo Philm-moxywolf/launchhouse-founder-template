@@ -43,6 +43,8 @@ Every date comes from the cohort block in `../../references/gates.md`. Name a se
 - **Nearly done**: say exactly what is missing, for example "22 of 30 approved"
 - **Not started**
 
+**What unlocks next.** Read the engine table at the bottom of `gate-state.md`, described in `../../references/state.md`. For an engine at `locked`, say plainly which gate it needs and what is missing from it, from the mapping in `../../references/gates.md`, and that saying "go ahead anyway" when they ask to build it records an override and unlocks it. For an engine at `overridden`, say plainly that it is running with that gate not yet met. Never present an override as done: it stays `overridden` until the gate itself is met.
+
 **What counts as done**
 - File-backed items count only on what the file shows. Never mark something done because the founder says so.
 - Self-reported items show what `.state/gate-answers.md` records, or "not asked yet".
