@@ -27,7 +27,7 @@ This is the single most common problem.
 - If it says nothing about Launchhouse, look for `growth-engine/.launchhouse` in this folder, one folder down, the parent folder, and the home folder.
 
 **If you find more than one Launchhouse folder** (the session context names them):
-1. Show each location, what it contains, and when it last changed, from the `modified` column of its `growth-engine/.state/index.md`.
+1. Show each location and what it contains, from its `growth-engine/.state/index.md`.
 2. Help them decide which is the real one.
 3. Do not merge them and do not delete anything. Tell them to move the others aside.
 

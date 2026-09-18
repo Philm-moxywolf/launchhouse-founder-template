@@ -119,15 +119,14 @@ tmp="$ge/.state/index.md.tmp.$$"
   else
     printf 'Track: %s\n\n' "$track"
   fi
-  printf '| file | gate | status | bytes | modified | count |\n|---|---|---|---|---|---|\n'
+  printf '| file | gate | status | bytes | count |\n|---|---|---|---|---|\n'
   printf '%s\n' "$rows" | while IFS='|' read -r name gate; do
     f="$ge/$name"
     if [ -f "$f" ]; then
       bytes=$(wc -c < "$f" | tr -d ' ')
       real=$(tr -d ' \t\r\n' < "$f" | wc -c | tr -d ' ')
       if [ "$real" -lt 40 ]; then status=empty; else status=ok; fi
-      mod=$(date -r "$f" +%Y-%m-%d 2>/dev/null || printf -- '-')
-      printf '| %s | %s | %s | %s | %s | %s |\n' "$name" "$gate" "$status" "$bytes" "$mod" "$(count_for "$name")"
+      printf '| %s | %s | %s | %s | %s |\n' "$name" "$gate" "$status" "$bytes" "$(count_for "$name")"
     else
       prev=$(previous_row "$name")
       case $prev in
@@ -137,7 +136,7 @@ tmp="$ge/.state/index.md.tmp.$$"
             continue
           fi ;;
       esac
-      printf '| %s | %s | missing | 0 | - | - |\n' "$name" "$gate"
+      printf '| %s | %s | missing | 0 | - |\n' "$name" "$gate"
     fi
   done
 
@@ -149,21 +148,21 @@ tmp="$ge/.state/index.md.tmp.$$"
     targets=$(grep -l '^kind: target' "$ge/people/"*.md 2>/dev/null | wc -l | tr -d ' ')
     sent=$(grep -l '^kind: target' "$ge/people/"*.md 2>/dev/null | while read -r p; do grep -Eq '^status: (sent|replied|booked|no_reply)' "$p" && printf 'x\n'; done | wc -l | tr -d ' ')
     case $track in
-      b2b) printf '| people/ | gate C | ok | - | - | %s prospects, %s cut |\n' "$prospects" "$cut" ;;
-      b2c) printf '| people/ | gate C | ok | - | - | %s targets, %s sent |\n' "$targets" "$sent" ;;
-      *) printf '| people/ | - | ok | - | - | %s prospects, %s targets |\n' "$prospects" "$targets" ;;
+      b2b) printf '| people/ | gate C | ok | - | %s prospects, %s cut |\n' "$prospects" "$cut" ;;
+      b2c) printf '| people/ | gate C | ok | - | %s targets, %s sent |\n' "$targets" "$sent" ;;
+      *) printf '| people/ | - | ok | - | %s prospects, %s targets |\n' "$prospects" "$targets" ;;
     esac
   else
     prev=$(previous_row "people/")
     case $prev in
-      *"| ok"*|*"kept off GitHub"*) if elsewhere; then printf '%s\n' "$prev" | sed -e 's/| ok, on the founder'"'"'s computer |/| unknown, kept off GitHub |/' -e 's/| ok |/| unknown, kept off GitHub |/'; else printf '| people/ | gate C | missing | - | - | 0 |\n'; fi ;;
-      *) printf '| people/ | gate C | missing | - | - | 0 |\n' ;;
+      *"| ok"*|*"kept off GitHub"*) if elsewhere; then printf '%s\n' "$prev" | sed -e 's/| ok, on the founder'"'"'s computer |/| unknown, kept off GitHub |/' -e 's/| ok |/| unknown, kept off GitHub |/'; else printf '| people/ | gate C | missing | - | 0 |\n'; fi ;;
+      *) printf '| people/ | gate C | missing | - | 0 |\n' ;;
     esac
   fi
 
   for d in inbox/uploads brain/voice-samples drafts; do
     n=$(ls -A "$ge/$d" 2>/dev/null | grep -vc '^\.gitkeep$' | tr -d ' ')
-    printf '| %s/ | - | - | - | - | %s files |\n' "$d" "$n"
+    printf '| %s/ | - | - | - | %s files |\n' "$d" "$n"
   done
 } > "$tmp" 2>/dev/null || { rm -f "$tmp"; exit 0; }
 

@@ -90,7 +90,6 @@ growth-engine/.state/.pre/
 # make a conflict out of a file the founder must never edit.
 growth-engine/.state/gate-state.md
 growth-engine/.state/nudges.md
-growth-engine/.state/index.md
 # Downloads from the app, once brought across.
 *.zip
 .lh-import/

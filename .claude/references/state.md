@@ -167,10 +167,15 @@ touches a founder's own folder.
 ## What never happens here
 
 - No file under `.state/` holds a real person's name, email or handle.
-- `gate-state.md`, `nudges.md` and `index.md` are kept out of git. They are
-  worked out from the folder, so a second computer rebuilds them in seconds
-  rather than pulling a conflict on a file nobody may edit, or seeing a file
-  that shows changed the moment a fresh copy is opened on a later day.
+- `gate-state.md` and `nudges.md` are kept out of git. They are worked out
+  from the folder, so a second computer rebuilds them in seconds rather than
+  pulling a conflict on a file nobody may edit.
+- `index.md` stays in git, still rebuilt automatically and never hand-edited.
+  The cloud routines (`countdown.md`, `monday-plan.md`) read it from the
+  founder's GitHub copy, and it is the only source for the people count once
+  there, because `people/` itself never goes to GitHub. It carries no date, so
+  a fresh copy opens clean and it only changes when the founder's own work
+  changes.
 - Nothing in here counts replies.
 - Nothing in here lists the other track's items.
 - An override in `gate-overrides.md` never marks a gate itself as met, and
