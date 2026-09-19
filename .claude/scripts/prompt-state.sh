@@ -10,6 +10,11 @@
 #    is left alone. See lh_sentence_match below.
 # 2. The short state block, refreshed and printed on every message, so a long
 #    session never works from what the folder looked like an hour ago.
+# 3. The mode notice: one line, only when permission_mode is auto, dontAsk or
+#    bypassPermissions, saying most tools run with no prompt in this mode and
+#    naming the one check that is still there. Nothing in any other mode. If
+#    this hook's own input does not carry permission_mode at all, nothing is
+#    printed either — never a guess at what mode the session is in.
 
 . "$(dirname "$0")/lib.sh" 2>/dev/null || exit 0
 lh_active || exit 0
@@ -18,6 +23,13 @@ here=$(dirname "$0")
 input=$(cat 2>/dev/null)
 prompt=$(lh_json_get prompt "$input" 2>/dev/null)
 low=$(printf '%s' "$prompt" | tr 'A-Z' 'a-z')
+mode=$(lh_json_get permission_mode "$input" 2>/dev/null) || mode=""
+mode_note=""
+case $mode in
+  auto|dontAsk|bypassPermissions)
+    mode_note="Permission mode $mode: most tools run with no prompt. Before any tool that changes or sends something outside the folder, show the founder what it will do and get a yes in chat."
+    ;;
+esac
 
 # Does any of the newline separated phrases in $2 open a sentence in $1 (the
 # already-lowered prompt)? A sentence is the start of the string, or whatever
@@ -85,5 +97,6 @@ fi
 
 sh "$here/refresh.sh" >/dev/null 2>&1
 [ -n "$parked" ] && printf '%s\n' "$parked"
+[ -n "$mode_note" ] && printf '%s\n' "$mode_note"
 sh "$here/state-block.sh" 2>/dev/null
 exit 0

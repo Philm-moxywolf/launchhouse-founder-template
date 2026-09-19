@@ -89,29 +89,11 @@
         ]
       },
       {
-        "matcher": "mcp__.*(apollo_emailer_messages_send_now|apollo_emailer_messages_create|apollo_emailer_campaigns_approve|apollo_sequences_create|apollo_sequences_update|apollo_email_account_purchase_create|__send_message|__reply|__forward|__send_inbox_draft|__create_filter)",
+        "matcher": "^mcp__",
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/deny-mcp.sh\""
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__.*(apollo_.*|conversations_send-a-new-message|social-media-posting_create-post|social-media-posting_edit-post|socialmediaposting_create-post|socialmediaposting_edit-post|emails_create-template|contacts_create-contact|contacts_upsert-contact|contacts_update-contact|contacts_add-tags|opportunities_update-opportunity|blogs_create-blog-post|blogs_update-blog-post|__create_draft|__update_draft)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/ask-mcp.sh\""
-          }
-        ]
-      },
-      {
-        "matcher": "^mcp__.+__(execute_operation|fetch|search|execute_operation[A-Za-z0-9_-]+)$",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/ghl-op.sh\""
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/mcp-guard.sh\""
           }
         ]
       }

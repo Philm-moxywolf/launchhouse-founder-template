@@ -13,6 +13,8 @@ File shapes are in `../../references/contract.md`. Gate C for B2B is in `../../r
 
 **Dates.** Every programme date comes from the cohort block in `../../references/gates.md`. Take today's date from the founder's own computer. Once a date in that block has passed, do not announce it as though it is still ahead: say "your clinic session" or "the Saturday of your programme" instead.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 ## Prerequisites
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
@@ -65,6 +67,8 @@ They are already carrying Claude, a domain and GoHighLevel at 97 USD. A founder 
 **On the manual route, schedule two touches at a time, never all four.** If someone replies, there are only two things to cancel, and cancelling is the job people forget.
 
 ## Step 1: list criteria
+
+Before asking, offer to look instead (`../../references/sources.md`): their CRM, past deal notes, or a spreadsheet of past customers, if they have a source connected that might hold their best-fit accounts.
 
 Convert the ICP into filters a founder can type into Apollo.
 

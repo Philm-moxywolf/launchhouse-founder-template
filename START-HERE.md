@@ -23,6 +23,8 @@ You might be wondering whether this is more setup than the app was. It is less. 
 
 If Claude does not seem to know about Launchhouse, quit the app and open it again on this same folder.
 
+The folder checks itself every time it opens: git, the settings and the growth-engine folder. It says nothing when all is well, and offers to fix anything it finds.
+
 ## 4. Say "start launchhouse"
 
 It checks your computer is ready, asks your name and where you are, and gets the folder ready. About two minutes. If you are starting fresh, it goes straight on to your Founder Brain.
@@ -52,6 +54,10 @@ Once a piece of work is saved, a copy also appears in a "My Launchhouse work" fo
 ## Backing up
 
 Claude saves your work as you go. To send it up to GitHub, open GitHub Desktop and press **Push origin**.
+
+## Running Claude in the cloud
+
+If you ever open this folder in a cloud session rather than on your own computer, Claude says so once: your files and your private lists (people, first lines, DM openers) are not there, and anything saved lands on a side branch rather than your real folder. Engine work belongs on your own computer.
 
 ## Using Cowork as well
 

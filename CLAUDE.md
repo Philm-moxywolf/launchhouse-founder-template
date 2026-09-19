@@ -63,4 +63,6 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 - Show exactly what will go out, where and when, in their timezone.
 - Wait for a yes before anything goes out.
 
+**Every connected tool, not only these three.** One check runs before any tool from a connector (GoHighLevel, Apollo, the mailbox, or any other the founder has connected) does anything. A small, fixed list of actions is refused outright, always: spending the founder's money, sending or connecting to a real person in bulk or cold, GoHighLevel's own refused list, and a mailbox rule. A short further list (a message actually going out, a calendar change, an Apollo credit spend, and a few named GoHighLevel actions) asks the founder first even when their own Claude setting would not otherwise ask. Everything else that changes or sends something is noted for Claude, in plain words, but never held up on its own: most founders run in a mode with no prompts at all, so their own yes in chat, before Claude ever reaches for the tool, is what has to carry it. A plain read is never even mentioned.
+
 The Launchhouse checks enforce most of this automatically. When a file is held or a tool is stopped, tell the founder in one plain sentence what happened and what to do, never as an error.

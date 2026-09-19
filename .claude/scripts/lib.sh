@@ -594,6 +594,28 @@ lh_ask_pre() {
   exit 0
 }
 
+# The third outcome: neither deny nor ask, just a note added to Claude's own
+# context for the call, with no permissionDecision key at all (so it reads
+# the same as staying silent to Claude Code itself, on any build old or new
+# — the tool call runs through the session's own permission mode exactly as
+# it would with no hook here). Used for every tool whose name signals a side
+# effect but is not one of the small deny or ask sets: mcp-guard.sh calls
+# this "guide".
+lh_guide_pre() {
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$(lh_json_escape "$1")"
+  exit 0
+}
+
+# The mode-aware sentence a guide note ends with, built from the
+# permission_mode the hook input carries (empty or unrecognised falls to the
+# same wording as auto/dontAsk/bypassPermissions, the cautious assumption).
+lh_mode_note() {
+  case $1 in
+    default|acceptEdits|plan) printf 'The founder will also see a permission prompt.' ;;
+    *) printf 'No prompt will appear in this mode, so the founder'"'"'s yes in chat is the only check.' ;;
+  esac
+}
+
 # Flattens raw text, tool name and tool input together, JSON and all, into one
 # lower case, space separated line. JSON's own punctuation and the separators
 # a name is written with (-, _, ., /, :) become spaces, and so does a
@@ -651,6 +673,66 @@ lh_ghl_flatten() {
       gsub(/^ +| +$/, "", s)
       printf "%s", s
     }'
+}
+
+# Decodes a raw JSON string value, quotes and all, the way lh_json_get_raw
+# hands one back: backslash escapes are resolved properly, including \uXXXX,
+# which is decoded to the real character when it names one in the ASCII
+# range and left as a literal marker (UNIESCNONASCII) otherwise, the same
+# convention lh_json_leaves uses. Never called as $(...) by its caller,
+# because that would run it in a subshell and lose the flag below: it sets
+# two globals instead, lh_unescape_result (the decoded text) and
+# lh_unescape_nonascii (1 whenever that marker appears anywhere in the
+# result), so a caller that cannot trust a name it could not fully read (a
+# tool name hiding a word behind a \u escape outside ASCII, say) can tell
+# doubt apart from a plain decode. A value that is not a quoted JSON string
+# (missing key, a number, an object) leaves lh_unescape_result empty and
+# lh_unescape_nonascii at 0.
+lh_unescape_json_string() {
+  lh_unescape_nonascii=0
+  lh_unescape_result=$(printf '%s' "$1" | LC_ALL=C awk '
+    BEGIN { RS = "\001" }
+    function hex2dec(hx,   j, ch, v, digits) {
+      digits = "0123456789abcdef"
+      v = 0
+      hx = tolower(hx)
+      for (j = 1; j <= length(hx); j++) {
+        ch = substr(hx, j, 1)
+        v = v * 16 + index(digits, ch) - 1
+      }
+      return v
+    }
+    {
+      s = $0; n = length(s)
+      if (n < 2 || substr(s, 1, 1) != "\"" || substr(s, n, 1) != "\"") { exit 1 }
+      i = 2; out = ""
+      while (i < n) {
+        c = substr(s, i, 1)
+        if (c == "\\") {
+          d = substr(s, i + 1, 1)
+          if (d == "n") out = out "\n"
+          else if (d == "t") out = out "\t"
+          else if (d == "r") out = out "\r"
+          else if (d == "b" || d == "f") out = out " "
+          else if (d == "u") {
+            hx = substr(s, i + 2, 4)
+            if (length(hx) != 4 || hx !~ /^[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]$/) { exit 1 }
+            cp = hex2dec(hx)
+            if (cp <= 127) out = out sprintf("%c", cp)
+            else out = out "UNIESCNONASCII"
+            i += 4
+          }
+          else out = out d
+          i += 2
+          continue
+        }
+        out = out c
+        i++
+      }
+      printf "%s", out
+    }') || { lh_unescape_result=""; return 1; }
+  case $lh_unescape_result in *UNIESCNONASCII*) lh_unescape_nonascii=1 ;; esac
+  return 0
 }
 
 # A short stable name for a path, used for the pre-write copy.
