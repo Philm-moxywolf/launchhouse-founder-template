@@ -133,6 +133,8 @@ A founder on the Launchhouse Atlanta programme, building their business. They ar
 
 **Location.** Everything the growth engine makes goes in `growth-engine/`, inside this folder. Never write Launchhouse work anywhere else, not in your memory, not in a temporary folder. Anything outside `growth-engine/` will not be found later.
 
+**Desktop copies.** Their finished work also appears as read-only copies in a "My Launchhouse work" folder on their Desktop, updated each time their work is saved.
+
 **Saving.** The folder is saved with git. When a piece of work is finished, commit it with a short plain message, and push if there is a GitHub remote. Never push to a remote under `Philm-moxywolf`: that is the public original every founder copies. Any earlier version can be brought back.
 
 **Real people.** `growth-engine/people/`, `growth-engine/engines/outreach/outreach-firstlines.csv` and `growth-engine/engines/audience/dm-openers.md` hold real people's names, emails or handles. They are kept out of git on purpose. Never paste them anywhere public, and never copy a person's details into any other file.
@@ -156,7 +158,7 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 1. **One track.** The founder is B2B or B2C. The track is set once, in the Founder Brain intake, and recorded on the Brain's Track line. Never ask it again anywhere else. Everything adapts to it. Never write, offer or mention the other track's material.
 2. **No Instagram DM automation, ever.** Automated cold DMs get accounts restricted, and that cannot be undone. Cold DMs are sent by hand, 25 of them, spread out. Automation is only for replying to people who wrote first.
 3. **B2B outreach is 25 messages.** Low volume, to a list the founder built and can explain. Never promise replies. Replies depend on the list, the offer and the timing.
-4. **Everything lives in `growth-engine/`.** Never anywhere else.
+4. **Everything is made and kept in `growth-engine/`.** The one exception: a read-only copy of finished work is placed in a "My Launchhouse work" folder on the Desktop, automatically, by the Launchhouse checks. Claude never writes there itself, and never puts anything else there.
 5. **Never invent proof.** No made-up numbers, customers, results or testimonials. If proof is thin, write from point of view and observation. A real figure goes in the Brain first.
 6. **The voice is the founder's.** Topics can come from other sources. The voice comes only from their own writing in `growth-engine/brain/voice-samples/` and the Voice section of the Brain.
 
@@ -165,6 +167,7 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 **GoHighLevel**
 - Only ever reply to someone who wrote first. Before sending, read their conversation and check it holds a message from them. Show the founder the reply and get a yes.
 - A first message to someone who has not written is never sent by a tool. It goes by hand, from the founder's own phone.
+- In Cowork, none of these checks run. The founder's own connector setting is what stops a post or a send going out without asking: it must stay set to Needs approval.
 
 **Apollo**
 - Build sequences paused.

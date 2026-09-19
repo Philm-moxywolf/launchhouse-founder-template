@@ -4,23 +4,56 @@ How the founder's tools reach Claude. `connect-tools` sets them up and proves th
 
 | Tool | Who | How it connects | Its name |
 |---|---|---|---|
-| GoHighLevel | everyone | This folder's own connection, in `.mcp.json`, which `connect-tools` writes when the founder connects. It reads a key the founder keeps in their computer's own password store. Claude has no GoHighLevel connector, and GoHighLevel has no sign-in for one yet | **highlevel** |
+| GoHighLevel | everyone | Claude's own connector, signed in from Settings, then Connectors, then Add custom connector. If sign-in does not work on this computer, this folder's own fallback connection instead, in `.mcp.json`, using a key the founder keeps in their computer's own password store | **HighLevel** |
 | Apollo | B2B only | Claude's own connector, by signing in | **Apollo.io** |
 | The mailbox | B2B only | Claude's own connector, by signing in, chosen from the work email provider in the Brain's Channels section | **Gmail** for Google (Gmail or Google Workspace), **Microsoft 365** for Microsoft 365 |
 
 Nothing else needs connecting. GitHub is GitHub Desktop's job, not a connection.
 
-## Keys
+## GoHighLevel: the connector
 
-Apollo and the mailbox need no key: the founder signs in. GoHighLevel needs one, because it has no sign-in for Claude yet.
+The main route is a Claude account connector, named **HighLevel**, at `https://services.leadconnectorhq.com/mcp/anthropic/v2`. It works the same way in Code, Cowork, the browser and on a phone, once it is connected. `connect-tools` walks a founder through adding it.
 
-**The GoHighLevel key lives in one place only:** the computer's own password store, never a file. On a Mac that is the Keychain, and on a Windows PC it is Credential Manager. The item is named exactly `Launchhouse GoHighLevel`. Its account name (Mac) or user name (Windows) is the Location ID, and its password is the key. The founder adds it themselves, by clicking, as `connect-tools` sets out. Claude Code reads it when it connects, through `.claude/scripts/ghl-headers.sh`, which gives it only to GoHighLevel's own address.
+It gives six tools:
+
+- `list_locations` reads back the business. This is the job that proves the connection.
+- `search_operations` finds the right operation for a job, by domain and keyword.
+- `describe_operation` reads what that operation needs.
+- `execute_operation` runs it, with only the inputs `describe_operation` listed.
+- `search` and `fetch` are general-purpose reads.
+
+**Skills never hard-code an operation id.** GoHighLevel's operation names can change. For any job, search for it, read what it needs, then run it with only the inputs it listed.
+
+| Job | Search for | One-per-job tool (fallback shape) |
+|---|---|---|
+| Read back the business | use `list_locations` directly | `locations_get-location` |
+| The accounts to post to | Social Planner accounts | `get-account` |
+| Create, edit or read a post | Social Planner post | `create-post`, `edit-post`, `get-post`, `get-posts` |
+| How posts did | Social Planner statistics | `get-social-media-statistics` |
+| Reply to someone who wrote first | conversations send message | `conversations_send-a-new-message` |
+| One contact, to show contacts are readable | contacts search, or get contact | `contacts_get-contacts` |
+| Custom values, create or update | custom values | none in this shape; use `ghl-values-api.sh` |
+
+Some connections spell the social tool endings `social-media-posting_` instead of `socialmediaposting_`.
+
+**The rules, in either shape:**
+- Before any write, show the founder exactly what will go out, where and when, in their own timezone, and wait for a clear yes.
+- A reply only ever goes to someone who wrote first. Read their conversation and check it holds a message from them before replying.
+- Never call an operation in Payments, never a delete, and never anything that creates, edits or triggers a workflow. Those stay out of every job a skill does here, whichever shape is connected.
+
+**In Cowork, none of this folder's checks run.** The guard that is left is the founder's own connector setting: `execute_operation` set to **Needs approval** in Settings, then Connectors. `connect-tools` sets it when it connects GoHighLevel, and asks the founder to confirm it is still that way when they say "check my connections".
+
+## If signing in does not work on this computer
+
+This is the fallback, and it is Code only: it never runs in Cowork.
+
+**The GoHighLevel key lives in one place only:** the computer's own password store, never a file. On a Mac that is the Keychain, and on a Windows PC it is Credential Manager. The item is named exactly `Launchhouse GoHighLevel`. Its account name (Mac) or user name (Windows) is the Location ID, and its password is the key. The founder adds it themselves, by clicking, as `connect-tools` sets out. Claude Code reads it when it connects, through `.claude/scripts/ghl-headers.sh`, which gives it only to GoHighLevel's own address, `https://services.leadconnectorhq.com/mcp/anthropic/v2`.
 
 **The connection file.** `.mcp.json`, at the top of this folder, is not shipped. `sh .claude/scripts/ghl-headers.sh --connect < /dev/null` writes it once the key checks out. It holds GoHighLevel's address and this computer's own path to the helper, never the key. Git ignores it, because the path belongs to this computer, and another computer connects by saying "connect my tools" there.
 
 - Never ask for a key, token or password in the chat, and never write one into any file, in this folder or anywhere else.
 - Never read the password store yourself, by any command. Anything you read lands in this conversation.
-- The only commands that may touch it are `sh .claude/scripts/ghl-headers.sh --check < /dev/null` and the same with `--connect`. They say whether the item is there and in the right shape, never what is in it. `ghl-values` has its own helper for its own separate token.
+- The only commands that may touch it are `sh .claude/scripts/ghl-headers.sh --check < /dev/null`, the same with `--connect`, and the same with `--disconnect`. They say whether the item is there and in the right shape, never what is in it. `ghl-values` has its own helper for its own separate token.
 - The connection's item is not the one `ghl-values` uses. Never use it for that, and never delete it.
 - If a key was pasted into the chat, tell them to delete it in GoHighLevel, under Settings, then Private Integrations, because it has now been shared, then make a new one and put it in the item in place of the old one.
 
@@ -28,25 +61,7 @@ Apollo and the mailbox need no key: the founder signs in. GoHighLevel needs one,
 
 **Routines run in the cloud,** where the key on this computer is not. A routine that reads GoHighLevel finds no connection there and writes nothing.
 
-## GoHighLevel's tools come in two shapes
-
-- **This folder's connection** gives one tool per job, with names ending in `locations_get-location`, `contacts_get-contacts`, `socialmediaposting_get-account`, `socialmediaposting_create-post` and so on. Some connections spell the social ones `social-media-posting_`.
-- **Another kind of connection** gives a few general tools: `list_locations`, `search`, `fetch`, `search_operations`, `describe_operation` and `execute_operation`.
-
-Either works. To do a job a skill names:
-1. If a one-per-job tool for it is there, use it.
-2. Otherwise find the operation with `search_operations`, read its inputs with `describe_operation`, and run it with `execute_operation`. Use only the inputs it lists.
-
-| Job | One-per-job tool ends in | Otherwise |
-|---|---|---|
-| Read back the business | `locations_get-location` | `list_locations` |
-| The accounts to post to | `get-account` | Social Planner accounts |
-| One contact, to show contacts are readable | `contacts_get-contacts` | a contacts search, limited to one |
-| Create, edit or read a post | `create-post`, `edit-post`, `get-post`, `get-posts` | Social Planner posts |
-| How posts did | `get-social-media-statistics` | Social Planner statistics |
-| Reply to someone who wrote first | `conversations_send-a-new-message` | send a message in a conversation |
-
-The rules are the same in both shapes. A post, an edit, a message, a contact change or a template goes in only after the founder has seen it and said yes. A message only ever replies to someone who wrote first.
+**If both are connected.** A founder can end up with the account connector and this fallback at once, and then see GoHighLevel's tools twice. Prefer the account connector. `connect-tools` offers to remove the fallback: `sh .claude/scripts/ghl-headers.sh --disconnect < /dev/null` removes only the `.mcp.json` it wrote, never the key in the password store.
 
 ## The mailbox
 

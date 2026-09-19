@@ -10,6 +10,12 @@
 # recorded in growth-engine/.state/nudges.md.
 
 . "$(dirname "$0")/lib.sh" 2>/dev/null || exit 0
+
+# Before any early exit below, so a synced Desktop folder never depends on the
+# founder still being mid-engine or attended in the way the rest of this
+# script cares about. desktop-copy.sh does its own checks and fails open.
+sh "$(dirname "$0")/desktop-copy.sh" --hook >/dev/null 2>&1
+
 lh_active || exit 0
 
 here=$(dirname "$0")

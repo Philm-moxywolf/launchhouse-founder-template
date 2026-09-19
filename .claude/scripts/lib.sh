@@ -23,13 +23,83 @@ lh_near() {
   lh_near_all | head -1
 }
 
-# Every Launchhouse folder near the opened one, one per line.
+# Every Launchhouse folder near the opened one, one per line. Also names the
+# real folder when the opened one is a Desktop copies folder (it carries the
+# .launchhouse-copies marker desktop-copy.sh writes), so opening that folder
+# by mistake gets the same one-sentence redirect as opening any other wrong
+# folder.
 lh_near_all() {
   r=$(lh_root)
-  for cand in "$r"/*/growth-engine/.launchhouse "$r/../growth-engine/.launchhouse" "${HOME:-/nonexistent}/growth-engine/.launchhouse"; do
-    [ -f "$cand" ] && (cd "$(dirname "$cand")/.." 2>/dev/null && pwd)
-  done | awk '!seen[$0]++'
+  {
+    if [ -f "$r/.launchhouse-copies" ]; then
+      tr -d '\r\n' < "$r/.launchhouse-copies" 2>/dev/null
+      printf '\n'
+    fi
+    for cand in "$r"/*/growth-engine/.launchhouse "$r/../growth-engine/.launchhouse" "${HOME:-/nonexistent}/growth-engine/.launchhouse"; do
+      [ -f "$cand" ] && (cd "$(dirname "$cand")/.." 2>/dev/null && pwd)
+    done
+  } | awk '!seen[$0]++ && $0 != ""'
   return 0
+}
+
+# The bookkeeping folder for the Desktop copies feature: .git/launchhouse/ (or
+# the worktree's own git folder, followed properly if .git is a file), never
+# under growth-engine/, never committed, never part of the gate-state stamp.
+# Resolved straight off disk, no git process, so reading it (state-block.sh,
+# on every message) never spawns one. Falls back to asking git itself only if
+# the on-disk layout cannot be followed by hand.
+lh_gitdir_raw() {
+  r=$(lh_root)
+  g="$r/.git"
+  if [ -f "$g" ]; then
+    gd=$(sed -n 's/^gitdir: *//p' "$g" | tr -d '\r\n')
+    case $gd in
+      /*|[A-Za-z]:*) printf '%s' "$gd" ;;
+      *) (cd "$r" 2>/dev/null && cd "$gd" 2>/dev/null && pwd) ;;
+    esac
+  elif [ -d "$g" ]; then
+    printf '%s' "$g"
+  fi
+}
+
+lh_bk_dir() {
+  gd=$(lh_gitdir_raw)
+  [ -n "$gd" ] && [ -d "$gd" ] || gd=$(git -C "$(lh_root)" rev-parse --absolute-git-dir 2>/dev/null)
+  [ -n "$gd" ] && printf '%s/launchhouse' "$gd"
+}
+
+# A cheap fingerprint of HEAD, read straight off disk with no git process: the
+# content of HEAD plus whatever ref file or packed-refs line it names. It
+# changes exactly when the commit HEAD points at changes (a save, a pull, a
+# merge, a subagent commit), and nothing else. Empty when it cannot be read,
+# which the caller treats as "something may have changed" rather than risk
+# going stale silently.
+lh_head_fingerprint() {
+  gd=$(lh_gitdir_raw) || return 1
+  [ -n "$gd" ] && [ -f "$gd/HEAD" ] || return 1
+  h=$(cat "$gd/HEAD" 2>/dev/null)
+  case $h in
+    ref:*)
+      ref=$(printf '%s' "${h#ref: }" | tr -d ' \t\r\n')
+      cdir=$gd
+      if [ -f "$gd/commondir" ]; then
+        cd_rel=$(cat "$gd/commondir" 2>/dev/null | tr -d '\r\n')
+        case $cd_rel in
+          /*|[A-Za-z]:*) cdir=$cd_rel ;;
+          *) cdir=$(cd "$gd" 2>/dev/null && cd "$cd_rel" 2>/dev/null && pwd) ;;
+        esac
+      fi
+      if [ -f "$gd/$ref" ]; then
+        cat "$gd/HEAD" "$gd/$ref" 2>/dev/null | cksum
+      elif [ -n "$cdir" ] && [ -f "$cdir/$ref" ]; then
+        cat "$gd/HEAD" "$cdir/$ref" 2>/dev/null | cksum
+      elif [ -n "$cdir" ] && [ -f "$cdir/packed-refs" ]; then
+        { cat "$gd/HEAD"; grep -F " $ref" "$cdir/packed-refs" 2>/dev/null; } | cksum
+      else
+        cat "$gd/HEAD" 2>/dev/null | cksum
+      fi ;;
+    *) printf '%s' "$h" | cksum ;;
+  esac
 }
 
 # Read one JSON string value by key from the hook input (stdin, passed as $2).
@@ -57,6 +127,249 @@ lh_json_get() {
       }
       printf "%s", out
     }'
+}
+
+# The raw, unparsed text of one top-level key's value from a JSON object —
+# whatever shape it is, object, array, string or bare scalar, copied
+# character for character. Used to pull tool_input out of the hook's stdin
+# envelope before anything else touches it, so a value elsewhere in the
+# envelope (cwd, transcript_path, the rest) never has a chance to be
+# classified. Exits non-zero if $2 is not an object, the key is not found at
+# the top level, or the JSON cannot be made sense of.
+lh_json_get_raw() {
+  printf '%s' "$2" | LC_ALL=C awk -v key="$1" '
+    BEGIN { RS = "\001" }
+    function skip_ws() {
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == " " || c == "\t" || c == "\n" || c == "\r") i++
+        else break
+      }
+    }
+    function parse_string(   c, out) {
+      i++
+      out = ""
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == "\\") {
+          if (i + 1 > n) { err = 1; return out }
+          i += 2
+          continue
+        }
+        if (c == "\"") { i++; return out }
+        out = out c
+        i++
+      }
+      err = 1
+      return out
+    }
+    function skip_container(openc, closec,   depth, c, instr, esc) {
+      depth = 0; instr = 0; esc = 0
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (instr) {
+          if (esc) esc = 0
+          else if (c == "\\") esc = 1
+          else if (c == "\"") instr = 0
+          i++
+          continue
+        }
+        if (c == "\"") { instr = 1; i++; continue }
+        if (c == openc) depth++
+        else if (c == closec) { depth--; if (depth == 0) { i++; return } }
+        i++
+      }
+      err = 1
+    }
+    function skip_value(   c) {
+      skip_ws()
+      if (i > n) { err = 1; return }
+      c = substr(s, i, 1)
+      if (c == "{") skip_container("{", "}")
+      else if (c == "[") skip_container("[", "]")
+      else if (c == "\"") parse_string()
+      else {
+        while (i <= n) {
+          c = substr(s, i, 1)
+          if (c == "," || c == "}" || c == "]" || c == " " || c == "\t" || c == "\n" || c == "\r") break
+          i++
+        }
+      }
+    }
+    {
+      s = $0; n = length(s); i = 1; err = 0
+      skip_ws()
+      if (i > n || substr(s, i, 1) != "{") exit 1
+      i++
+      skip_ws()
+      if (i > n) exit 1
+      if (substr(s, i, 1) == "}") exit 1
+      for (;;) {
+        skip_ws()
+        if (i > n || substr(s, i, 1) != "\"") exit 1
+        k = parse_string()
+        if (err) exit 1
+        skip_ws()
+        if (i > n || substr(s, i, 1) != ":") exit 1
+        i++
+        skip_ws()
+        vstart = i
+        skip_value()
+        if (err) exit 1
+        vend = i - 1
+        if (k == key) { printf "%s", substr(s, vstart, vend - vstart + 1); exit 0 }
+        skip_ws()
+        if (i > n) exit 1
+        c = substr(s, i, 1)
+        if (c == ",") { i++; continue }
+        if (c == "}") exit 1
+        exit 1
+      }
+    }
+  '
+}
+
+# Every scalar leaf of a JSON value (object, array or bare scalar), as
+# path<TAB>value lines: one line per string, number, true, false or null,
+# never for an object or array itself. The path is the key names walked to
+# reach it, joined with ".", with "[N]" appended for an array step (the
+# number is just which step, not a meaningful index). Handles nesting of any
+# depth and the escapes a JSON string can carry (\", \\, \n and the rest),
+# the same way lh_json_get does, except an escaped newline, tab or return
+# becomes a plain space, so a leaf's value can never break the
+# one-line-per-leaf output. Exits non-zero, printing nothing that can be
+# trusted, on anything that is not valid JSON — trailing garbage after the
+# value included.
+#
+# ghl-op.sh uses this to walk tool_input and classify only the operation
+# descriptor, never the payload text a founder typed into a post or message.
+lh_json_leaves() {
+  printf '%s' "$1" | LC_ALL=C awk '
+    BEGIN { RS = "\001" }
+    function skip_ws() {
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == " " || c == "\t" || c == "\n" || c == "\r") i++
+        else break
+      }
+    }
+    # Turns a four character hex string into its decimal value, digit by
+    # digit, with no dependence on a gawk-only builtin such as strtonum.
+    function hex2dec(hx,   j, ch, v, digits) {
+      digits = "0123456789abcdef"
+      v = 0
+      hx = tolower(hx)
+      for (j = 1; j <= length(hx); j++) {
+        ch = substr(hx, j, 1)
+        v = v * 16 + index(digits, ch) - 1
+      }
+      return v
+    }
+    function parse_string(   c, out, d, hx, cp) {
+      i++
+      out = ""
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == "\\") {
+          if (i + 1 > n) { err = 1; return out }
+          d = substr(s, i + 1, 1)
+          if (d == "n" || d == "t" || d == "r" || d == "b" || d == "f") out = out " "
+          else if (d == "u") {
+            hx = substr(s, i + 2, 4)
+            if (length(hx) != 4 || hx !~ /^[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]$/) { err = 1; return out }
+            cp = hex2dec(hx)
+            # ASCII range decodes to the plain character it names; anything
+            # above it becomes a marker instead of a guess, so the caller
+            # can tell a descriptor leaf it cannot safely normalise apart
+            # from one it can, rather than silently mangling either.
+            if (cp <= 127) out = out sprintf("%c", cp)
+            else out = out "UNIESCNONASCII"
+            i += 4
+          }
+          else out = out d
+          i += 2
+          continue
+        }
+        if (c == "\"") { i++; return out }
+        out = out c
+        i++
+      }
+      err = 1
+      return out
+    }
+    function parse_literal(   c, out) {
+      out = ""
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == "," || c == "}" || c == "]" || c == " " || c == "\t" || c == "\n" || c == "\r") break
+        out = out c
+        i++
+      }
+      if (out == "") err = 1
+      return out
+    }
+    function parse_value(path,   c, v) {
+      skip_ws()
+      if (i > n) { err = 1; return }
+      c = substr(s, i, 1)
+      if (c == "{") parse_object(path)
+      else if (c == "[") parse_array(path)
+      else if (c == "\"") { v = parse_string(); if (!err) print path "\t" v }
+      else { v = parse_literal(); if (!err) print path "\t" v }
+    }
+    function parse_object(path,   key, newpath, c) {
+      i++
+      skip_ws()
+      if (i > n) { err = 1; return }
+      if (substr(s, i, 1) == "}") { i++; return }
+      for (;;) {
+        skip_ws()
+        if (i > n || substr(s, i, 1) != "\"") { err = 1; return }
+        key = parse_string()
+        if (err) return
+        skip_ws()
+        if (i > n || substr(s, i, 1) != ":") { err = 1; return }
+        i++
+        newpath = (path == "" ? key : path "." key)
+        parse_value(newpath)
+        if (err) return
+        skip_ws()
+        if (i > n) { err = 1; return }
+        c = substr(s, i, 1)
+        if (c == ",") { i++; continue }
+        if (c == "}") { i++; return }
+        err = 1; return
+      }
+    }
+    function parse_array(path,   idx, newpath, c) {
+      i++
+      skip_ws()
+      if (i > n) { err = 1; return }
+      if (substr(s, i, 1) == "]") { i++; return }
+      idx = 0
+      for (;;) {
+        newpath = path "[" idx "]"
+        parse_value(newpath)
+        if (err) return
+        idx++
+        skip_ws()
+        if (i > n) { err = 1; return }
+        c = substr(s, i, 1)
+        if (c == ",") { i++; continue }
+        if (c == "]") { i++; return }
+        err = 1; return
+      }
+    }
+    {
+      s = $0; n = length(s); i = 1; err = 0
+      parse_value("")
+      if (!err) {
+        skip_ws()
+        if (i <= n) err = 1
+      }
+      if (err) exit 1
+    }
+  '
 }
 
 # Escape a string for use inside a JSON string. Newlines become spaces.
@@ -271,6 +584,73 @@ lh_push_to_original() {
 lh_deny_pre() {
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$(lh_json_escape "$1")"
   exit 0
+}
+
+# Same shape as lh_deny_pre, but asks the founder instead of refusing
+# outright. Used where a tool can do something ordinary or something that
+# needs a yes, and the hook cannot always tell which from the tool name alone.
+lh_ask_pre() {
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$(lh_json_escape "$1")"
+  exit 0
+}
+
+# Flattens raw text, tool name and tool input together, JSON and all, into one
+# lower case, space separated line. JSON's own punctuation and the separators
+# a name is written with (-, _, ., /, :) become spaces, and so does a
+# camelCase boundary (sendMessage -> send message), all done before the text
+# is lower cased so the boundary is still visible.
+#
+# ghl-op.sh needs this because lh_json_get only ever reads the first flat
+# string match for one key, which is easy to steer around by nesting the
+# thing it is looking for ({"operation":{"id":"contacts_delete-contact"}}).
+# Flattening the whole input and matching word lists on the result, with a
+# space on each side of every word so a match is a whole word or phrase and
+# never a bare substring, works whatever shape the input arrives in.
+lh_ghl_flatten() {
+  printf '%s' "$1" | LC_ALL=C awk '
+    BEGIN { RS = "\001" }
+    {
+      s = $0; n = length(s); out = ""
+      for (i = 1; i <= n; i++) {
+        c = substr(s, i, 1)
+        if (i > 1) {
+          p = substr(s, i - 1, 1)
+          if (p ~ /[a-z0-9]/ && c ~ /[A-Z]/) out = out " "
+        }
+        out = out c
+      }
+      # A second pass over that result splits an acronym run from the
+      # titlecase word right after it (HTTPMethod -> HTTP Method,
+      # APIKeys -> API Keys, XMLParser -> XML Parser): wherever an upper
+      # case letter is itself preceded by an upper case letter and
+      # followed by a lower case one, the boundary sits right before it,
+      # so the space goes there, before the last upper case letter of the
+      # run. This runs before the text is lower cased, same as the first
+      # pass, because both need to still see the casing to find it.
+      n2 = length(out); out2 = ""
+      for (i = 1; i <= n2; i++) {
+        c = substr(out, i, 1)
+        if (i > 1 && i < n2) {
+          p = substr(out, i - 1, 1)
+          nx = substr(out, i + 1, 1)
+          if (p ~ /[A-Z]/ && c ~ /[A-Z]/ && nx ~ /[a-z]/) out2 = out2 " "
+        }
+        out2 = out2 c
+      }
+      out = out2
+      s = tolower(out)
+      gsub(/\{/, " ", s); gsub(/\}/, " ", s); gsub(/\[/, " ", s); gsub(/\]/, " ", s)
+      gsub(/"/, " ", s);  gsub(/,/, " ", s);  gsub(/\(/, " ", s); gsub(/\)/, " ", s)
+      gsub(/\\/, " ", s); gsub(/_/, " ", s);  gsub(/\./, " ", s); gsub(/\//, " ", s)
+      gsub(/:/, " ", s);  gsub(/=/, " ", s);  gsub(/</, " ", s);  gsub(/>/, " ", s)
+      gsub(/\|/, " ", s); gsub(/;/, " ", s);  gsub(/\+/, " ", s); gsub(/\*/, " ", s)
+      gsub(/\?/, " ", s); gsub(/#/, " ", s);  gsub(/@/, " ", s);  gsub(/%/, " ", s)
+      gsub(/\^/, " ", s); gsub(/&/, " ", s);  gsub(/~/, " ", s);  gsub(/`/, " ", s)
+      gsub(/!/, " ", s);  gsub(/-/, " ", s)
+      gsub(/[ \t\r\n]+/, " ", s)
+      gsub(/^ +| +$/, "", s)
+      printf "%s", s
+    }'
 }
 
 # A short stable name for a path, used for the pre-write copy.

@@ -30,8 +30,9 @@ case $tool in
     why="This changes a contact or deal in GoHighLevel, which can start one of its workflows and send a message. Check the founder has seen the change and said yes." ;;
   *blogs_create-blog-post|*blogs_update-blog-post)
     why="This puts a blog post into GoHighLevel. Check the founder has seen the words and said yes." ;;
-  *__execute_operation)
-    why="This can post, edit or message from the founder's GoHighLevel account. Show the founder exactly what goes out, and check they said yes." ;;
+  # __execute_operation, __fetch and __search go to ghl-op.sh instead, which
+  # reads the whole input, not just the tool name, because one execute_operation
+  # call can do anything from reading a location to refunding a payment.
   *__create_draft|*__update_draft)
     why="This writes a draft in the founder's mailbox. Check the founder has seen the words and who it is to, and said yes." ;;
   # Apollo tools that only read, and spend no credits.

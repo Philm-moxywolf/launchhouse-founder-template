@@ -34,6 +34,10 @@ Inside `growth-engine/`, each kind of file has its own folder:
 - `log/` holds the ledger and notes Claude keeps as it works.
 - `people/` holds real people's details. It never leaves your computer.
 
+## Finding your finished work
+
+Once a piece of work is saved, a copy also appears in a "My Launchhouse work" folder on your Desktop, so you can find it without opening Claude. These are copies, kept up to date each time you save. To change something, ask Claude in your real folder, not the Desktop one, and do not open the Desktop folder in Claude.
+
 ## Your work and your privacy
 
 - **Keep your copy private.** It holds your business. Claude never sends your work to the public original.

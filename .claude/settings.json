@@ -17,6 +17,8 @@
       "Bash(sh .claude/scripts/move-layout.sh < /dev/null)",
       "Bash(sh .claude/scripts/move-layout.sh .lh-import/growth-engine < /dev/null)",
       "Bash(sh .claude/scripts/refresh.sh < /dev/null)",
+      "Bash(sh .claude/scripts/desktop-copy.sh < /dev/null)",
+      "Bash(sh .claude/scripts/ghl-headers.sh --disconnect < /dev/null)",
       "Bash(git merge --abort)",
       "Bash(git init)",
       "Bash(git config user.name:*)",
@@ -96,11 +98,20 @@
         ]
       },
       {
-        "matcher": "mcp__.*(apollo_.*|conversations_send-a-new-message|social-media-posting_create-post|social-media-posting_edit-post|socialmediaposting_create-post|socialmediaposting_edit-post|emails_create-template|contacts_create-contact|contacts_upsert-contact|contacts_update-contact|contacts_add-tags|opportunities_update-opportunity|blogs_create-blog-post|blogs_update-blog-post|__execute_operation|__create_draft|__update_draft)",
+        "matcher": "mcp__.*(apollo_.*|conversations_send-a-new-message|social-media-posting_create-post|social-media-posting_edit-post|socialmediaposting_create-post|socialmediaposting_edit-post|emails_create-template|contacts_create-contact|contacts_upsert-contact|contacts_update-contact|contacts_add-tags|opportunities_update-opportunity|blogs_create-blog-post|blogs_update-blog-post|__create_draft|__update_draft)",
         "hooks": [
           {
             "type": "command",
             "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/ask-mcp.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*__(execute_operation|fetch|search)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/ghl-op.sh\""
           }
         ]
       }
