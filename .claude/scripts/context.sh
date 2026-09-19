@@ -29,6 +29,7 @@ if ! lh_active; then
 fi
 
 sh "$(dirname "$0")/refresh.sh" >/dev/null 2>&1
+sh "$(dirname "$0")/desktop-copy.sh" --hook >/dev/null 2>&1
 
 founder=$(lh_brain_label Founder)
 business=$(lh_brain_label Business)

@@ -53,7 +53,7 @@ case $tool in
     esac
     case $kc in
       *ghl-headers*)
-        printf '%s' "$kc" | grep -Eqx 'sh (\.claude/scripts/ghl-headers\.sh|"\$CLAUDE_PROJECT_DIR/\.claude/scripts/ghl-headers\.sh") --(check|connect)( < /dev/null)?' \
+        printf '%s' "$kc" | grep -Eqx 'sh (\.claude/scripts/ghl-headers\.sh|"\$CLAUDE_PROJECT_DIR/\.claude/scripts/ghl-headers\.sh") --(check|connect|disconnect)( < /dev/null)?' \
           || lh_deny_pre "$keymsg" ;;
     esac
     case $kc in
@@ -68,6 +68,28 @@ if [ "$tool" = Bash ]; then
   pre="$(lh_root)/growth-engine/.state/.pre"
   rm -rf "$pre/shell" "$pre/shell.sums" "$pre/shell.list" 2>/dev/null
   cmd=$(lh_json_get command "$input") || cmd=""
+
+  # Real people's names, emails and handles stay in this folder. A shell copy
+  # or archive naming people/, the outreach first lines or the DM openers is
+  # refused when it names a destination outside the project: home, a drive
+  # letter, or a Desktop folder. desktop-copy.sh is the one thing allowed to
+  # put anything on the Desktop, and it never goes through cp/mv/tar for this:
+  # it reads git history straight into a fixed, safe set of file names.
+  cl=$(printf '%s' "$cmd" | tr 'A-Z' 'a-z')
+  if printf '%s' "$cl" | grep -Eq '(^|[;&|]|&&|\|\|)[[:space:]]*(cp|mv|rsync|tar|zip|ditto|robocopy|xcopy|copy-item)([[:space:]]|$)' \
+      && printf '%s' "$cl" | grep -Eq 'people/|outreach-firstlines|dm-openers'; then
+    dest=$(printf '%s' "$cl" | awk '{ print $NF }' | sed "s/^[\"']//; s/[\"']\$//")
+    outside=0
+    case $dest in
+      '~'*|*'$home'*|*'${home}'*|/users/*|/home/*|*desktop*|[a-z]:[/\\]*|*'%userprofile%'*) outside=1 ;;
+    esac
+    if [ "$outside" = 1 ]; then
+      r=$(printf '%s' "$(lh_root)" | LC_ALL=C tr 'A-Z' 'a-z')
+      case $dest in "$r"/*|"$r") outside=0 ;; esac
+    fi
+    [ "$outside" = 1 ] && lh_deny_pre "Not run: that would copy real people's details out of this folder. Their names, emails and handles stay in growth-engine/ and nowhere else."
+  fi
+
   # Never push to the public original every founder copies (LH-003).
   lh_push_to_original "$cmd" && lh_deny_pre "Not pushed: that copy on GitHub is the public Launchhouse original, so the founder's work would be public. Tell the founder in one plain sentence that their work is saved on this computer, and that their own private copy on GitHub is where it should go."
   # Bringing back work already saved in this folder is not checked again: an

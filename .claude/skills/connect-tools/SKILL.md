@@ -7,7 +7,7 @@ description: Connect GoHighLevel, and for B2B founders Apollo and their mailbox,
 
 GoHighLevel publishes the founder's posts and holds their contacts. For B2B founders only, Apollo finds people and builds the sequence, and the mailbox holds drafts of their outreach emails. Each one is a **connector**: a connection that lets Claude use the tool on their behalf, on their own account.
 
-How each one connects, and the rules for using it, are in `../../references/connections.md`. Read it first. Apollo and the mailbox connect by signing in. GoHighLevel has no sign-in for Claude yet, so the founder keeps a key in their computer's own password store: the Keychain on a Mac, Credential Manager on a Windows PC. Nothing is pasted into the chat, and no key is ever written into any file.
+How each one connects, and the rules for using it, are in `../../references/connections.md`. Read it first. GoHighLevel, Apollo and the mailbox all connect by signing in. Only if GoHighLevel's sign-in does not work on a computer does the founder fall back to a key in their computer's own password store: the Keychain on a Mac, Credential Manager on a Windows PC. Nothing is pasted into the chat, and no key is ever written into any file.
 
 **The doubt to name first.** Connecting a tool to Claude sounds like handing over the keys. So say what it can and cannot do here:
 - Claude can read, and it can create drafts and paused sequences when the founder says yes.
@@ -37,11 +37,31 @@ Ask: "Can you log in to GoHighLevel?" The programme buys the Starter plan in Ses
 
 ### Is it connected
 
-Look at the tools available to you. GoHighLevel's tools come in two shapes, both listed in `../../references/connections.md`: general tools such as `list_locations` and `execute_operation`, or tools with names ending in things like `locations_get-location`.
+Look at the tools available to you. The account connector gives six general tools: `list_locations`, `search_operations`, `describe_operation`, `execute_operation`, `search` and `fetch`. The fallback gives one tool per job, with names ending in things like `locations_get-location`. Either means it is connected. `../../references/connections.md` explains both.
 
-**If there are none,** walk them through connecting it. It needs a key from their GoHighLevel account, which only they make and keep. Say why first: the key is a password for their business's GoHighLevel, so it goes in their computer's own password store, where the computer keeps its other saved passwords. It is never in a file, Claude never sees it, and GitHub never sees it.
+**If there are none,** walk them through connecting it. This is the main route, and it is a sign-in, not a key.
+
+1. In the Claude app, open **Settings**, then **Connectors**.
+2. Choose **Add custom connector**.
+3. Name it `HighLevel`.
+4. For the URL, paste `https://services.leadconnectorhq.com/mcp/anthropic/v2`.
+5. Click **Add**, then **Connect**.
+6. Sign in to GoHighLevel in the window that opens.
+7. Pick their business's sub-account.
+8. Approve what it asks for.
+9. Start a new conversation in this folder, then say "check my connections".
+
+**The free Claude plan connects one custom connector.** That is all GoHighLevel needs, so never tell a founder on the free plan they must upgrade to connect it. A paid plan allows more than one, if they connect other custom connectors later.
+
+**Set the permission once.** If their Connectors screen shows a choice for each tool, set `execute_operation` to **Needs approval**. If it doesn't, leave the default, which asks. Never say the choice is definitely there: some screens show it, some don't.
+
+This connection works the same way in Code, Cowork, the browser and on their phone. Nothing about GoHighLevel is Code-only any more.
 
 One later step sits outside this connection. The snapshot's custom values are filled by hand in GoHighLevel, or optionally with a separate key the founder makes and deletes themselves. That is `/growth-engine:values`: the words are written before the clinic and pasted in once the snapshot loads, and it changes nothing here.
+
+### If signing in does not work on this computer
+
+This is the fallback, and it only works in Code. It needs a key from their GoHighLevel account, which only they make and keep. Say why first: the key is a password for their business's GoHighLevel, so it goes in their computer's own password store, where the computer keeps its other saved passwords. It is never in a file, Claude never sees it, and GitHub never sees it.
 
 1. **Make the key.** In GoHighLevel, open the business's **sub-account**, not the agency. Go to **Settings**, then **Private Integrations**, then **Create New Integration**. Name it "Claude Launchhouse". Tick View Locations, View Contacts, View and Edit Conversations, View and Edit Conversation Messages, and every Social Planner permission. Create it and copy the key. It is shown only once. If it gets lost before step 3, delete that integration and make another.
 2. **Find the Location ID.** In the same sub-account, go to **Settings**, then **Business Profile**, and find the **Location ID**. They copy it in step 3.
@@ -62,11 +82,14 @@ One later step sits outside this connection. The snapshot's custom values are fi
      5. In **User name**, paste the Location ID.
      6. In **Password**, paste the key.
      7. Click **OK**.
-4. **Check it and connect.** When they say it is added, tell them first: on a Mac, a box will ask whether to let "security" use the item. They type their Mac password and click **Always Allow**, so the connection can read it each time the app opens. Then run `sh .claude/scripts/ghl-headers.sh --connect < /dev/null`. It says only whether the item is there and in the right shape, never what is in it, and when all is right it writes this folder's connection, `.mcp.json`. Tell them what it found in plain words, and fix one thing at a time. To look without connecting, use `--check` in place of `--connect`.
-   **In Cowork.** If this is Cowork, or the check says it works on a Mac or a Windows PC only, stop this part. Say in one plain sentence that GoHighLevel is connected from Code on this folder, not from Cowork. Then go on to the next section. Apollo and the mailbox connect through Settings, Connectors.
+4. **Check it and connect.** When they say it is added, tell them first: on a Mac, a box will ask whether to let "security" use the item. They type their Mac password and click **Always Allow**, so the connection can read it each time the app opens. Then run `sh .claude/scripts/ghl-headers.sh --connect < /dev/null`. It says only whether the item is there and in the right shape, never what is in it, and when all is right it writes this folder's connection, `.mcp.json`, pointing at the same address as the connector. Tell them what it found in plain words, and fix one thing at a time. To look without connecting, use `--check` in place of `--connect`.
 5. **Reopen.** Ask them to quit the Claude app, open it again, and open this folder. If it asks whether to use the **highlevel** server from this folder, they say yes. Then they say "check my connections".
 
-Never ask for the key in the chat, never read the password store yourself, and follow "Keys" in `../../references/connections.md`.
+**In Cowork,** this fallback never runs. If this is Cowork, or the check says it works on a Mac or a Windows PC only, stop this part, say in one plain sentence that this fallback is for Code only, and go back to the connector steps above.
+
+**If both are connected,** the founder sees GoHighLevel's tools twice. Prefer the connector. Tell them plainly, and run `sh .claude/scripts/ghl-headers.sh --disconnect < /dev/null` to remove the fallback connection. It removes only the `.mcp.json` this folder wrote, never the key in their password store.
+
+Never ask for the key in the chat, never read the password store yourself, and follow "If signing in does not work on this computer" in `../../references/connections.md`.
 
 **How long the key lasts.** GoHighLevel's help pages say the key does not expire on its own. It stops working when it is deleted or rotated. GoHighLevel recommends rotating it every 90 days. Say this once, plainly, and never promise a date. To change it, they make or rotate the key in Private Integrations, then open the same item and paste the new key over the old password. In Keychain Access that is a double click on the item, then **Show password**. In Credential Manager it is the item's arrow, then **Edit**.
 
@@ -96,11 +119,14 @@ Do not tick a box. Read their own account back to them, which a broken connectio
 - If an Instagram account appears in the accounts list, record `Instagram Business or Creator | done | <date> | Instagram connected in Social Planner: <name>`. GoHighLevel only connects Business or Creator accounts.
 - If there is none, remind them to convert Instagram to Business or Creator and link it to a Facebook Page. Record `not started`.
 
+**The approval setting.** Ask with clickable choices (the AskUserQuestion tool): "Does GoHighLevel ask you before it posts or sends?" **Yes**, **No**, **Not sure**. Record `GoHighLevel approval setting | <their answer> | <date> | asked directly` in `growth-engine/.state/setup.md`. If the answer is No, walk them back to the connector's tool settings and set `execute_operation` to **Needs approval**, if that choice is there.
+
 **When a check fails,** say the likely cause in plain words, and give one next step:
 
 | What happened | Say |
 |---|---|
-| No GoHighLevel tools after reopening | Run step 4 again, which checks the item and writes the connection again. If both are right, the app did not start the connection: ask them to quit and reopen the app once more, and say yes if it asks about **highlevel**. The same fixes it if the folder has moved. |
+| No GoHighLevel tools after connecting | Disconnect and connect again, from inside a chat: open Settings, then Connectors, disconnect **HighLevel**, then repeat the steps above. Starting a new conversation afterwards often clears it on its own. |
+| No GoHighLevel tools after reopening (fallback) | Run step 4 again, which checks the item and writes the connection again. If both are right, the app did not start the connection: ask them to quit and reopen the app once more, and say yes if it asks about **highlevel**. The same fixes it if the folder has moved. |
 | Not authorised | The key is wrong, was deleted, or was made in the agency, not the sub-account. Make a new key in the sub-account and paste it as the item's password. |
 | The key stopped working | It worked before and now does not. Someone deleted or rotated it in Private Integrations, since it does not run out on its own. Make a new key there, or rotate it, paste it as the item's password in place of the old one, and reopen the app. |
 | Wrong location | The connection works, but for a different sub-account. Copy the Location ID from the business's own sub-account into the item's account name (Mac) or user name (Windows). |

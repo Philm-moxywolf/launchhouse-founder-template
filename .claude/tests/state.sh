@@ -485,20 +485,29 @@ conn_ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %
 
 [ ! -e "$repo/.mcp.json" ] \
   && ! git -C "$repo" ls-files --error-unmatch .mcp.json >/dev/null 2>&1 \
-  && grep -qF '"enabledMcpjsonServers": ["highlevel"]' "$repo/.claude/settings.json" \
-  && ! grep -rqF --exclude-dir=tests 'mcp/anthropic' "$repo/.claude" "$repo/START-HERE.md"
+  && grep -qF '"enabledMcpjsonServers": ["highlevel"]' "$repo/.claude/settings.json"
 conn_ok $? "no server is shipped, and the one connect-tools writes is approved when the app reopens"
 
+# GoHighLevel's address is named only as the v2 connector address: every
+# mention of leadconnectorhq.com/mcp/ under .claude (excluding tests) and in
+# START-HERE.md is the same /mcp/anthropic/v2 address, never the old bare one.
 ct="$repo/.claude/skills/connect-tools/SKILL.md"
+mcp_lines=$(grep -rE --exclude-dir=tests 'leadconnectorhq\.com/mcp/' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
+mcp_v2_lines=$(grep -rE --exclude-dir=tests 'leadconnectorhq\.com/mcp/anthropic' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
+grep -qF 'services.leadconnectorhq.com/mcp/anthropic/v2' "$ct" \
+  && grep -qF 'services.leadconnectorhq.com/mcp/anthropic/v2' "$repo/.claude/references/connections.md" \
+  && [ "$mcp_lines" = "$mcp_v2_lines" ]
+conn_ok $? "only the v2 GoHighLevel address is named anywhere"
+
 ! grep -qi 'connect \*\*HighLevel\*\*' "$repo/START-HERE.md" \
   && grep -qF '"connect my tools"' "$repo/START-HERE.md" \
-  && grep -qF 'Claude walks you through GoHighLevel' "$repo/START-HERE.md" \
-  && grep -qF 'Keychain Access on a Mac, Credential Manager on a Windows PC' "$repo/START-HERE.md" \
+  && grep -qF 'Add custom connector' "$repo/START-HERE.md" \
+  && grep -qF 'Add custom connector' "$ct" \
+  && grep -qF 'Keychain Access on a Mac or Credential Manager on a Windows PC' "$repo/START-HERE.md" \
   && ! grep -qF 'no key to paste' "$repo/START-HERE.md" \
   && grep -qF 'sh .claude/scripts/ghl-headers.sh --connect < /dev/null' "$ct"
 conn_ok $? "START-HERE and connect-tools send the founder the same way to GoHighLevel: say connect my tools, no connector"
-grep -qF 'If this is Cowork, or the check says it works on a Mac or a Windows PC only, stop this part.' "$ct" \
-  && grep -qF 'GoHighLevel is connected from Code on this folder, not from Cowork' "$ct" \
+grep -qF 'this fallback is for Code only' "$ct" \
   && grep -qF "this check works on a Mac or a Windows PC only" "$repo/.claude/scripts/ghl-headers.sh"
 conn_ok $? "in Cowork, connect-tools says GoHighLevel connects from Code and carries on"
 
@@ -510,6 +519,32 @@ grep -qF "In **Keychain Item Name**, type \`Launchhouse GoHighLevel\`" "$ct" \
   && grep -qF "ghl_values_item='Launchhouse GoHighLevel values'" "$repo/.claude/scripts/ghl-store.sh" \
   && grep -qF 'the name is exactly `Launchhouse GoHighLevel values`' "$repo/.claude/skills/ghl-values/SKILL.md"
 conn_ok $? "connect-tools, ghl-values, the reference and the helper name the same password store items"
+
+# ghl-values tries the account connector's custom values operation first, and
+# no longer claims GoHighLevel has no custom values tool at all.
+! grep -qF 'has no custom values tool at all' "$repo/.claude/skills/ghl-values/SKILL.md" \
+  && grep -qF 'Try the connector first' "$repo/.claude/skills/ghl-values/SKILL.md"
+conn_ok $? "ghl-values tries the connector before falling back to custom values by hand"
+
+# Connect-tools mentions the disconnect step and asks the approval question,
+# each with its own exact wording.
+grep -qF 'ghl-headers.sh --disconnect < /dev/null' "$ct"
+conn_ok $? "connect-tools tells them how to remove the fallback connection"
+
+grep -qF 'Does GoHighLevel ask you before it posts or sends?' "$ct"
+conn_ok $? "connect-tools asks whether GoHighLevel asks before it posts or sends"
+
+# Cowork behaviour is documented in each founder-facing file, in that file's
+# own words: none of the Launchhouse checks run there, so the founder's own
+# connector setting is what stops a post or a send going out without asking.
+grep -qF 'it must stay set to Needs approval' "$repo/CLAUDE.md"
+conn_ok $? "CLAUDE.md says the connector setting must stay Needs approval in Cowork"
+
+grep -qF 'your own connector setting for GoHighLevel, set to ask before it posts or sends' "$repo/START-HERE.md"
+conn_ok $? "START-HERE says the founder's own connector setting keeps Cowork in their hands"
+
+grep -qF 'in Cowork none of this folder' "$repo/.claude/skills/help/SKILL.md"
+conn_ok $? "help says none of this folder's checks run in Cowork"
 
 # The store is read with what ships with the computer, and never in the chat.
 grep -q 'security find-generic-password' "$repo/.claude/scripts/ghl-store.sh" \
@@ -935,6 +970,277 @@ else
   printf '%s\n' "$form_hits"
   fail=1
 fi
+
+# ------------------------------------------------------------- desktop copies
+# Desktop copies: a read-only folder of finished work on the founder's own
+# Desktop. LH_DESKTOP stands in for the real Desktop throughout, so this test
+# never comes near ~/Desktop. Every git repo below is throwaway, in the temp
+# folder, with commit signing off so it works without the machine's own git
+# identity configured.
+
+if command -v git >/dev/null 2>&1; then
+
+dt_repo=${TMPDIR:-/tmp}/lh-desktop-repo.$$
+dt_desktop="${TMPDIR:-/tmp}/lh desktop - test.$$"
+mkdir -p "$dt_repo/.claude" "$dt_repo/growth-engine/.state" "$dt_repo/growth-engine/brain" \
+  "$dt_repo/growth-engine/engines/content" "$dt_repo/growth-engine/engines/outreach" \
+  "$dt_repo/growth-engine/engines/audience" "$dt_repo/growth-engine/engines/ops" \
+  "$dt_repo/growth-engine/engines/plan" "$dt_repo/growth-engine/export" \
+  "$dt_repo/growth-engine/people" "$dt_repo/growth-engine/log" "$dt_repo/growth-engine/drafts" \
+  "$dt_desktop" || exit 1
+cp -R "$repo/.claude/scripts" "$dt_repo/.claude/" || exit 1
+: > "$dt_repo/growth-engine/.launchhouse"
+cp "$repo/.gitignore" "$dt_repo/.gitignore" 2>/dev/null
+
+dt_g() { git -C "$dt_repo" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false "$@" >/dev/null 2>&1; }
+dt_run() { # extra args after the script name
+  s=$1; shift
+  CLAUDE_PROJECT_DIR="$dt_repo" LH_DESKTOP="$dt_desktop" sh "$dt_repo/.claude/scripts/$s" "$@" < /dev/null 2>/dev/null
+}
+dt_lh="$dt_desktop/My Launchhouse work"
+dt_ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %s\n' "$2"; fail=1; fi; }
+
+dt_g init
+
+# With nothing finished yet, not even a committed Brain, the Desktop folder
+# must never be created at all.
+dt_g add growth-engine/.launchhouse
+dt_g commit -m "The folder exists, nothing is saved yet"
+dt_run desktop-copy.sh >/dev/null
+dt_ok $([ ! -e "$dt_lh" ] && echo 0 || echo 1) "no committed Brain means no Desktop folder is created"
+
+cat > "$dt_repo/growth-engine/brain/founder-brain.md" <<'EOF'
+# Founder Brain
+
+- **Founder:** Dana Founder
+- **Business:** Dana Works
+- **Track:** b2b
+- **Locked:** 2026-09-08
+
+## Thesis
+A long enough thesis line to be past the forty characters that are not spaces.
+
+## Voice
+A long enough voice line to be past the forty characters that are not spaces.
+EOF
+printf '# Thirty pieces\nA piece of content.\n' > "$dt_repo/growth-engine/engines/content/content-30.md"
+printf 'content,platform,scheduled_date,media_note\n"A piece",linkedin,2026-10-01,none\n' > "$dt_repo/growth-engine/engines/content/content-30.csv"
+printf '# Sequence\nRoute: by hand.\n' > "$dt_repo/growth-engine/engines/outreach/outreach-sequence.md"
+printf '# Hooks\nnever copied for a b2b founder\n' > "$dt_repo/growth-engine/engines/audience/hook-bank.md"
+printf '# Inbound\nnever copied for a b2b founder\n' > "$dt_repo/growth-engine/engines/audience/inbound-scripts.md"
+printf '# Workflow\nThe bottleneck is quotes going out late.\n' > "$dt_repo/growth-engine/engines/ops/ops-workflow.md"
+printf '# GoHighLevel values\ncustom values\n' > "$dt_repo/growth-engine/engines/ops/ghl-values.md"
+printf '# 90 day plan\nweek one\n' > "$dt_repo/growth-engine/engines/plan/90-day-plan.md"
+printf '%%PDF-1.4 a made up playbook insert\n' > "$dt_repo/growth-engine/export/playbook-insert.pdf"
+printf 'kind: prospect\n' > "$dt_repo/growth-engine/people/sam.md"
+printf 'email,first_name,company,first_line\nsam@example.com,Sam,Co,Hi\n' > "$dt_repo/growth-engine/engines/outreach/outreach-firstlines.csv"
+dt_g add -A
+dt_g add -f growth-engine/people/sam.md growth-engine/engines/outreach/outreach-firstlines.csv
+dt_g commit -m "First saved work"
+
+dt_out=$(dt_run desktop-copy.sh)
+
+# LH_DESKTOP itself, with spaces and a " - " in its own name, was created; the
+# script must still find it and only ever create Launchhouse inside it.
+dt_ok $([ -d "$dt_lh" ] && echo 0 || echo 1) "the Desktop copies folder is created inside a Desktop path with spaces and a dash"
+dt_ok $([ -f "$dt_lh/founder-brain.md" ] && echo 0 || echo 1) "once a Brain is committed, the folder appears with it"
+
+for f in "brain/founder-brain.md founder-brain.md" "engines/content/content-30.md content-30.md" \
+         "engines/content/content-30.csv content-30.csv" "engines/outreach/outreach-sequence.md outreach-sequence.md" \
+         "engines/ops/ops-workflow.md ops-workflow.md" "engines/ops/ghl-values.md ghl-values.md" \
+         "engines/plan/90-day-plan.md 90-day-plan.md" "export/playbook-insert.pdf playbook-insert.pdf"; do
+  set -- $f
+  dt_ok $([ -f "$dt_lh/$2" ] && echo 0 || echo 1) "the allowlisted file $2 is copied"
+done
+dt_ok $([ -f "$dt_lh/0 READ ME.md" ] && echo 0 || echo 1) "the read me is written"
+dt_ok $([ -f "$dt_lh/.launchhouse-copies" ] && echo 0 || echo 1) "the ownership marker is written"
+dt_ok $([ "$(cat "$dt_lh/.launchhouse-copies" 2>/dev/null)" = "$dt_repo" ] && echo 0 || echo 1) "the marker names the founder's own folder"
+
+dt_ok $([ ! -e "$dt_lh/hook-bank.md" ] && [ ! -e "$dt_lh/inbound-scripts.md" ] && echo 0 || echo 1) "the other track's files are never copied"
+dt_ok $([ ! -e "$dt_lh/sam.md" ] && [ ! -e "$dt_lh/outreach-firstlines.csv" ] && echo 0 || echo 1) "a force-added private file is never copied, even off the allowlist by name"
+[ -w "$dt_lh/founder-brain.md" ] && dt_writable=1 || dt_writable=0
+dt_ok $([ "$dt_writable" = 0 ] && echo 0 || echo 1) "a copy is written read-only"
+
+# Unsaved (dirty) changes are never copied: the working tree has a change that
+# was never committed, so the copy must still read the old, saved words.
+printf '# Thirty pieces\nAn UNSAVED change that must never reach the Desktop.\n' > "$dt_repo/growth-engine/engines/content/content-30.md"
+dt_run desktop-copy.sh >/dev/null
+dt_ok $(grep -q UNSAVED "$dt_lh/content-30.md" 2>/dev/null && echo 1 || echo 0) "an unsaved change in the working tree is never copied"
+dt_g checkout -- growth-engine/engines/content/content-30.md
+
+# The founder edits a copy on their own Desktop: it must be moved into "Your
+# edits", and a note queued for state-block.sh to say once, then clear.
+chmod u+w "$dt_lh/ops-workflow.md" 2>/dev/null
+printf 'the founder typed something here\n' > "$dt_lh/ops-workflow.md"
+dt_out=$(dt_run desktop-copy.sh)
+dt_ok $([ -d "$dt_lh/Your edits" ] && [ -n "$(ls "$dt_lh/Your edits" 2>/dev/null)" ] && echo 0 || echo 1) "a founder-edited copy is moved into Your edits"
+dt_ok $([ -f "$dt_lh/ops-workflow.md" ] && grep -q 'bottleneck' "$dt_lh/ops-workflow.md" 2>/dev/null && echo 0 || echo 1) "a fresh, correct copy is written in its place"
+dt_note_line=$(CLAUDE_PROJECT_DIR="$dt_repo" sh "$dt_repo/.claude/scripts/state-block.sh" < /dev/null 2>/dev/null)
+dt_ok $(printf '%s' "$dt_note_line" | grep -q 'Desktop copies:' && echo 0 || echo 1) "state-block.sh says the note once"
+dt_note_line2=$(CLAUDE_PROJECT_DIR="$dt_repo" sh "$dt_repo/.claude/scripts/state-block.sh" < /dev/null 2>/dev/null)
+dt_ok $(printf '%s' "$dt_note_line2" | grep -q 'Desktop copies:' && echo 1 || echo 0) "and never says it again"
+
+# A deleted source moves its copy to Earlier/, never deleting it outright.
+rm "$dt_repo/growth-engine/engines/ops/ghl-values.md"
+dt_g add -A; dt_g commit -m "Dropped the values file"
+dt_run desktop-copy.sh >/dev/null
+dt_ok $([ ! -e "$dt_lh/ghl-values.md" ] && [ -n "$(ls "$dt_lh/Earlier"/ghl-values*.md 2>/dev/null)" ] && echo 0 || echo 1) "a deleted source moves its copy to Earlier, and does not delete it"
+
+# Bring the values file back so later assertions about the allowlist are not
+# thrown off, and confirm the second run with no new commit writes nothing:
+# no git process is spawned by the hook path when HEAD has not moved.
+dt_fakebin=${TMPDIR:-/tmp}/lh-desktop-fakebin.$$
+mkdir -p "$dt_fakebin"
+dt_gitlog="$dt_fakebin/git-calls.log"
+cat > "$dt_fakebin/git" <<EOF
+#!/bin/sh
+echo "\$@" >> "$dt_gitlog"
+exec $(command -v git) "\$@"
+EOF
+chmod +x "$dt_fakebin/git"
+: > "$dt_gitlog"
+PATH="$dt_fakebin:$PATH" CLAUDE_PROJECT_DIR="$dt_repo" LH_DESKTOP="$dt_desktop" \
+  sh "$dt_repo/.claude/scripts/desktop-copy.sh" --hook < /dev/null >/dev/null 2>&1
+dt_ok $([ ! -s "$dt_gitlog" ] && echo 0 || echo 1) "the hook path spawns no git process when HEAD has not moved"
+rm -rf "$dt_fakebin"
+
+# Two Earlier moves of the same file name must both survive: dated names, and
+# a numbered suffix if the two moves land in the same minute.
+printf '# GoHighLevel values\nbrought back\n' > "$dt_repo/growth-engine/engines/ops/ghl-values.md"
+dt_g add -A; dt_g commit -m "Brought the values file back"
+dt_run desktop-copy.sh >/dev/null
+dt_ok $([ -f "$dt_lh/ghl-values.md" ] && echo 0 || echo 1) "the values file is copied again once it is back in HEAD"
+rm "$dt_repo/growth-engine/engines/ops/ghl-values.md"
+dt_g add -A; dt_g commit -m "Dropped the values file again"
+dt_run desktop-copy.sh >/dev/null
+dt_earlier_count=$(ls "$dt_lh/Earlier"/ghl-values*.md 2>/dev/null | wc -l | tr -d ' ')
+dt_ok $([ "$dt_earlier_count" -ge 2 ] && echo 0 || echo 1) "a second file dropped under the same name does not overwrite the first Earlier copy"
+
+# Two founder folders sharing one Desktop: the second one's marker check must
+# refuse to write while the first folder still exists, and take over once it
+# is gone, never mixing the two folders' files together.
+dt_repo2=${TMPDIR:-/tmp}/lh-desktop-repo2.$$
+mkdir -p "$dt_repo2/.claude" "$dt_repo2/growth-engine/.state" "$dt_repo2/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$dt_repo2/.claude/" || exit 1
+: > "$dt_repo2/growth-engine/.launchhouse"
+cat > "$dt_repo2/growth-engine/brain/founder-brain.md" <<'EOF'
+# Founder Brain
+
+- **Founder:** Other Founder
+- **Track:** b2c
+EOF
+git -C "$dt_repo2" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false init >/dev/null 2>&1
+git -C "$dt_repo2" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false add -A >/dev/null 2>&1
+git -C "$dt_repo2" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false commit -m "Other founder" >/dev/null 2>&1
+CLAUDE_PROJECT_DIR="$dt_repo2" LH_DESKTOP="$dt_desktop" sh "$dt_repo2/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ "$(cat "$dt_lh/.launchhouse-copies" 2>/dev/null)" = "$dt_repo" ] && echo 0 || echo 1) "a foreign marker whose folder still exists blocks the second folder from writing"
+dt2_bk_note=$(git -C "$dt_repo2" rev-parse --absolute-git-dir 2>/dev/null)
+dt_ok $([ -n "$dt2_bk_note" ] && [ -s "$dt2_bk_note/launchhouse/desktop-note" ] && echo 0 || echo 1) "and a note is queued for the second folder, naming the clash"
+dt_note_count_before=$(wc -l < "$dt2_bk_note/launchhouse/desktop-note" 2>/dev/null | tr -d ' ')
+CLAUDE_PROJECT_DIR="$dt_repo2" LH_DESKTOP="$dt_desktop" sh "$dt_repo2/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_note_count_after=$(wc -l < "$dt2_bk_note/launchhouse/desktop-note" 2>/dev/null | tr -d ' ')
+dt_ok $([ "$dt_note_count_before" = "$dt_note_count_after" ] && echo 0 || echo 1) "a repeated blocked run queues the same note only once"
+
+rm -rf "$dt_repo"
+CLAUDE_PROJECT_DIR="$dt_repo2" LH_DESKTOP="$dt_desktop" sh "$dt_repo2/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ "$(cat "$dt_lh/.launchhouse-copies" 2>/dev/null)" = "$dt_repo2" ] && echo 0 || echo 1) "a marker whose folder is gone is taken over by the next founder folder"
+rm -rf "$dt_repo2" "$dt_desktop"
+
+# A folder already called "My Launchhouse work" on the Desktop, with no marker
+# in it, was not made by this script (the founder made one themselves, or
+# dragged one there). It is foreign: nothing in it is ever touched, and a note
+# is queued once, never repeated on every run.
+dt_desktop4=${TMPDIR:-/tmp}/lh-desktop4.$$
+dt_repo4=${TMPDIR:-/tmp}/lh-desktop-repo4.$$
+mkdir -p "$dt_desktop4/My Launchhouse work" "$dt_repo4/.claude" "$dt_repo4/growth-engine/brain" || exit 1
+printf 'a file the founder put here themselves\n' > "$dt_desktop4/My Launchhouse work/their-own-file.txt"
+cp -R "$repo/.claude/scripts" "$dt_repo4/.claude/" || exit 1
+: > "$dt_repo4/growth-engine/.launchhouse"
+printf '# Founder Brain\n\n- **Track:** b2b\n' > "$dt_repo4/growth-engine/brain/founder-brain.md"
+git -C "$dt_repo4" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false init >/dev/null 2>&1
+git -C "$dt_repo4" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false add -A >/dev/null 2>&1
+git -C "$dt_repo4" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false commit -m "Markerless folder test" >/dev/null 2>&1
+dt_before_snapshot=$(find "$dt_desktop4" -print | sort)
+CLAUDE_PROJECT_DIR="$dt_repo4" LH_DESKTOP="$dt_desktop4" sh "$dt_repo4/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ "$dt_before_snapshot" = "$(find "$dt_desktop4" -print | sort)" ] && echo 0 || echo 1) "a markerless pre-existing folder is left completely untouched"
+dt4_bk=$(git -C "$dt_repo4" rev-parse --absolute-git-dir 2>/dev/null)
+dt_ok $([ -n "$dt4_bk" ] && [ -s "$dt4_bk/launchhouse/desktop-note" ] && [ "$(wc -l < "$dt4_bk/launchhouse/desktop-note" | tr -d ' ')" = 1 ] && echo 0 || echo 1) "and exactly one note is queued about it"
+CLAUDE_PROJECT_DIR="$dt_repo4" LH_DESKTOP="$dt_desktop4" sh "$dt_repo4/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ "$(wc -l < "$dt4_bk/launchhouse/desktop-note" | tr -d ' ')" = 1 ] && echo 0 || echo 1) "and running it again does not queue the note a second time"
+rm -rf "$dt_desktop4" "$dt_repo4"
+
+# The hard safety guard: a copies path that resolves to the founder's own
+# folder root writes nothing at all, silently, no note needed.
+dt_desktop5=${TMPDIR:-/tmp}/lh-desktop5.$$
+dt_repo5="$dt_desktop5/My Launchhouse work"
+mkdir -p "$dt_repo5/.claude" "$dt_repo5/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$dt_repo5/.claude/" || exit 1
+: > "$dt_repo5/growth-engine/.launchhouse"
+printf '# Founder Brain\n\n- **Track:** b2b\n' > "$dt_repo5/growth-engine/brain/founder-brain.md"
+git -C "$dt_repo5" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false init >/dev/null 2>&1
+git -C "$dt_repo5" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false add -A >/dev/null 2>&1
+git -C "$dt_repo5" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false commit -m "Root equals the copies path" >/dev/null 2>&1
+CLAUDE_PROJECT_DIR="$dt_repo5" LH_DESKTOP="$dt_desktop5" sh "$dt_repo5/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ ! -e "$dt_repo5/0 READ ME.md" ] && [ ! -e "$dt_repo5/.launchhouse-copies" ] && echo 0 || echo 1) "a copies path equal to the founder's own root writes nothing"
+rm -rf "$dt_desktop5"
+
+# The hard safety guard: a copies folder that is itself a real Launchhouse
+# folder (carries growth-engine/.launchhouse) writes nothing, and this is not
+# the "foreign folder" case, so no note is queued either.
+dt_desktop6=${TMPDIR:-/tmp}/lh-desktop6.$$
+mkdir -p "$dt_desktop6/My Launchhouse work/growth-engine"
+: > "$dt_desktop6/My Launchhouse work/growth-engine/.launchhouse"
+dt_repo6=${TMPDIR:-/tmp}/lh-desktop-repo6.$$
+mkdir -p "$dt_repo6/.claude" "$dt_repo6/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$dt_repo6/.claude/" || exit 1
+: > "$dt_repo6/growth-engine/.launchhouse"
+printf '# Founder Brain\n\n- **Track:** b2b\n' > "$dt_repo6/growth-engine/brain/founder-brain.md"
+git -C "$dt_repo6" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false init >/dev/null 2>&1
+git -C "$dt_repo6" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false add -A >/dev/null 2>&1
+git -C "$dt_repo6" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false commit -m "Copies folder is itself a Launchhouse folder" >/dev/null 2>&1
+CLAUDE_PROJECT_DIR="$dt_repo6" LH_DESKTOP="$dt_desktop6" sh "$dt_repo6/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ ! -e "$dt_desktop6/My Launchhouse work/founder-brain.md" ] && [ ! -e "$dt_desktop6/My Launchhouse work/.launchhouse-copies" ] && echo 0 || echo 1) "a copies folder that is itself a real Launchhouse folder writes nothing"
+dt6_bk=$(git -C "$dt_repo6" rev-parse --absolute-git-dir 2>/dev/null)
+dt_ok $([ -n "$dt6_bk" ] && [ ! -s "$dt6_bk/launchhouse/desktop-note" ] && echo 0 || echo 1) "and no note is queued for it, since nothing could safely be said"
+rm -rf "$dt_desktop6" "$dt_repo6"
+
+# CLAUDE_CODE_SESSION_ATTENDED=0 (a cloud routine): never writes to the
+# Desktop, because nobody is there to see it and it may not even exist there.
+dt_repo3=${TMPDIR:-/tmp}/lh-desktop-repo3.$$
+dt_desktop3=${TMPDIR:-/tmp}/lh-desktop3.$$
+mkdir -p "$dt_repo3/.claude" "$dt_repo3/growth-engine/brain" "$dt_desktop3" || exit 1
+cp -R "$repo/.claude/scripts" "$dt_repo3/.claude/" || exit 1
+: > "$dt_repo3/growth-engine/.launchhouse"
+printf '# Founder Brain\n\n- **Track:** b2b\n' > "$dt_repo3/growth-engine/brain/founder-brain.md"
+git -C "$dt_repo3" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false init >/dev/null 2>&1
+git -C "$dt_repo3" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false add -A >/dev/null 2>&1
+git -C "$dt_repo3" -c user.name=Test -c user.email=test@example.com -c commit.gpgsign=false commit -m "Attended test" >/dev/null 2>&1
+CLAUDE_CODE_SESSION_ATTENDED=0 CLAUDE_PROJECT_DIR="$dt_repo3" LH_DESKTOP="$dt_desktop3" \
+  sh "$dt_repo3/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ ! -e "$dt_desktop3/My Launchhouse work" ] && echo 0 || echo 1) "an unattended session (a cloud routine) never writes to the Desktop"
+
+# A missing Desktop is skipped, and never created.
+dt_desktop_missing="$dt_desktop3/does-not-exist-Desktop"
+CLAUDE_PROJECT_DIR="$dt_repo3" LH_DESKTOP="$dt_desktop_missing" \
+  sh "$dt_repo3/.claude/scripts/desktop-copy.sh" < /dev/null >/dev/null 2>&1
+dt_ok $([ ! -e "$dt_desktop_missing" ] && echo 0 || echo 1) "a Desktop path that does not exist is skipped, and never created"
+rm -rf "$dt_repo3" "$dt_desktop3"
+
+fi
+
+# ghl-op.sh: it exists, is plain POSIX sh, is wired into settings.json's
+# PreToolUse array for execute_operation/fetch/search, and ghl-headers.sh
+# points at the v2 endpoint everywhere it names GoHighLevel's address.
+ghlop="$repo/.claude/scripts/ghl-op.sh"
+[ -f "$ghlop" ] && head -1 "$ghlop" | grep -qx '#!/bin/sh'
+conn_ok $? "ghl-op.sh exists and starts with a plain POSIX shebang"
+! grep -Eq '\[\[|\barray\b|\blocal\b' "$ghlop"
+conn_ok $? "ghl-op.sh has no bashisms"
+grep -qF 'ghl-op.sh' "$repo/.claude/settings.json" \
+  && grep -qF 'execute_operation|fetch|search' "$repo/.claude/settings.json"
+conn_ok $? "settings.json routes execute_operation, fetch and search to ghl-op.sh"
+grep -qF 'ghl=https://services.leadconnectorhq.com/mcp/anthropic/v2' "$repo/.claude/scripts/ghl-headers.sh"
+conn_ok $? "ghl-headers.sh points the fallback connection at the v2 endpoint"
 
 if [ "$fail" = 0 ]; then
   printf '\nAll state checks passed.\n'
