@@ -18,6 +18,14 @@ Be plain and unhurried. Many founders on this programme are not technical and wi
 
 ## The checks
 
+### The folder's own setup check
+
+"Check my setup" means run this in full, not just read the top of the conversation.
+
+Run `sh .claude/scripts/setup-check.sh --full < /dev/null`. It checks git is installed, this is a git folder with a name and email set for saving, the origin is not the public Launchhouse original, `.claude/settings.json` has the Launchhouse checks and the Launchhouse Guide voice switched on and the old plugin switched off, and the growth-engine scaffold is in place. It prints one plain line per problem it finds, or says there is nothing wrong. Read each line out in your own plain words, and offer to fix it (most of these are exactly what `/growth-engine:start` fixes). It also names, once, what to check with ToolSearch for GoHighLevel, and for Apollo and a mailbox if the founder is B2B: do that and say what you find.
+
+**If Bash is not available, as it can be in Cowork,** run the same checks by hand instead: read `.git/config` for `[user]` name and email and for `remote "origin"`'s url (never Philm-moxywolf), read `.claude/settings.json` for `"hooks"`, `"outputStyle": "Launchhouse Guide"` and `"growth-engine@launchhouse-v3": false`, and check `growth-engine/.launchhouse` and `growth-engine/log/ledger.md` exist. Say the same things in the same plain words.
+
 ### 1. The folder
 
 This is the single most common problem.

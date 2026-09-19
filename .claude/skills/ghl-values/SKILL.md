@@ -19,6 +19,8 @@ This turns the copy the founder already wrote into the exact list their account 
 
 If the snapshot is already loaded, nothing changes except that the pasting can follow straight on.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 ## Prerequisites
 
 **Check the gate first.** Read `./growth-engine/.state/gate-state.md`. These words come from the Brain and the operations file, so look at the Gate A rows and the Gate C `workflow` row. If one is `not done`, say in one plain sentence what is missing, using the row's evidence, then offer to carry on anyway. Never hold a founder up for working out of order.
@@ -75,7 +77,7 @@ Two rules when files disagree. **The Brain wins on voice and on what may be clai
 
 ## Step 3: ask only what nothing answers
 
-Never ask for something the Brain or their files already say. After reading everything there are usually four gaps at most. Ask them together, in one message:
+Never ask for something the Brain or their files already say. Before asking, offer to look instead (`../../references/sources.md`) for anything a connected source might already hold. After reading everything there are usually four gaps at most. Ask them together, in one message:
 
 1. The one word every email opens with: Hi, Hey, Hello or Good morning.
 2. What actually happens after someone enquires, and how fast. The welcome email promises this, so it has to be true.

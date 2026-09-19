@@ -1228,19 +1228,181 @@ rm -rf "$dt_repo3" "$dt_desktop3"
 
 fi
 
-# ghl-op.sh: it exists, is plain POSIX sh, is wired into settings.json's
-# PreToolUse array for execute_operation/fetch/search, and ghl-headers.sh
-# points at the v2 endpoint everywhere it names GoHighLevel's address.
+# ghl-op.sh: it exists, is plain POSIX sh, is sourced as a library by
+# mcp-guard.sh (the one PreToolUse ^mcp__ dispatcher named in settings.json),
+# and ghl-headers.sh points at the v2 endpoint everywhere it names
+# GoHighLevel's address.
 ghlop="$repo/.claude/scripts/ghl-op.sh"
 [ -f "$ghlop" ] && head -1 "$ghlop" | grep -qx '#!/bin/sh'
 conn_ok $? "ghl-op.sh exists and starts with a plain POSIX shebang"
 ! grep -Eq '\[\[|\barray\b|\blocal\b' "$ghlop"
 conn_ok $? "ghl-op.sh has no bashisms"
-grep -qF 'ghl-op.sh' "$repo/.claude/settings.json" \
-  && grep -qF 'execute_operation|fetch|search' "$repo/.claude/settings.json"
-conn_ok $? "settings.json routes execute_operation, fetch and search to ghl-op.sh"
+[ "$(grep -c '"matcher": "\^mcp__"' "$repo/.claude/settings.json")" = 1 ] \
+  && grep -A 4 '"matcher": "\^mcp__"' "$repo/.claude/settings.json" | grep -qF 'mcp-guard.sh' \
+  && grep -qF 'ghl-op.sh' "$repo/.claude/scripts/mcp-guard.sh" \
+  && ! grep -q 'deny-mcp.sh\|ask-mcp.sh' "$repo/.claude/settings.json"
+conn_ok $? "settings.json routes every mcp__ call through mcp-guard.sh, which sources ghl-op.sh, with no leftover deny-mcp.sh/ask-mcp.sh routing"
 grep -qF 'ghl=https://services.leadconnectorhq.com/mcp/anthropic/v2' "$repo/.claude/scripts/ghl-headers.sh"
 conn_ok $? "ghl-headers.sh points the fallback connection at the v2 endpoint"
+
+# --------------------------------------------------------------------------
+# setup-check.sh: silent when the folder is fine, one plain instruction line
+# per problem when it is not, mention-once per session id, a cloud session
+# says only the cloud line, and the whole check is fast. Isolated from the
+# developer's own git config with GIT_CONFIG_GLOBAL and GIT_CONFIG_SYSTEM
+# pointed at /dev/null, so a global identity on this machine cannot mask a
+# missing one in the test repo.
+sc_ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %s\n' "$2"; fail=1; fi; }
+
+sc_dir=${TMPDIR:-/tmp}/lh-setup-check.$$
+mkdir -p "$sc_dir/.claude" "$sc_dir/growth-engine/.state" "$sc_dir/growth-engine/log" "$sc_dir/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$sc_dir/.claude/" || exit 1
+cp "$repo/.claude/settings.json" "$sc_dir/.claude/settings.json" || exit 1
+: > "$sc_dir/growth-engine/.launchhouse"
+: > "$sc_dir/growth-engine/log/ledger.md"
+(
+  cd "$sc_dir" || exit 1
+  export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+  git init -q
+  git config user.name "Test Founder"
+  git config user.email "test@example.com"
+  git add -A
+  git -c commit.gpgsign=false commit -q -m "baseline"
+  git remote add origin https://github.com/test-founder/launchhouse-founder-template.git
+) >/dev/null 2>&1
+
+sc_run() { # session_id [more env, e.g. CLAUDE_CODE_REMOTE=true]
+  sid=$1; shift
+  ( cd "$sc_dir" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+      CLAUDE_PROJECT_DIR="$sc_dir" env "$@" sh .claude/scripts/setup-check.sh "$sid" < /dev/null 2>/dev/null )
+}
+
+# A fresh, correctly set up folder still gets the every-session Connectors
+# guidance (a script can never see a connector itself), so "silent" here
+# means no "Setup:" problem line, not a wholly empty reply.
+out=$(sc_run sess-good-1)
+! printf '%s' "$out" | grep -q '^Setup:'
+sc_ok $? "a correctly set up folder prints no Setup problem line"
+
+git -C "$sc_dir" config --unset user.email
+out=$(sc_run sess-noemail)
+case $out in *'does not have a name and email set'*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "a missing git identity prints its line"
+git -C "$sc_dir" config user.email "test@example.com"
+out=$(sc_run sess-email-restored)
+! printf '%s' "$out" | grep -q '^Setup:'
+sc_ok $? "restoring the identity leaves no Setup problem line, in a fresh session"
+
+git -C "$sc_dir" remote set-url origin https://github.com/Philm-moxywolf/launchhouse-founder-template.git
+out=$(sc_run sess-origin-https)
+case $out in *'Philm-moxywolf'*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "an origin pointed at the public original (https) prints its line"
+
+git -C "$sc_dir" remote set-url origin git@github.com:PHILM-MOXYWOLF/launchhouse-founder-template.git
+out=$(sc_run sess-origin-ssh)
+case $out in *'Philm-moxywolf'*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "the origin check matches case-insensitively, and an ssh form"
+
+sc_bk=$(git -C "$sc_dir" rev-parse --absolute-git-dir 2>/dev/null)/launchhouse
+mkdir -p "$sc_bk"
+: > "$sc_bk/maintainer"
+out=$(sc_run sess-maintainer)
+case $out in *'Philm-moxywolf'*) r=1 ;; *) r=0 ;; esac
+sc_ok $r "an untracked maintainer marker suppresses the origin warning"
+rm -f "$sc_bk/maintainer"
+git -C "$sc_dir" remote set-url origin https://github.com/test-founder/launchhouse-founder-template.git
+
+cp "$sc_dir/.claude/settings.json" "$sc_dir/.claude/settings.json.bak"
+sed 's/Launchhouse Guide/Something Else/' "$sc_dir/.claude/settings.json.bak" > "$sc_dir/.claude/settings.json"
+out=$(sc_run sess-style-bad)
+case $out in *"settings.json is missing a piece"*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "settings.json not selecting the output style prints its line"
+mv "$sc_dir/.claude/settings.json.bak" "$sc_dir/.claude/settings.json"
+
+mv "$sc_dir/growth-engine/log/ledger.md" "$sc_dir/growth-engine/log/ledger.md.bak"
+out=$(sc_run sess-scaffold-bad)
+case $out in *'growth-engine scaffold'*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "a missing scaffold file prints its line and offers start launchhouse"
+mv "$sc_dir/growth-engine/log/ledger.md.bak" "$sc_dir/growth-engine/log/ledger.md"
+
+# Mention-once: the same session id never repeats the setup notice, even once
+# a new problem appears in the same session (resume or clear firing again).
+out1=$(sc_run sess-once)
+[ -z "$out1" ] || printf 'note: baseline was not clean going into the mention-once test\n'
+git -C "$sc_dir" config --unset user.email
+out2=$(sc_run sess-once)
+git -C "$sc_dir" config user.email "test@example.com"
+[ -z "$out2" ]
+sc_ok $? "the same session id says the setup notice at most once"
+
+# A different session id is not deduplicated against another.
+git -C "$sc_dir" config --unset user.email
+out3=$(sc_run sess-fresh-for-dedup)
+git -C "$sc_dir" config user.email "test@example.com"
+case $out3 in *'does not have a name and email set'*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "a different session id gets its own notice"
+
+# Cloud: only the one line, nothing else, even with a broken identity.
+git -C "$sc_dir" config --unset user.email
+out=$(sc_run sess-cloud CLAUDE_CODE_REMOTE=true)
+git -C "$sc_dir" config user.email "test@example.com"
+case $out in
+  *'this is a cloud session'*"$(printf '\n')") lines=$(printf '%s' "$out" | grep -c .); [ "$lines" = 1 ] && r=0 || r=1 ;;
+  *'this is a cloud session'*) lines=$(printf '%s' "$out" | grep -c .); [ "$lines" = 1 ] && r=0 || r=1 ;;
+  *) r=1 ;;
+esac
+sc_ok $r "a cloud session prints only the one cloud line, nothing else"
+
+# --full (the help skill): ignores the say-it-once sentinel and always says
+# something, an all-clear line when nothing is wrong.
+out=$( ( cd "$sc_dir" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+    CLAUDE_PROJECT_DIR="$sc_dir" sh .claude/scripts/setup-check.sh --full sess-once 2>/dev/null ) )
+[ -n "$out" ]
+sc_ok $? "check my setup (--full) always says something, even for an already-seen session"
+
+# Timing: the whole check, cold, well under a second.
+sc_t0=$(date +%s%N 2>/dev/null || date +%s)
+sc_run sess-timing >/dev/null
+sc_t1=$(date +%s%N 2>/dev/null || date +%s)
+if printf '%s' "$sc_t0" | grep -q '.\{10,\}'; then
+  sc_ms=$(( (sc_t1 - sc_t0) / 1000000 ))
+  [ "$sc_ms" -lt 1000 ]
+  sc_ok $? "setup-check.sh runs in under a second"
+else
+  printf 'PASS  setup-check.sh runs in under a second (coarse clock, not measured)\n'
+fi
+
+rm -rf "$sc_dir"
+
+grep -qF 'sh "$(dirname "$0")/setup-check.sh"' "$repo/.claude/scripts/context.sh"
+conn_ok $? "context.sh calls setup-check.sh"
+
+# Behavioural: a folder with a broken setup (no git identity) says so on a
+# plain SessionStart, but says nothing extra on --compact, which only adds
+# the do-not-restart note.
+cc_dir=${TMPDIR:-/tmp}/lh-compact-check.$$
+mkdir -p "$cc_dir/.claude" "$cc_dir/growth-engine/.state" "$cc_dir/growth-engine/log" "$cc_dir/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$cc_dir/.claude/" || exit 1
+cp "$repo/.claude/settings.json" "$cc_dir/.claude/settings.json" || exit 1
+: > "$cc_dir/growth-engine/.launchhouse"
+: > "$cc_dir/growth-engine/log/ledger.md"
+(
+  cd "$cc_dir" || exit 1
+  export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+  git init -q
+  git remote add origin https://github.com/test-founder/launchhouse-founder-template.git
+  git add -A
+  git -c commit.gpgsign=false -c user.name=Test -c user.email=test@example.com commit -q -m baseline
+) >/dev/null 2>&1
+cc_plain=$( cd "$cc_dir" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null CLAUDE_PROJECT_DIR="$cc_dir" sh .claude/scripts/context.sh < /dev/null 2>/dev/null )
+cc_compact=$( cd "$cc_dir" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null CLAUDE_PROJECT_DIR="$cc_dir" sh .claude/scripts/context.sh --compact < /dev/null 2>/dev/null )
+printf '%s' "$cc_plain" | grep -q '^Setup: git does not have a name and email set'
+conn_ok $? "a plain SessionStart reports the broken identity through context.sh"
+! printf '%s' "$cc_compact" | grep -q '^Setup:'
+conn_ok $? "context.sh never calls setup-check.sh on a compact SessionStart"
+rm -rf "$cc_dir"
+grep -qF 'check my setup' "$repo/.claude/skills/help/SKILL.md" 2>/dev/null || grep -qF 'setup-check.sh' "$repo/.claude/skills/help/SKILL.md"
+conn_ok $? "the help skill runs the setup check in full"
 
 if [ "$fail" = 0 ]; then
   printf '\nAll state checks passed.\n'

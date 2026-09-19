@@ -11,6 +11,17 @@
 root=$(lh_root)
 ge="$root/growth-engine"
 
+# The SessionStart hook's own JSON, read only to pull session_id out of it for
+# setup-check.sh's say-it-once sentinel, and only when stdin is not a
+# terminal, so a manual run of this script (or the test suite, run by hand in
+# a real terminal) never blocks waiting on input that will never come. In
+# production the harness always pipes this hook JSON on stdin.
+session_id=""
+if [ ! -t 0 ]; then
+  hook_input=$(cat 2>/dev/null)
+  session_id=$(lh_json_get session_id "$hook_input" 2>/dev/null)
+fi
+
 if ! lh_active; then
   # The single most common failure: Claude opened one folder up or one down.
   all=$(lh_near_all)
@@ -24,6 +35,8 @@ if ! lh_active; then
   fi
   if [ -f "$root/growth-engine/brain/founder-brain.md" ] || [ -f "$root/growth-engine/founder-brain.md" ] || [ -f "$root/growth-engine/README-your-files.md" ]; then
     printf 'Launchhouse: this folder has Launchhouse files but has not been set up. If the founder wants to work on Launchhouse, start with /growth-engine:start.\n'
+  elif [ "$1" != --compact ]; then
+    sh "$(dirname "$0")/setup-check.sh" "$session_id" 2>/dev/null
   fi
   exit 0
 fi
@@ -62,6 +75,10 @@ printf 'Today: %s.\n' "$today"
 # The same short block the hook on every message prints, so the two never differ.
 sh "$(dirname "$0")/state-block.sh" 2>/dev/null
 printf 'The founder does not use a terminal. Never ask them to run a command; offer the plain words or the /growth-engine: name instead.\n'
+
+# Silent when all is well; on startup/resume/clear only, never on compact,
+# which just re-shows the same picture of an already-checked session.
+[ "$1" != --compact ] && sh "$(dirname "$0")/setup-check.sh" "$session_id" 2>/dev/null
 
 if [ "$1" = "--compact" ]; then
   printf 'The conversation was just summarised. Do not start again and do not re-ask anything already answered. Read the files in growth-engine/ before assuming anything is missing.\n'

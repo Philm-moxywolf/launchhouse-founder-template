@@ -10,6 +10,15 @@ How the founder's tools reach Claude. `connect-tools` sets them up and proves th
 
 Nothing else needs connecting. GitHub is GitHub Desktop's job, not a connection.
 
+## How a tool call is checked
+
+One check, `mcp-guard.sh`, runs before every call to a connected tool, on any connector, not only the three above. It is deterministic by the founder's own Claude permission mode, and it only ever adds a note or a prompt on top. It never removes one, and in the mode most founders run in (auto, with no prompts) it never invents a prompt of its own.
+
+- **Refused outright, in every mode:** spending the founder's money (buying, purchasing, checking out), a tool that sends or connects to a real person in bulk or cold (a broadcast, a batch send, a mailbox send or reply or forward, LinkedIn's send or connect), a mail rule, and GoHighLevel's own refused set below.
+- **Asks the founder first, even in a mode with no other prompts:** a message actually going out, a calendar change, an Apollo credit spend, and a short named set of GoHighLevel writes (a reply, a social post, an email template, a contact, a deal).
+- **Guided, not blocked:** every other write. Claude is told the rule and, when the founder's mode would show no prompt of its own, told to get a yes in chat first, but the call itself is never held up by this check.
+- **Silent:** a plain read. Nothing is said.
+
 ## GoHighLevel: the connector
 
 The main route is a Claude account connector, named **HighLevel**, at `https://services.leadconnectorhq.com/mcp/anthropic/v2`. It works the same way in Code, Cowork, the browser and on a phone, once it is connected. `connect-tools` walks a founder through adding it.
