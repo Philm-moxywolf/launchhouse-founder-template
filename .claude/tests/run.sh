@@ -218,13 +218,31 @@ check "execute_operation no longer asks through ask-mcp.sh, it goes to ghl-op.sh
 # ask-mcp.sh, because one execute_operation call can do anything from reading
 # a location to refunding a payment, so the whole input has to be read, not
 # just the tool name. The PreToolUse entry for it is its own matcher.
-ghlmatcher=$(sed -n 's/.*"matcher": "\(mcp__[^"]*execute_operation[^"]*\)".*/\1/p' "$settings")
+ghlmatcher=$(sed -n 's/.*"matcher": "\([^"]*execute_operation[^"]*\)".*/\1/p' "$settings")
 check "ghl-op.sh has its own PreToolUse matcher in settings.json" test -n "$ghlmatcher"
 for t in mcp__highlevel__execute_operation mcp__leadconnector-abc123__execute_operation mcp__gdrive__fetch mcp__notion__search; do
   check "$t is routed to ghl-op.sh" sh -c 'printf "%s" "$1" | grep -Eq "^($2)$"' _ "$t" "$ghlmatcher"
   check "and not to ask-mcp.sh's matcher" sh -c '[ -z "$2" ] || ! printf "%s" "$1" | grep -Eq "^($2)$"' _ "$t" "$matcher"
 done
 check "list_locations is not one of ghl-op.sh's matched tool names" sh -c '! printf "%s" "mcp__highlevel__list_locations" | grep -Eq "^($1)$"' _ "$ghlmatcher"
+
+# LH-043: the matcher is anchored both ends, so it only ever catches
+# GoHighLevel's own tool names, never a Drive/Notion/Gmail tool whose name
+# happens to contain "search" or "fetch" as a substring, or end in a
+# hyphenated variant like notion-search.
+for t in mcp__1b3d__execute_operation mcp__1b3d__execute_operation_batch mcp__highlevel__fetch mcp__highlevel__search; do
+  check "$t matches the anchored ghl-op.sh matcher" sh -c 'printf "%s" "$1" | grep -Eq "^($2)$"' _ "$t" "$ghlmatcher"
+done
+for t in mcp__39f8__search_files mcp__drive__search_files mcp__notion__notion-search mcp__notion__notion-fetch \
+         mcp__286d__search_threads mcp__x__search_operations mcp__x__describe_operation mcp__x__list_locations mcp__x__fetch_page; do
+  check "$t does not match the anchored ghl-op.sh matcher" sh -c '! printf "%s" "$1" | grep -Eq "^($2)$"' _ "$t" "$ghlmatcher"
+done
+
+# LH-043: ghl-op.sh's own default branch is a backstop, so even if a tool
+# name like this were ever routed to it directly, it exits clean, no ask
+# and no deny.
+out=$(hookraw ghl-op.sh mcp__39f8__search_files '{"query":"invoice"}')
+check "an unrecognised tool name like search_files reaches ghl-op.sh's default branch and gives no output at all" test -z "$out"
 
 # ghl-op.sh: classifies the whole input, refuse beats write beats read beats
 # ask, and it never allows on doubt. Three or more input shapes: a flat

@@ -170,13 +170,28 @@ method_up=$(printf '%s' "$method_val" | LC_ALL=C tr 'a-z' 'A-Z')
 # complete silence, no ask and no deny. This is a shape gate, not the
 # classification itself, so unlike the descriptor above it is allowed to
 # see all of tool_input, payload included, for its own marker words.
-# execute_operation is always judged, on every server name.
+# execute_operation is always judged, on every server name, no shape gate:
+# a variant like execute_operation_batch is still always classified.
+#
+# The settings.json matcher that routes a tool name into this hook at all
+# is meant to be anchored so that only GoHighLevel's own tool names ever
+# reach here: an execute_operation variant, fetch, or search, each sitting
+# right after a server name's own double underscore. But Drive, Notion,
+# Gmail and other connectors expose tools whose names also carry the words
+# "fetch" and "search" somewhere in them — search_files, notion-search,
+# search_threads, and the rest — and if that matcher is ever widened again,
+# a tool name like that can land here anyway. So as a backstop of its own,
+# any tool name this case statement does not recognise falls to a default
+# branch that exits clean, no ask and no deny, rather than being carried
+# on into classification below on the strength of a name alone.
 case $tool in
+  *__execute_operation*) ;;
   *__fetch|*__search)
     if [ -z "$descriptor" ]; then
       shapeflat=" $(lh_ghl_flatten "$tool_input") "
       printf '%s' "$shapeflat" | grep -Eq ' (location id|leadconnector|highlevel) ' || exit 0
     fi ;;
+  *) exit 0 ;;
 esac
 
 # Flatten the surviving descriptor, padded so every word list below can

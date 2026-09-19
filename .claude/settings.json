@@ -107,7 +107,7 @@
         ]
       },
       {
-        "matcher": "mcp__.*__(execute_operation|fetch|search)",
+        "matcher": "^mcp__.+__(execute_operation|fetch|search|execute_operation[A-Za-z0-9_-]+)$",
         "hooks": [
           {
             "type": "command",
