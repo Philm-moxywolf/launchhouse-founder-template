@@ -35,6 +35,8 @@ Any of those can lose work, and none of them is ever needed here.
 
 6. End by saying what to do next, and name the plain way to check where they stand: say "where am I up to". If they have not seen them yet, "set up my routines" or "add a file" can be the one you name instead. One, once.
 
+After a save, the copies in their Desktop Launchhouse folder refresh on their own at the end of the turn. Nothing more to do or say unless they ask.
+
 **If git has no name or email set,** ask for the email they use for GitHub, and set both for this folder only, as in the start skill.
 
 **If `git` itself does not work,** the computer cannot save history yet. On a Windows PC, send them through step 0 of the start skill to install Git for Windows. Their files are still safe in the folder meanwhile.
@@ -74,6 +76,10 @@ Before restoring `brain/founder-brain.md`, compare the `Track:` line of the vers
 ## What a restore makes out of date
 
 A restored file is a changed file, so anything built from it no longer matches. Check it against the table in `../../references/contract.md`, under "When one file changes, what goes stale". Name what is now out of date in plain words, and offer to rebuild it. Never rebuild it quietly, and never leave it unsaid. Bringing back `brain/founder-brain.md` is the widest: the content files, the track's engine 2 files, the operations workflow, the plan and the playbook insert were all built from it.
+
+## Update my desktop folder / where are my files
+
+Run `sh .claude/scripts/desktop-copy.sh < /dev/null`, then say where the folder is in plain words: a "My Launchhouse work" folder on their Desktop, holding copies of their finished work. Claude never copies files there by hand.
 
 ## Content approvals
 

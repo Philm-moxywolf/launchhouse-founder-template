@@ -115,4 +115,4 @@ Then follow `import-from-app`.
 
 **If the Brain already exists and nothing needs importing,** tell them they are set up and ask what they would like to work on.
 
-Before you hand on, or at the end if there is nothing to hand on to, add two short lines. Where their work lives: "Everything we make goes in the growth-engine folder here. Open this same folder whenever you work on Launchhouse, in Claude or in Cowork." Then how to find their way around: say "what can you do" any time and you will list everything Launchhouse can build for them.
+Before you hand on, or at the end if there is nothing to hand on to, add two short lines. Where their work lives: "Everything we make goes in the growth-engine folder here. Open this same folder whenever you work on Launchhouse, in Claude or in Cowork." Their finished work will also appear in a "My Launchhouse work" folder on their Desktop once it is saved. Then how to find their way around: say "what can you do" any time and you will list everything Launchhouse can build for them.

@@ -64,6 +64,10 @@ Read the Flags section of `growth-engine/brain/founder-brain.md` if it exists.
 
 Raise these even if the founder asked about something else. They are the two items that quietly break the weekend.
 
+## Their Desktop folder
+
+Finished work also appears as read-only copies in a "My Launchhouse work" folder on their Desktop, updated each time they save in Claude. It is for finding files, not for working in: changes happen in their real folder, in Claude, never in the Desktop one.
+
 ## Where they work
 
 **Claude Code, in the desktop app,** opened on their Launchhouse folder. This is where the engines run: interviews, writing, publishing, sequences.
@@ -111,6 +115,8 @@ It is a backstop, not a guarantee. They still read their own work before it goes
 **"It will not send my Apollo sequence."** Also correct. Sequences are built paused, and starting one is a button the founder presses in Apollo, having read it.
 
 **"It is asking permission for everything."** Their folder's settings let Claude save work without asking. If they opened a folder that is not their copy of the Launchhouse repository, the settings are missing. `/growth-engine:start` creates them when they are missing. Some things always ask, on purpose: publishing, spending Apollo credits, and adding people to a sequence.
+
+**"My Desktop folder is out of date."** It shows the last save. Unsaved changes, or changes made only in Cowork, appear there after the next save in Claude.
 
 **"I cannot get any of this working."** Do not keep troubleshooting past two failed attempts. Send them to the Slack channel.
 

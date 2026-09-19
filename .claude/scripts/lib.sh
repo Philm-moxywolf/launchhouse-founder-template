@@ -23,13 +23,83 @@ lh_near() {
   lh_near_all | head -1
 }
 
-# Every Launchhouse folder near the opened one, one per line.
+# Every Launchhouse folder near the opened one, one per line. Also names the
+# real folder when the opened one is a Desktop copies folder (it carries the
+# .launchhouse-copies marker desktop-copy.sh writes), so opening that folder
+# by mistake gets the same one-sentence redirect as opening any other wrong
+# folder.
 lh_near_all() {
   r=$(lh_root)
-  for cand in "$r"/*/growth-engine/.launchhouse "$r/../growth-engine/.launchhouse" "${HOME:-/nonexistent}/growth-engine/.launchhouse"; do
-    [ -f "$cand" ] && (cd "$(dirname "$cand")/.." 2>/dev/null && pwd)
-  done | awk '!seen[$0]++'
+  {
+    if [ -f "$r/.launchhouse-copies" ]; then
+      tr -d '\r\n' < "$r/.launchhouse-copies" 2>/dev/null
+      printf '\n'
+    fi
+    for cand in "$r"/*/growth-engine/.launchhouse "$r/../growth-engine/.launchhouse" "${HOME:-/nonexistent}/growth-engine/.launchhouse"; do
+      [ -f "$cand" ] && (cd "$(dirname "$cand")/.." 2>/dev/null && pwd)
+    done
+  } | awk '!seen[$0]++ && $0 != ""'
   return 0
+}
+
+# The bookkeeping folder for the Desktop copies feature: .git/launchhouse/ (or
+# the worktree's own git folder, followed properly if .git is a file), never
+# under growth-engine/, never committed, never part of the gate-state stamp.
+# Resolved straight off disk, no git process, so reading it (state-block.sh,
+# on every message) never spawns one. Falls back to asking git itself only if
+# the on-disk layout cannot be followed by hand.
+lh_gitdir_raw() {
+  r=$(lh_root)
+  g="$r/.git"
+  if [ -f "$g" ]; then
+    gd=$(sed -n 's/^gitdir: *//p' "$g" | tr -d '\r\n')
+    case $gd in
+      /*|[A-Za-z]:*) printf '%s' "$gd" ;;
+      *) (cd "$r" 2>/dev/null && cd "$gd" 2>/dev/null && pwd) ;;
+    esac
+  elif [ -d "$g" ]; then
+    printf '%s' "$g"
+  fi
+}
+
+lh_bk_dir() {
+  gd=$(lh_gitdir_raw)
+  [ -n "$gd" ] && [ -d "$gd" ] || gd=$(git -C "$(lh_root)" rev-parse --absolute-git-dir 2>/dev/null)
+  [ -n "$gd" ] && printf '%s/launchhouse' "$gd"
+}
+
+# A cheap fingerprint of HEAD, read straight off disk with no git process: the
+# content of HEAD plus whatever ref file or packed-refs line it names. It
+# changes exactly when the commit HEAD points at changes (a save, a pull, a
+# merge, a subagent commit), and nothing else. Empty when it cannot be read,
+# which the caller treats as "something may have changed" rather than risk
+# going stale silently.
+lh_head_fingerprint() {
+  gd=$(lh_gitdir_raw) || return 1
+  [ -n "$gd" ] && [ -f "$gd/HEAD" ] || return 1
+  h=$(cat "$gd/HEAD" 2>/dev/null)
+  case $h in
+    ref:*)
+      ref=$(printf '%s' "${h#ref: }" | tr -d ' \t\r\n')
+      cdir=$gd
+      if [ -f "$gd/commondir" ]; then
+        cd_rel=$(cat "$gd/commondir" 2>/dev/null | tr -d '\r\n')
+        case $cd_rel in
+          /*|[A-Za-z]:*) cdir=$cd_rel ;;
+          *) cdir=$(cd "$gd" 2>/dev/null && cd "$cd_rel" 2>/dev/null && pwd) ;;
+        esac
+      fi
+      if [ -f "$gd/$ref" ]; then
+        cat "$gd/HEAD" "$gd/$ref" 2>/dev/null | cksum
+      elif [ -n "$cdir" ] && [ -f "$cdir/$ref" ]; then
+        cat "$gd/HEAD" "$cdir/$ref" 2>/dev/null | cksum
+      elif [ -n "$cdir" ] && [ -f "$cdir/packed-refs" ]; then
+        { cat "$gd/HEAD"; grep -F " $ref" "$cdir/packed-refs" 2>/dev/null; } | cksum
+      else
+        cat "$gd/HEAD" 2>/dev/null | cksum
+      fi ;;
+    *) printf '%s' "$h" | cksum ;;
+  esac
 }
 
 # Read one JSON string value by key from the hook input (stdin, passed as $2).

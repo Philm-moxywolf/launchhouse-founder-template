@@ -45,6 +45,8 @@ A founder never has the other track's files. If an import brings some, leave the
 
 Nothing is ever written outside `growth-engine/`. The Launchhouse checks refuse a Launchhouse file anywhere else, refuse one of these files anywhere but its path in this table, and refuse a file that is not in this table outside `drafts/`, `inbox/uploads/`, `brain/voice-samples/`, `people/` and `.state/`.
 
+**One exception.** A read-only copy of finished work is placed in a "My Launchhouse work" folder on the founder's Desktop, automatically, by the Launchhouse checks: `brain/founder-brain.md`, `engines/content/content-30.md`, `engines/content/content-30.csv`, `engines/ops/ops-workflow.md`, `engines/ops/ghl-values.md`, `engines/plan/90-day-plan.md`, `export/playbook-insert.pdf`, and, by track, `engines/outreach/outreach-sequence.md` (B2B) or `engines/audience/hook-bank.md` and `engines/audience/inbound-scripts.md` (B2C). Nothing else ever goes there. `people/`, `engines/outreach/outreach-firstlines.csv` and `engines/audience/dm-openers.md` are never copied out, even by mistake.
+
 **A folder in the older, flat layout.** Before these folders existed, every file sat at the top of `growth-engine/`, with `uploads/` and `voice-samples/` beside them. The start skill moves such a folder into this layout with `sh .claude/scripts/move-layout.sh < /dev/null`. It moves files git keeps with `git mv` and the private files with a plain move, never overwrites, never deletes, changes nothing on a second run, and adds one line to `log/ops-log.md` saying what moved and why. Nothing moves by itself when a session starts.
 
 ## When one file changes, what goes stale

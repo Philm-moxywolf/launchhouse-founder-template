@@ -52,6 +52,14 @@ This repository is a complete standalone system. Everything Launchhouse does liv
 5. **Secrets.** No key, token or password in any file, tracked, untracked or ignored. The only `pit-` matches are the guards' own patterns and the test keys: `pit-test-0000-not-a-real-key`, `pit-test-1111-values-not-real`, and a real-shaped one `run.sh` builds from two halves so no file holds the shape. No `.mcp.json` in the worktree.
 6. **Privacy.** `git status`, including ignored files, shows nothing under `people/`, `dm-openers` or `firstlines` at any depth. The only tracked file in `people/` is its placeholder `README.md`. `.gitignore` covers `**/people/*`, `**/outreach-firstlines.csv` and `**/dm-openers.md`.
 
+## Desktop copies (feature/desktop-copies)
+
+A read-only copy of a founder's finished work is kept in a "My Launchhouse work" folder on their Desktop (`<Desktop>/My Launchhouse work/`), so they can find their files without opening Claude. Copies come from the saved (last committed) version only, never unsaved work, so Cowork edits appear once they are saved in Claude Code or pulled. Only the allowlisted files for the founder's track are copied, by their track from the Brain's `Track:` line: never `people/`, `outreach-firstlines.csv`, `dm-openers.md`, or anything else. The folder also gets a `0 READ ME.md` explaining the copies in plain words, and a hidden `.launchhouse-copies` marker naming the source folder.
+
+Copies are written read-only and made writable only to replace them. The sync runs at session start and at the end of each turn, only when the saved commit has changed, and on demand with `sh .claude/scripts/desktop-copy.sh < /dev/null` (the save skill's "update my desktop folder" phrase). It fails open: skipped entirely when unattended, on Linux with no Desktop, outside a Launchhouse folder, or without git. A file the founder edited on the Desktop is moved to `Launchhouse/Your edits/` before being replaced, never overwritten silently; a file that leaves the allowlist or HEAD moves to `Launchhouse/Earlier/`. Bookkeeping lives in `.git/launchhouse/`, never in `growth-engine/` and never committed.
+
+**Hand check.** On a Mac and on a Windows PC (including one with OneDrive-redirected Desktop), save a Brain. Confirm the Desktop folder appears with the right files for the founder's track, that each copy is read-only, and that editing a copy and saving again moves the edited copy into `Your edits` rather than losing it.
+
 ## Every open issue on GitHub
 
 All 30 are still open on GitHub. None is closed until the branch is merged. "Closed" below means closed by this branch.

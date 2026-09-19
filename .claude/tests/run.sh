@@ -437,6 +437,22 @@ if command -v git >/dev/null 2>&1; then
   check "pushing to that upstream is refused" has "$out" '"deny"'
 fi
 
+# Desktop copies privacy guard: a shell copy of real people's details out of
+# the project is refused; the same file copied within the project is fine,
+# and so is desktop-copy.sh's own on-demand invocation.
+out=$(hook guard-pre.sh Bash command "cp growth-engine/people/sam.md ~/Desktop/sam.md")
+check "cp of a person file to the Desktop is refused" has "$out" '"deny"'
+out=$(hook guard-pre.sh Bash command "cp growth-engine/engines/audience/dm-openers.md ~/Desktop/openers.md")
+check "cp of dm-openers.md to the Desktop is refused" has "$out" '"deny"'
+out=$(hook guard-pre.sh Bash command "cp growth-engine/engines/outreach/outreach-firstlines.csv /Users/sam/Desktop/firstlines.csv")
+check "cp of outreach-firstlines.csv to an absolute Desktop path is refused" has "$out" '"deny"'
+out=$(hook guard-pre.sh Bash command "cp $ge/people/sam.md $ge/drafts/sam-copy.md")
+check "cp of a person file to another folder inside the project is allowed" hasnt "$out" '"deny"'
+out=$(hook guard-pre.sh Bash command "cp $ge/drafts/plan.md ~/Desktop/plan.md")
+check "cp of a harmless file to the Desktop is allowed" hasnt "$out" '"deny"'
+out=$(hook guard-pre.sh Bash command "sh .claude/scripts/desktop-copy.sh < /dev/null")
+check "desktop-copy.sh's own on-demand run is never refused by the privacy guard" hasnt "$out" '"deny"'
+
 if [ "$fail" = 0 ]; then
   printf '\nAll cases passed.\n'
 else

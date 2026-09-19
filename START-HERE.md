@@ -45,6 +45,10 @@ If you sell to businesses, open **Settings** in the Claude app, then **Connector
 
 For GoHighLevel you make a key in your GoHighLevel account and add it, by clicking, to your computer's own password store: Keychain Access on a Mac, Credential Manager on a Windows PC. Claude never sees it. Nothing asks about GoHighLevel until you do this.
 
+## Finding your finished work
+
+Once a piece of work is saved, a copy also appears in a "My Launchhouse work" folder on your Desktop. These are copies, updated each time you save in Claude. To change something, ask Claude in your real folder, not the Desktop one, and do not open the Desktop folder in Claude.
+
 ## Backing up
 
 Claude saves your work as you go. To send it up to GitHub, open GitHub Desktop and press **Push origin**.

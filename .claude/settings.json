@@ -17,6 +17,7 @@
       "Bash(sh .claude/scripts/move-layout.sh < /dev/null)",
       "Bash(sh .claude/scripts/move-layout.sh .lh-import/growth-engine < /dev/null)",
       "Bash(sh .claude/scripts/refresh.sh < /dev/null)",
+      "Bash(sh .claude/scripts/desktop-copy.sh < /dev/null)",
       "Bash(git merge --abort)",
       "Bash(git init)",
       "Bash(git config user.name:*)",

@@ -90,5 +90,16 @@ printf 'Made:%s\n' "${present:- nothing yet}"
 drafts=$(ls "$ge/drafts" 2>/dev/null | grep -vc '^\.gitkeep$' | tr -d ' ')
 [ "${drafts:-0}" -gt 0 ] && printf 'Drafts waiting for the founder to read in growth-engine/drafts/: %s.\n' "$drafts"
 [ -n "$paused" ] && [ "$paused" != none ] && printf 'Parked for now, do not push them on it: %s.\n' "$paused"
+
+# A note from the Desktop copies feature (moved to Your edits, another folder
+# owns the Desktop copies, a copy could not be written), printed once and
+# cleared, so it is never said twice.
+bk=$(lh_bk_dir 2>/dev/null)
+if [ -n "$bk" ] && [ -s "$bk/desktop-note" ]; then
+  note=$(tr '\n' ' ' < "$bk/desktop-note" 2>/dev/null)
+  rm -f "$bk/desktop-note" 2>/dev/null
+  [ -n "$note" ] && printf 'Desktop copies: %s\n' "$note"
+fi
+
 printf 'Most likely next step: %s.\n' "$next"
 exit 0
