@@ -307,6 +307,42 @@ out=$(hookraw ghl-op.sh mcp__highlevel__execute_operation "{\"operationId\":\"$j
 check "a 20KB junk operation name comes back, so the hook did not hang or crash" test -n "$out"
 check "and it classifies safely, asking rather than guessing" has "$out" '"ask"'
 
+# ghl-op.sh: the descriptor is an allowlist of structural fields, not a
+# blacklist of payload container keys. Five confirmed bugs the blacklist let
+# through or got wrong, and the new refuse/write words and rules that fix
+# them.
+ghldeny "a users operation, getUser, is refused, singular now included" mcp__highlevel__execute_operation '{"operationId":"getUser"}'
+ghlask "markConversationAsRead is a write (mark), not a read just because read is in its name" mcp__highlevel__execute_operation '{"operationId":"markConversationAsRead"}'
+ghldeny "listAPIKeys is refused, refuse beats the read-looking list" mcp__highlevel__execute_operation '{"operationId":"listAPIKeys"}'
+ghlask "createPost with cancel-my-subscription in its own payload field only asks, never denies on leaked payload text" \
+  mcp__highlevel__execute_operation '{"operationId":"createPost","post":"Please cancel my subscription"}'
+ghldeny "a fetch with a bare DELETE method and path is refused, not silently allowed" mcp__highlevel__fetch '{"method":"DELETE","path":"/contacts/123"}'
+ghldeny "trashContact is refused, trash is a new refuse word" mcp__highlevel__execute_operation '{"operationId":"trashContact"}'
+ghldeny "createCharge is refused, charge is a new refuse word" mcp__highlevel__execute_operation '{"operationId":"createCharge"}'
+ghldeny "activateWorkflow is refused outright, not just asked" mcp__highlevel__execute_operation '{"operationId":"activateWorkflow"}'
+ghlallow "getWorkflows is still a clear read and is allowed, workflow alone does not refuse a read" mcp__highlevel__execute_operation '{"operationId":"getWorkflows"}'
+
+out=$(hookraw ghl-op.sh mcp__highlevel__execute_operation '"getContacts"')
+check "a scalar tool_input (a bare JSON string, not an object) asks" has "$out" '"ask"'
+check "and never allows" hasnt "$out" '"deny"'
+
+out=$(printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","tool_name":"mcp__highlevel__execute_operation","tool_input":{"operationId":"getUser"}}GARBAGE' |
+  CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/ghl-op.sh" 2>/dev/null)
+check "garbage trailing after the envelope's own JSON closes asks, rather than trusting the tool_input found before it" has "$out" '"ask"'
+check "and never denies" hasnt "$out" '"deny"'
+
+check "getHTTPMethod flattens the acronym boundary apart from the titlecase word after it" \
+  sh -c '. "$1/.claude/scripts/lib.sh"; [ "$(lh_ghl_flatten getHTTPMethod)" = "get http method" ]' _ "$work"
+ghlallow "getHTTPMethod is a clear read once flattened, get is a read word and nothing else fires" mcp__highlevel__execute_operation '{"operationId":"getHTTPMethod"}'
+
+ghlallow "a method field buried inside body, not a structural field at all, is ignored for classification: without this a DELETE hiding in there would wrongly refuse a plain read" \
+  mcp__highlevel__execute_operation '{"operationId":"getContact","body":{"method":"DELETE"}}'
+ghlask "a method-shaped word inside an excluded payload leaf's own value never leaks in either" \
+  mcp__highlevel__execute_operation '{"operationId":"createPost","body":{"note":"method: POST please, right away"}}'
+
+out=$(ghlop mcp__gdrive__fetch '{"id":"doc123"}')
+check "a Google-Drive-style fetch of a bare id, no method/path/operation shape and no HighLevel markers, gives no output at all" test -z "$out"
+
 # LH-025: the tools on the shipped HighLevel connection that change a contact,
 # which can start a workflow that sends, or post a blog, ask first. Mail rules
 # are refused.

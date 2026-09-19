@@ -253,7 +253,19 @@ lh_json_leaves() {
         else break
       }
     }
-    function parse_string(   c, out, d) {
+    # Turns a four character hex string into its decimal value, digit by
+    # digit, with no dependence on a gawk-only builtin such as strtonum.
+    function hex2dec(hx,   j, ch, v, digits) {
+      digits = "0123456789abcdef"
+      v = 0
+      hx = tolower(hx)
+      for (j = 1; j <= length(hx); j++) {
+        ch = substr(hx, j, 1)
+        v = v * 16 + index(digits, ch) - 1
+      }
+      return v
+    }
+    function parse_string(   c, out, d, hx, cp) {
       i++
       out = ""
       while (i <= n) {
@@ -262,7 +274,18 @@ lh_json_leaves() {
           if (i + 1 > n) { err = 1; return out }
           d = substr(s, i + 1, 1)
           if (d == "n" || d == "t" || d == "r" || d == "b" || d == "f") out = out " "
-          else if (d == "u") { out = out "?"; i += 4 }
+          else if (d == "u") {
+            hx = substr(s, i + 2, 4)
+            if (length(hx) != 4 || hx !~ /^[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]$/) { err = 1; return out }
+            cp = hex2dec(hx)
+            # ASCII range decodes to the plain character it names; anything
+            # above it becomes a marker instead of a guess, so the caller
+            # can tell a descriptor leaf it cannot safely normalise apart
+            # from one it can, rather than silently mangling either.
+            if (cp <= 127) out = out sprintf("%c", cp)
+            else out = out "UNIESCNONASCII"
+            i += 4
+          }
           else out = out d
           i += 2
           continue
@@ -596,6 +619,25 @@ lh_ghl_flatten() {
         }
         out = out c
       }
+      # A second pass over that result splits an acronym run from the
+      # titlecase word right after it (HTTPMethod -> HTTP Method,
+      # APIKeys -> API Keys, XMLParser -> XML Parser): wherever an upper
+      # case letter is itself preceded by an upper case letter and
+      # followed by a lower case one, the boundary sits right before it,
+      # so the space goes there, before the last upper case letter of the
+      # run. This runs before the text is lower cased, same as the first
+      # pass, because both need to still see the casing to find it.
+      n2 = length(out); out2 = ""
+      for (i = 1; i <= n2; i++) {
+        c = substr(out, i, 1)
+        if (i > 1 && i < n2) {
+          p = substr(out, i - 1, 1)
+          nx = substr(out, i + 1, 1)
+          if (p ~ /[A-Z]/ && c ~ /[A-Z]/ && nx ~ /[a-z]/) out2 = out2 " "
+        }
+        out2 = out2 c
+      }
+      out = out2
       s = tolower(out)
       gsub(/\{/, " ", s); gsub(/\}/, " ", s); gsub(/\[/, " ", s); gsub(/\]/, " ", s)
       gsub(/"/, " ", s);  gsub(/,/, " ", s);  gsub(/\(/, " ", s); gsub(/\)/, " ", s)
