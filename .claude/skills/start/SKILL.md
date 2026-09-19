@@ -9,6 +9,8 @@ This is the first thing a founder runs in their Launchhouse folder. It takes abo
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to type a command. Run what needs running yourself, and describe what you did in one plain sentence.
 
+The folder checks itself every time it opens, so most of what is below is only needed once.
+
 ## 0. Check this computer is ready
 
 Founders use the Claude desktop app, on a Mac or a Windows PC, and never a terminal. Two things have to be on the computer, and both are ordinary installs.

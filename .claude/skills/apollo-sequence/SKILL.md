@@ -11,6 +11,8 @@ Takes the founder's outreach engine into their own Apollo account.
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 **How to ask.** The yes or no questions here have predictable answers: carrying on with a gate row not done, building the Brain now, spending credits, adding the contacts, confirming the schedule, creating the sequence, and adding the 25. Ask each with clickable choices (the AskUserQuestion tool), **Yes** and **No**, with the full cost or plan inside the question itself, so they approve exactly what they read. It adds a box for any other answer. Only a click on **Yes**, or a typed yes, is a yes. If you cannot show choices, as in Cowork, ask the same question in plain text.
 
 ## 0. Before starting
@@ -30,6 +32,8 @@ Takes the founder's outreach engine into their own Apollo account.
 ## 1. Build the list, free
 
 **First, bring in first lines from the app.** If `growth-engine/engines/outreach/outreach-firstlines.csv` has a row whose email has no person file, write one for it, named by the slug of the email, in the prospect shape in `../../references/contract.md`. Set `key` and `email` to the address, with `kind: prospect`, `status: candidate`, `source: import`, `created` today, and `first_name` and `company` from the row. Put the row's `first_line` inside the Opener block. Never change a person file that already exists. **Then skip this step** if `growth-engine/people/` holds 25 or more prospects not at `cut`, and go to step 3. If it holds fewer, count the ones already there towards the 35 and the 25.
+
+If the criteria in `engines/outreach/outreach-sequence.md` look thin, offer to look instead (`../../references/sources.md`) for a CRM or past-customer list before asking the founder to sharpen them from memory.
 
 1. **Search.** Use the tight criteria from `engines/outreach/outreach-sequence.md` with the tool ending `apollo_mixed_people_api_search`.
    - Search does not spend credits.

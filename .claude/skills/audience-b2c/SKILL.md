@@ -15,6 +15,8 @@ File shapes are in `../../references/contract.md`. Gate C for B2C is in `../../r
 
 **Dates.** Every programme date comes from the cohort block in `../../references/gates.md`. Take today's date from the founder's own computer. Once a date in that block has passed, do not announce it as though it is still ahead: say "your clinic session" or "the Saturday of your programme" instead.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 ## The line that does not move
 
 Say this to the founder early, in roughly these words rather than your own.
@@ -77,6 +79,8 @@ Other work a co-founder does, such as partnerships, is not built here.
 
 ## Step 1: targeting
 
+Before asking, offer to look instead (`../../references/sources.md`): their Instagram account itself, or their own notes on who they are trying to reach, if a source that might hold this is connected.
+
 Engagement-based, not firmographic. Build a list of 25 real accounts from:
 - people who commented on a competitor's recent posts
 - hashtag participants in their niche
@@ -125,6 +129,7 @@ For each opener:
 Hooks do more work per word than anything else a B2C founder writes. Spend real effort here.
 
 **The result category is the one that goes wrong.**
+- Before asking for results, offer to look instead (`../../references/sources.md`): reviews, testimonials or old posts, if a source that might hold them is connected.
 - A result hook is built from a result the Brain records, in the founder's own words, or it is not written.
 - If the Brain has no results yet, write more mistake hooks and more story-open hooks instead, and tell the founder that is what you did and why.
 - Never build a hook around a number the founder did not give you, however modest it sounds. The modest ones are the ones that get published.

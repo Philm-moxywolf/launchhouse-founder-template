@@ -9,6 +9,8 @@ The Sunday deliverable. It sequences everything built over the weekend into one 
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 ## Prerequisites
 
 **Check the gate first.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `plan` row in its engine table. This engine needs Gate C, from the mapping in `../../references/gates.md`.

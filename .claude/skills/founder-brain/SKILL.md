@@ -15,6 +15,8 @@ Output is a single file at `./growth-engine/brain/founder-brain.md` in the found
 
 **Dates.** Every programme date is in `../../references/gates.md`, in one block. Take them from there, never from memory. Once a date has passed, use relative words for it, such as "your clinic session" or "the Saturday of your programme", rather than naming a day that has gone.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 ## Before starting
 
 1. **Check the folder.** Read the session context at the top of the conversation. If it says this is not the founder folder, stop and tell them which folder to open instead. If the folder is not set up, run the `start` skill first.
@@ -61,7 +63,7 @@ Ask these in small groups, not all at once. Three or four questions per turn. Re
 
 A founder who cannot see the end of a conversation does not know whether to give a quick answer or a careful one. The ones who guess wrong give thin answers early, then run out of patience at the voice, which everything else is built on. One line per turn fixes that.
 
-**Say this once, before Group 1.** If they already have any of this written down, a business plan, an about page, a deck, old notes, they can give it to you now instead of answering from scratch. They can paste it straight into the chat, or drag the files into their Launchhouse folder and say "add a file". Read what they give you, then ask only for what it does not answer.
+**Say this once, before Group 1.** If they already have any of this written down, a business plan, an about page, a deck, old notes, they can give it to you now instead of answering from scratch. They can paste it straight into the chat, drag the files into their Launchhouse folder and say "add a file", or, per `../../references/sources.md`, let you look for it yourself in a source they have and say yes to. Read what they give you or find, then ask only for what it does not answer.
 
 ### Group 1: the business
 
@@ -99,6 +101,8 @@ If neither fits, for example a subscription app, record the nearer of the two an
 
 ### Group 3: audience
 
+Before asking, offer to look instead (`../../references/sources.md`): their own notes on who they sell to, past meeting notes, or a CRM export, if they have any of those connected.
+
 **If track is B2B**, capture the ICP:
 - What kind of company? Industry, size, revenue band, geography.
 - Who is the individual you actually sell to? Job title, seniority, department.
@@ -114,6 +118,8 @@ If neither fits, for example a subscription app, record the nearer of the two an
 Do not ask B2B questions of a B2C founder or the reverse. It wastes their time and signals the tool does not understand them.
 
 ### Group 4: offer and proof
+
+Before asking, offer to look instead (`../../references/sources.md`): invoices, a pricing page, testimonials or an about page, if they have a source connected that might hold them.
 
 1. What problem do you solve, in one sentence, in their words rather than yours?
 2. Why you rather than the obvious alternative?
@@ -146,7 +152,7 @@ Three paths. Pick based on what they have. Nobody gets stuck here.
 
 ### Path A: they have writing
 
-Ask for 10 to 20 samples of anything they have written in their own voice. Posts, emails, newsletters, even long messages. They can paste them in, or drop them into `growth-engine/brain/voice-samples/` from Finder, File Explorer or Cowork. Save anything pasted as its own file in `growth-engine/brain/voice-samples/`, one piece per file, named after its first few words.
+Ask for 10 to 20 samples of anything they have written in their own voice. Posts, emails, newsletters, even long messages. They can paste them in, drop them into `growth-engine/brain/voice-samples/` from Finder, File Explorer or Cowork, or, per `../../references/sources.md`, let you look for their own sent mail or old posts in a connected source. A voice sample is only ever their own writing, never a meeting transcript, and sent mail has its quoted replies stripped first. Save anything pasted or found as its own file in `growth-engine/brain/voice-samples/`, one piece per file, named after its first few words.
 
 Two folders hold what a founder gives you. `growth-engine/brain/voice-samples/` holds their own writing. Read these for voice, and you may add to this folder yourself. `growth-engine/inbox/uploads/` holds reference documents they supplied. Read them for facts, topics and context, never for voice, because they may be AI-generated or written by somebody else.
 

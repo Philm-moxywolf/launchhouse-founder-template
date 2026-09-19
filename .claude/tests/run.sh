@@ -181,189 +181,380 @@ printf '%s.\n' "$long" > "$ge/drafts/long.md"
 out=$(write drafts/long.md "$long; now we load every lead into an Apollo cold email sequence.")
 check "a change past the quoted part of a long old line is held" has "$out" 'HELD'
 
-# LH-029: every Apollo tool asks first unless it only reads.
-matcher=$(sed -n 's/.*"matcher": "\(mcp__[^"]*apollo_\.\*|[^"]*\)".*/\1/p' "$settings")
-for t in apollo_agent_manage_billing apollo_website_visitor_domain_tracker_send_install_email apollo_labels_create; do
-  check "the ask check is wired to $t" sh -c '[ -n "$2" ] && printf "%s" "mcp__x__$1" | grep -Eq "^($2)\$"' _ "$t" "$matcher"
-  out=$(hook ask-mcp.sh "mcp__x__$t" x y)
-  check "$t asks the founder first" has "$out" '"ask"'
-done
-out=$(hook ask-mcp.sh mcp__x__apollo_contacts_search x y)
-check "apollo_contacts_search, a read, does not ask" test -z "$out"
-out=$(hook deny-mcp.sh mcp__x__apollo_emailer_messages_send_now x y)
-check "apollo_emailer_messages_send_now is still refused" has "$out" '"deny"'
-out=$(hook deny-mcp.sh mcp__x__apollo_email_account_purchase_create x y)
-check "apollo_email_account_purchase_create is still refused" has "$out" '"deny"'
+# -------------------------------------------------------- mcp-guard.sh
+# One dispatcher for every mcp__ tool call, matcher "^mcp__" in
+# settings.json, running mcp-guard.sh. It routes GoHighLevel's connector
+# shape (execute_operation, and a GoHighLevel-shaped fetch/search) to
+# lh_ghl_classify in ghl-op.sh (now a sourced library, never run on its
+# own), and every other tool name to its own fast classifier. Four
+# outcomes: deny (blocks in every mode), ask (a founder-facing prompt even
+# in auto mode, for the small named set the owner chose), guide
+# (additionalContext only, no permissionDecision key, mode-aware wording),
+# and silent (a clear read, no output at all).
 
-# LH-025 and LH-026: GoHighLevel's general tool asks, and the mailbox never sends.
-deny=$(sed -n 's/.*"matcher": "\(mcp__[^"]*apollo_emailer_messages_send_now[^"]*\)".*/\1/p' "$settings")
-for t in mcp__286d__send_message mcp__plugin_small-business_gmail__reply mcp__x__forward; do
-  check "the refusal is wired to $t" sh -c 'printf "%s" "$1" | grep -Eq "^($2)"' _ "$t" "$deny"
-  out=$(hook deny-mcp.sh "$t" x y)
-  check "$t is refused" has "$out" '"deny"'
-done
-out=$(hook deny-mcp.sh mcp__286d__create_draft x y)
-check "create_draft is not refused" test -z "$out"
-for t in mcp__286d__create_draft mcp__x__socialmediaposting_create-post; do
-  check "the ask check is wired to $t" sh -c 'printf "%s" "$1" | grep -Eq "^($2)"' _ "$t" "$matcher"
-  out=$(hook ask-mcp.sh "$t" x y)
-  check "$t asks the founder first" has "$out" '"ask"'
-done
-out=$(hook ask-mcp.sh mcp__leadconnector__list_locations x y)
-check "list_locations, a read, does not ask" test -z "$out"
-out=$(hook ask-mcp.sh mcp__leadconnector__execute_operation x y)
-check "execute_operation no longer asks through ask-mcp.sh, it goes to ghl-op.sh instead" test -z "$out"
+mgmatch=$(sed -n 's/.*"matcher": "\(\^mcp__[^"]*\)".*/\1/p' "$settings")
+check "settings.json carries exactly one mcp__ matcher" test "$mgmatch" = '^mcp__'
+check "and it is the only one" test "$(grep -c '"matcher": "\^mcp__' "$settings")" = 1
+check "it runs mcp-guard.sh" grep -q 'scripts/mcp-guard.sh' "$settings"
+check "deny-mcp.sh is gone" test ! -e "$scripts/deny-mcp.sh"
+check "ask-mcp.sh is gone" test ! -e "$scripts/ask-mcp.sh"
+check "neither is named in settings.json any more" sh -c '! grep -qE "deny-mcp|ask-mcp" "$1"' _ "$settings"
+check "ghl-op.sh is not named in settings.json, it is a sourced library now" sh -c '! grep -q "scripts/ghl-op.sh" "$1"' _ "$settings"
 
-# LH-034: mcp__.*__execute_operation, __fetch and __search go to ghl-op.sh, not
-# ask-mcp.sh, because one execute_operation call can do anything from reading
-# a location to refunding a payment, so the whole input has to be read, not
-# just the tool name. The PreToolUse entry for it is its own matcher.
-ghlmatcher=$(sed -n 's/.*"matcher": "\(mcp__[^"]*execute_operation[^"]*\)".*/\1/p' "$settings")
-check "ghl-op.sh has its own PreToolUse matcher in settings.json" test -n "$ghlmatcher"
-for t in mcp__highlevel__execute_operation mcp__leadconnector-abc123__execute_operation mcp__gdrive__fetch mcp__notion__search; do
-  check "$t is routed to ghl-op.sh" sh -c 'printf "%s" "$1" | grep -Eq "^($2)$"' _ "$t" "$ghlmatcher"
-  check "and not to ask-mcp.sh's matcher" sh -c '[ -z "$2" ] || ! printf "%s" "$1" | grep -Eq "^($2)$"' _ "$t" "$matcher"
-done
-check "list_locations is not one of ghl-op.sh's matched tool names" sh -c '! printf "%s" "mcp__highlevel__list_locations" | grep -Eq "^($1)$"' _ "$ghlmatcher"
+mg() { # tool_name, tool_input-json, mode (default acceptEdits)
+  m=${3:-acceptEdits}
+  printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"%s","hook_event_name":"PreToolUse","tool_name":"%s","tool_input":%s}' \
+    "$m" "$1" "$2" |
+    CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/mcp-guard.sh" 2>/dev/null
+}
+isguide() { printf '%s' "$1" | grep -q additionalContext && ! printf '%s' "$1" | grep -q permissionDecision; }
+mgdeny()   { n=$1; shift; out=$(mg "$@"); check "$n" has "$out" '"deny"'; }
+mgask()    { n=$1; shift; out=$(mg "$@"); check "$n" has "$out" '"ask"'; }
+mgguide()  { n=$1; shift; out=$(mg "$@"); check "$n" isguide "$out"; }
+mgsilent() { n=$1; shift; out=$(mg "$@"); check "$n" test -z "$out"; }
 
-# ghl-op.sh: classifies the whole input, refuse beats write beats read beats
-# ask, and it never allows on doubt. Three or more input shapes: a flat
-# operationId string, a nested {"operation":{"id":...}}, a method-and-path
-# shape, and camelCase operation names.
-ghlop() { hookraw ghl-op.sh "$1" "$2" "$3"; } # tool_name, json-tool-input-literal, [style]
-ghlask() { n=$1; shift; out=$(ghlop "$@"); check "$n" has "$out" '"ask"'; }
-ghldeny() { n=$1; shift; out=$(ghlop "$@"); check "$n" has "$out" '"deny"'; }
-ghlallow() { n=$1; shift; out=$(ghlop "$@"); check "$n" test -z "$out"; }
+# Deterministic by outcome, not by mode: deny, ask and silent never change
+# with permission_mode, only guide's own wording does. One representative
+# tool per row, checked in all three modes an owner is likely to run in.
+for mode in default auto bypassPermissions; do
+  mgdeny  "buy_domain is refused in $mode"                    mcp__vercel__buy_domain '{}' "$mode"
+  mgdeny  "gmail send_message is refused in $mode"             mcp__286d__send_message '{}' "$mode"
+  mgdeny  "resend send-broadcast is refused in $mode"          mcp__resend__send-broadcast '{}' "$mode"
+  mgdeny  "linkedin connect_with_person is refused in $mode"   mcp__linkedin__connect_with_person '{}' "$mode"
+  mgask   "drive share_file asks in $mode"                     mcp__39f8__share_file '{}' "$mode"
+  mgask   "calendar create_event asks in $mode"                mcp__cal__create_event '{}' "$mode"
+  mgask   "apollo people_match asks in $mode"                  mcp__apollo__apollo_people_match '{}' "$mode"
+  mgguide "gmail create_draft is guided, not blocked, in $mode" mcp__286d__create_draft '{}' "$mode"
+  mgguide "supabase execute_sql is guided in $mode"            mcp__supa__execute_sql '{}' "$mode"
+  mgsilent "drive search_files is silent in $mode"             mcp__39f8__search_files '{}' "$mode"
+  mgsilent "gmail search_threads is silent in $mode"           mcp__286d__search_threads '{}' "$mode"
+done
+
+# No "ask" outside the small named set, whatever the mode: deny, ask, guide
+# and silent are the only four shapes this hook ever prints, and a mode
+# never turns a guide into an ask or a deny.
+for mode in default plan acceptEdits auto dontAsk bypassPermissions someUnknownMode; do
+  out=$(mg mcp__286d__create_draft '{}' "$mode")
+  check "create_draft never asks, in $mode" hasnt "$out" '"ask"'
+  check "create_draft is never denied, in $mode" hasnt "$out" '"deny"'
+done
+
+# Guide's own wording is mode-aware: a prompt is coming in default/plan/
+# acceptEdits, and none will appear in auto/dontAsk/bypassPermissions or an
+# unrecognised mode.
+out=$(mg mcp__286d__create_draft '{}' default)
+check "default mode's guide note mentions the prompt the founder will see" has "$out" 'permission prompt'
+out=$(mg mcp__286d__create_draft '{}' acceptEdits)
+check "acceptEdits reads the same way" has "$out" 'permission prompt'
+out=$(mg mcp__286d__create_draft '{}' auto)
+check "auto mode's guide note says no prompt will appear" has "$out" 'No prompt will appear'
+out=$(mg mcp__286d__create_draft '{}' bypassPermissions)
+check "bypassPermissions reads the same way" has "$out" 'No prompt will appear'
+out=$(mg mcp__286d__create_draft '{}' totallyMadeUp)
+check "an unrecognised mode falls to the cautious no-prompt wording" has "$out" 'No prompt will appear'
+
+# The full table of real tool names from this account, one row each,
+# checked in a fast mode (auto) and a manual one (default), since the
+# outcome itself must not move between them.
+tbl='
+mcp__286d__send_message|{}|deny
+mcp__286d__reply|{}|deny
+mcp__286d__forward|{}|deny
+mcp__286d__create_draft|{}|guide
+mcp__286d__search_threads|{}|silent
+mcp__286d__mark_message_spam|{}|guide
+mcp__resend__send-email|{}|deny
+mcp__resend__send-batch-emails|{}|deny
+mcp__resend__send-broadcast|{}|deny
+mcp__resend__reply-to-inbox-thread-email|{}|ask
+mcp__resend__forward-inbox-thread-email|{}|ask
+mcp__resend__share-email|{}|ask
+mcp__resend__compose-broadcast|{}|guide
+mcp__resend__create-inbox-draft|{}|guide
+mcp__resend__list-emails|{}|silent
+mcp__MCP_Server_for_LinkedIn__send_message|{}|deny
+mcp__MCP_Server_for_LinkedIn__connect_with_person|{}|deny
+mcp__MCP_Server_for_LinkedIn__get_inbox|{}|silent
+mcp__zapier__execute_zapier_write_action|{}|guide
+mcp__zapier__execute_zapier_read_action|{}|silent
+mcp__cal__create_event|{}|ask
+mcp__cal__update_event|{}|ask
+mcp__cal__respond_to_event|{}|ask
+mcp__cal__list_events|{}|silent
+mcp__qbo__send_invoice|{}|ask
+mcp__qbo__send_estimate|{}|ask
+mcp__qbo__send_payment_link|{}|ask
+mcp__qbo__get_invoices|{}|silent
+mcp__39f8__search_files|{}|silent
+mcp__39f8__create_file|{}|guide
+mcp__39f8__trash_file|{}|guide
+mcp__39f8__share_file|{}|ask
+mcp__notion__notion-search|{}|silent
+mcp__notion__notion-create-pages|{}|guide
+mcp__notion__notion-create-comment|{}|guide
+mcp__shopify__graphql_mutation|{}|guide
+mcp__shopify__run-analytics-query|{}|silent
+mcp__supa__execute_sql|{}|guide
+mcp__supa__list_tables|{}|silent
+mcp__vercel__buy_domain|{}|deny
+mcp__vercel__deploy|{}|guide
+mcp__vercel__list_projects|{}|silent
+mcp__apollo__apollo_mixed_people_api_search|{}|silent
+mcp__apollo__apollo_emailer_messages_email_send_status|{}|ask
+'
+IFS='
+'
+for row in $tbl; do
+  [ -n "$row" ] || continue
+  t=${row%%|*}; rest=${row#*|}; ti=${rest%%|*}; want=${rest##*|}
+  for mode in auto default; do
+    out=$(mg "$t" "$ti" "$mode")
+    case $want in
+      deny)   check "$t is deny in $mode" has "$out" '"deny"' ;;
+      ask)    check "$t is ask in $mode" has "$out" '"ask"' ;;
+      guide)  check "$t is guide in $mode" isguide "$out" ;;
+      silent) check "$t is silent in $mode" test -z "$out" ;;
+    esac
+  done
+done
+unset IFS
+
+# Apollo purchase/send/sequence tools, active true and false, by name alone.
+mgdeny  "apollo_email_account_purchase_create is refused" mcp__apollo__apollo_email_account_purchase_create '{}'
+mgdeny  "apollo_emailer_messages_send_now is refused" mcp__apollo__apollo_emailer_messages_send_now '{}'
+mgdeny  "apollo_sequences_create with active true is refused" mcp__apollo__apollo_sequences_create '{"active":true}'
+mgguide "apollo_sequences_create with active false is guided, not refused" mcp__apollo__apollo_sequences_create '{"active":false}'
+mgguide "apollo_sequences_create with no active field at all is guided" mcp__apollo__apollo_sequences_create '{"name":"Cold outreach"}'
+mgdeny  "apollo_sequences_update with active true is refused too" mcp__apollo__apollo_sequences_update '{"active":true}'
+out=$(mg mcp__apollo__apollo_sequences_create '{"active":false,"steps":[{"body":"active true would be great, right?"}]}')
+check "'active':true only counts as the tool_input's own top-level field, never inside a step body the founder wrote" hasnt "$out" '"deny"'
+
+# The name classifier never walks tool_input at all, except that one
+# top-level Apollo field: a large draft or message body in tool_input never
+# slows a call down or changes its outcome.
+biggish=$(awk 'BEGIN { printf "{\"body\":\""; for (i = 0; i < 5000; i++) printf "x"; printf "\"}" }')
+out=$(mg mcp__286d__create_draft "$biggish")
+check "a large tool_input on an ordinary tool still classifies (guide), fast" isguide "$out"
+
+# ------------------------------------------------- lh_active vs lh_near
+# deny and ask only fire in a folder that actually carries the marker;
+# a folder merely near one (the wrong-folder case) is guided at most.
+near="${work}-near"
+mkdir -p "$near/.claude" "$near/sibling/growth-engine"
+cp -R "$scripts" "$near/.claude/"
+: > "$near/sibling/growth-engine/.launchhouse"
+out=$(printf '{"session_id":"a","permission_mode":"auto","hook_event_name":"PreToolUse","tool_name":"mcp__286d__send_message","tool_input":{}}' |
+  CLAUDE_PROJECT_DIR="$near" sh "$near/.claude/scripts/mcp-guard.sh" 2>/dev/null)
+check "a wrong-folder open (lh_near only) never denies, it guides at most" hasnt "$out" '"deny"'
+check "and it does carry a note" isguide "$out"
+rm -rf "$near"
+
+# --------------------------------------------------- GoHighLevel routing
+# execute_operation is always classified through the GoHighLevel path,
+# whatever the server name. fetch and search go there too, but only when
+# the input looks GoHighLevel-shaped (a structural field, leadconnector,
+# highlevel, or a locationId) — otherwise they fall to the name classifier
+# instead, same as any other connector's fetch or search.
+out=$(mg mcp__gdrive__fetch '{"id":"1a2b3c4d","name":"quarterly-report.pdf"}')
+check "a Google-Drive-shaped fetch never reaches the GoHighLevel classifier" test -z "$out"
+out=$(mg mcp__gdrive__fetch '{"locationId":"LOC1","operationId":"users_get-user"}')
+check "a fetch carrying a locationId is routed to the GoHighLevel classifier, and users is refused there" has "$out" '"deny"'
+out=$(mg mcp__notion__search '{"query":"invoice"}')
+check "a plain Notion search, not GoHighLevel-shaped, is not routed there either" test -z "$out"
+
+# ---------------------------------------------- lh_ghl_classify (library)
+# ghl-op.sh is a sourced library now: lh_ghl_classify sets lh_ghl_decision
+# to one of deny, ask, guide or silent, and never prints or exits on its
+# own. refuse beats write beats read beats everything else, and it never
+# allows on doubt: an unreadable operation, an empty or non-object
+# tool_input, or a Unicode escape it cannot safely read all land on deny or
+# guide, never silent.
+ghlc() { # tool_name, tool_input-json
+  sh -c '. "$1/.claude/scripts/lib.sh" && . "$1/.claude/scripts/ghl-op.sh" && lh_ghl_classify "$2" "$3" && printf "%s" "$lh_ghl_decision"' _ "$work" "$1" "$2"
+}
+ghlcdeny()   { n=$1; shift; out=$(ghlc "$@"); check "$n" test "$out" = deny; }
+ghlcask()    { n=$1; shift; out=$(ghlc "$@"); check "$n" test "$out" = ask; }
+ghlcguide()  { n=$1; shift; out=$(ghlc "$@"); check "$n" test "$out" = guide; }
+ghlcsilent() { n=$1; shift; out=$(ghlc "$@"); check "$n" test "$out" = silent; }
 
 # Deny: payments, deletes, workflow changes, refunds, phone numbers, users,
-# api keys, webhooks, snapshots, and the nested delete-contact shape.
-ghldeny "payments list orders is refused" mcp__highlevel__execute_operation '{"operationId":"payments_list-orders"}'
-ghldeny "contacts delete-contact is refused" mcp__highlevel__execute_operation '{"operationId":"contacts_delete-contact"}'
-ghldeny "the nested operation.id delete-contact shape is refused the same way" mcp__highlevel__execute_operation '{"operation":{"id":"contacts_delete-contact"}}'
-ghldeny "adding a contact to a workflow is refused" mcp__highlevel__execute_operation '{"operationId":"workflows_add-contact-to-workflow"}'
-ghldeny "a refund is refused" mcp__highlevel__execute_operation '{"operationId":"payments_refund-transaction"}'
-ghldeny "buying a phone number is refused" mcp__highlevel__execute_operation '{"operation":"phone-number.purchase"}'
-ghldeny "a users operation is refused" mcp__highlevel__execute_operation '{"operationId":"users_get-user"}'
-ghldeny "an api key operation is refused" mcp__highlevel__execute_operation '{"operationId":"generate_api_key"}'
-ghldeny "a webhooks operation is refused" mcp__highlevel__execute_operation '{"operationId":"webhooks_create-webhook"}'
-ghldeny "a snapshot operation is refused" mcp__highlevel__execute_operation '{"operationId":"snapshots_share-snapshot"}'
-ghldeny "an explicit DELETE method is refused, not just asked" mcp__highlevel__execute_operation '{"method":"DELETE","path":"/contacts/123"}'
+# api keys, webhooks, snapshots, the nested delete-contact shape, and the
+# new no-descriptor case.
+ghlcdeny "payments list orders is refused" mcp__highlevel__execute_operation '{"operationId":"payments_list-orders"}'
+ghlcdeny "contacts delete-contact is refused" mcp__highlevel__execute_operation '{"operationId":"contacts_delete-contact"}'
+ghlcdeny "the nested operation.id delete-contact shape is refused the same way" mcp__highlevel__execute_operation '{"operation":{"id":"contacts_delete-contact"}}'
+ghlcdeny "adding a contact to a workflow is refused" mcp__highlevel__execute_operation '{"operationId":"workflows_add-contact-to-workflow"}'
+ghlcdeny "a refund is refused" mcp__highlevel__execute_operation '{"operationId":"payments_refund-transaction"}'
+ghlcdeny "buying a phone number is refused" mcp__highlevel__execute_operation '{"operation":"phone-number.purchase"}'
+ghlcdeny "a users operation is refused" mcp__highlevel__execute_operation '{"operationId":"users_get-user"}'
+ghlcdeny "an api key operation is refused" mcp__highlevel__execute_operation '{"operationId":"generate_api_key"}'
+ghlcdeny "a webhooks operation is refused" mcp__highlevel__execute_operation '{"operationId":"webhooks_create-webhook"}'
+ghlcdeny "a snapshot operation is refused" mcp__highlevel__execute_operation '{"operationId":"snapshots_share-snapshot"}'
+ghlcdeny "an explicit DELETE method is refused, not just guided" mcp__highlevel__execute_operation '{"method":"DELETE","path":"/contacts/123"}'
+ghlcdeny "empty input carries no descriptor, so it is refused with a next step" mcp__highlevel__execute_operation '{}'
+ghlcdeny "a scalar tool_input (a bare JSON string, not an object) carries no descriptor either" mcp__highlevel__execute_operation '"getContacts"'
+ghlcdeny "every leaf sitting under body and nothing outside it is also an empty descriptor" mcp__highlevel__execute_operation '{"body":{"x":"get"}}'
 
-# Ask: writes of every kind, method+path and camelCase shapes included.
-ghlask "creating a post asks" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_create-post"}'
-ghlask "editing a post asks" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_edit-post"}'
-ghlask "sendMessage in camelCase asks" mcp__highlevel__execute_operation '{"operation":"conversations.sendMessage"}'
-ghlask "updating a custom value asks" mcp__highlevel__execute_operation '{"operationId":"locations_update-custom-value"}'
-ghlask "adding a tag asks" mcp__highlevel__execute_operation '{"operationId":"contacts_add-tag"}'
-ghlask "a POST method with a GET-looking name still asks" mcp__highlevel__execute_operation '{"method":"POST","operation":"get-contact-details"}'
-ghlask "a GET method with a send-ish name still asks, the write verb wins" mcp__highlevel__execute_operation '{"method":"GET","operation":"send-message-status"}'
-ghlask "an unrecognised operation asks, never allows on doubt" mcp__highlevel__execute_operation '{"operationId":"something_nobody_has_seen_before"}'
-ghlask "empty input asks" mcp__highlevel__execute_operation '{}'
-ghlask "fetch with a HighLevel op id and a write verb asks" mcp__highlevel__fetch '{"locationId":"LOC123","operation":"update-contact"}'
-
-# Allow, silently: clear reads, no output at all.
-ghlallow "getting a location is allowed" mcp__highlevel__execute_operation '{"operationId":"locations_get-location"}'
-ghlallow "listing social accounts is allowed" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_get-accounts"}'
-ghlallow "getting posts is allowed, post alone is neutral" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_get-posts"}'
-ghlallow "post statistics is allowed, post alone is neutral" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_get-post-statistics"}'
-ghlallow "searching contacts with a GET method is allowed" mcp__leadconnector__execute_operation '{"method":"GET","operationId":"contacts_search"}'
-
-# fetch and search: judged only when the input looks GoHighLevel-shaped.
-out=$(ghlop mcp__gdrive__fetch '{"id":"1a2b3c4d","name":"quarterly-report.pdf"}')
-check "fetch with a Google-Drive-shaped input gives no output at all" test -z "$out"
-check "and it is not an ask" hasnt "$out" '"ask"'
-check "and it is not a deny" hasnt "$out" '"deny"'
-
-# Malformed JSON never crashes, never allows, and its own output is always
-# valid JSON when it prints anything at all. A realistic envelope around it,
-# broken only inside tool_input.
-out=$(printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","tool_name":"mcp__highlevel__execute_operation","tool_input":{not json at all' |
-  CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/ghl-op.sh" 2>/dev/null)
-check "malformed JSON asks rather than crashing" has "$out" '"ask"'
-check "and it is never allowed through" hasnt "$out" '"deny"'
-
-# LH-042: classification reads only tool_input, never the envelope around
-# it, and within tool_input only the operation descriptor, never a payload
-# field a founder's own words could land in.
-ghlallow "a clean read is allowed even though the envelope's own cwd and transcript_path say /Users/jo, which used to trip the 'users' refuse word" \
-  mcp__1b3d__execute_operation '{"operationId":"locations_get-location"}'
-ghlask "a create-post whose body.summary happens to contain refuse-list words in the founder's own copy still only asks, never denies" \
+# Ask: the small named set — conversations send, social post create/edit/
+# publish (either spelling), an email template created, a contact touched,
+# an opportunity updated.
+ghlcask "sendMessage in camelCase, under conversations, asks" mcp__highlevel__execute_operation '{"operation":"conversations.sendMessage"}'
+ghlcask "creating a post asks (hyphenated spelling)" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_create-post"}'
+ghlcask "editing a post asks (hyphenated spelling)" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_edit-post"}'
+ghlcask "creating a post asks (concatenated spelling too)" mcp__highlevel__execute_operation '{"operationId":"socialmediaposting_create-post"}'
+ghlcask "creating an email template asks" mcp__highlevel__execute_operation '{"operationId":"emails_create-template"}'
+ghlcask "adding a tag to a contact asks" mcp__highlevel__execute_operation '{"operationId":"contacts_add-tag"}'
+ghlcask "creating a contact asks" mcp__highlevel__execute_operation '{"operationId":"contacts_create-contact"}'
+ghlcask "updating an opportunity asks" mcp__highlevel__execute_operation '{"operationId":"opportunities_update-opportunity"}'
+ghlcask "fetch with a HighLevel op id updating a contact asks" mcp__highlevel__fetch '{"locationId":"LOC123","operation":"update-contact"}'
+ghlcask "a create-post body.summary in the founder's own words still only asks, never denies on leaked payload text" \
   mcp__highlevel__execute_operation '{"operationId":"social-media-posting_create-post","body":{"summary":"Order your cake today, prices from 20"}}'
-ghlask "a create-post body/text with delete, cancel your order and users love it in the payload still only asks" \
-  mcp__highlevel__execute_operation '{"operationId":"social-media-posting_create-post","body":{"text":"delete. cancel your order. users love it."}}'
-ghlask "a send-message body/text mentioning refund in the founder's own words still only asks" \
-  mcp__highlevel__execute_operation '{"operation":"conversations.sendMessage","body":{"text":"sorry about the refund delay, it is on its way"}}' win
-ghldeny "payments in the operation id itself, not the payload, is still refused" \
-  mcp__highlevel__execute_operation '{"operationId":"payments_list-orders","body":{}}' win
-ghldeny "a nested descriptor is still found and refused, and the word get inside body.note never flips it to allow" \
-  mcp__highlevel__execute_operation '{"request":{"operationId":"contacts_delete-contact","body":{"note":"get"}}}'
-ghlask "tool_input with every leaf under body and nothing outside it is an empty descriptor, so it only asks" \
-  mcp__highlevel__execute_operation '{"body":{"x":"get"}}'
+ghlcask "a send-message body/text mentioning refund in the founder's own words still only asks" \
+  mcp__highlevel__execute_operation '{"operation":"conversations.sendMessage","body":{"text":"sorry about the refund delay, it is on its way"}}'
 
-# A large junk operation name, still valid JSON: must not crash, and must
-# still come out safe (ask, on a name nothing can classify).
-junk=$(awk 'BEGIN { for (i = 0; i < 20000; i++) printf "x" }')
-out=$(hookraw ghl-op.sh mcp__highlevel__execute_operation "{\"operationId\":\"$junk\"}")
-check "a 20KB junk operation name comes back, so the hook did not hang or crash" test -n "$out"
-check "and it classifies safely, asking rather than guessing" has "$out" '"ask"'
-
-# ghl-op.sh: the descriptor is an allowlist of structural fields, not a
-# blacklist of payload container keys. Five confirmed bugs the blacklist let
-# through or got wrong, and the new refuse/write words and rules that fix
-# them.
-ghldeny "a users operation, getUser, is refused, singular now included" mcp__highlevel__execute_operation '{"operationId":"getUser"}'
-ghlask "markConversationAsRead is a write (mark), not a read just because read is in its name" mcp__highlevel__execute_operation '{"operationId":"markConversationAsRead"}'
-ghldeny "listAPIKeys is refused, refuse beats the read-looking list" mcp__highlevel__execute_operation '{"operationId":"listAPIKeys"}'
-ghlask "createPost with cancel-my-subscription in its own payload field only asks, never denies on leaked payload text" \
+# Guide: every other write. Not blocked, not forced to a prompt, just noted.
+ghlcguide "updating a custom value is a write, but not one of the named ask cases" mcp__highlevel__execute_operation '{"operationId":"locations_update-custom-value"}'
+ghlcguide "creating a blog post is a write, but not one of the named ask cases" mcp__highlevel__execute_operation '{"operationId":"blogs_create-blog-post"}'
+ghlcguide "a POST method with a GET-looking name is still a write, and still not the named ask set" mcp__highlevel__execute_operation '{"method":"POST","operation":"get-contact-details"}'
+ghlcask "a GET method with a send-ish name touches a message, so it asks, not just guides" mcp__highlevel__execute_operation '{"method":"GET","operation":"send-message-status"}'
+ghlcguide "an unrecognised operation is guided, never silently allowed" mcp__highlevel__execute_operation '{"operationId":"something_nobody_has_seen_before"}'
+ghlcask "markConversationAsRead is a write (mark) touching a conversation, so it asks, not a read just because read is in its name" mcp__highlevel__execute_operation '{"operationId":"markConversationAsRead"}'
+ghlcguide "createPost with cancel-my-subscription in its own payload field only guides, never denies on leaked payload text" \
   mcp__highlevel__execute_operation '{"operationId":"createPost","post":"Please cancel my subscription"}'
-ghldeny "a fetch with a bare DELETE method and path is refused, not silently allowed" mcp__highlevel__fetch '{"method":"DELETE","path":"/contacts/123"}'
-ghldeny "trashContact is refused, trash is a new refuse word" mcp__highlevel__execute_operation '{"operationId":"trashContact"}'
-ghldeny "createCharge is refused, charge is a new refuse word" mcp__highlevel__execute_operation '{"operationId":"createCharge"}'
-ghldeny "activateWorkflow is refused outright, not just asked" mcp__highlevel__execute_operation '{"operationId":"activateWorkflow"}'
-ghlallow "getWorkflows is still a clear read and is allowed, workflow alone does not refuse a read" mcp__highlevel__execute_operation '{"operationId":"getWorkflows"}'
-
-out=$(hookraw ghl-op.sh mcp__highlevel__execute_operation '"getContacts"')
-check "a scalar tool_input (a bare JSON string, not an object) asks" has "$out" '"ask"'
-check "and never allows" hasnt "$out" '"deny"'
-
-out=$(printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","tool_name":"mcp__highlevel__execute_operation","tool_input":{"operationId":"getUser"}}GARBAGE' |
-  CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/ghl-op.sh" 2>/dev/null)
-check "garbage trailing after the envelope's own JSON closes asks, rather than trusting the tool_input found before it" has "$out" '"ask"'
-check "and never denies" hasnt "$out" '"deny"'
-
-check "getHTTPMethod flattens the acronym boundary apart from the titlecase word after it" \
-  sh -c '. "$1/.claude/scripts/lib.sh"; [ "$(lh_ghl_flatten getHTTPMethod)" = "get http method" ]' _ "$work"
-ghlallow "getHTTPMethod is a clear read once flattened, get is a read word and nothing else fires" mcp__highlevel__execute_operation '{"operationId":"getHTTPMethod"}'
-
-ghlallow "a method field buried inside body, not a structural field at all, is ignored for classification: without this a DELETE hiding in there would wrongly refuse a plain read" \
-  mcp__highlevel__execute_operation '{"operationId":"getContact","body":{"method":"DELETE"}}'
-ghlask "a method-shaped word inside an excluded payload leaf's own value never leaks in either" \
+ghlcguide "a method-shaped word inside an excluded payload leaf's own value never leaks in either" \
   mcp__highlevel__execute_operation '{"operationId":"createPost","body":{"note":"method: POST please, right away"}}'
 
-out=$(ghlop mcp__gdrive__fetch '{"id":"doc123"}')
-check "a Google-Drive-style fetch of a bare id, no method/path/operation shape and no HighLevel markers, gives no output at all" test -z "$out"
+# Silent: clear reads, no output at all (checked at the mcp-guard.sh level
+# too, further up, and here directly against the classifier).
+ghlcsilent "getting a location is silent" mcp__highlevel__execute_operation '{"operationId":"locations_get-location"}'
+ghlcsilent "listing social accounts is silent" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_get-accounts"}'
+ghlcsilent "getting posts is silent, post alone is neutral" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_get-posts"}'
+ghlcsilent "post statistics is silent, post alone is neutral" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_get-post-statistics"}'
+ghlcsilent "searching contacts with a GET method is silent" mcp__leadconnector__execute_operation '{"method":"GET","operationId":"contacts_search"}'
+ghlcsilent "getWorkflows is still a clear read, workflow alone does not refuse a read" mcp__highlevel__execute_operation '{"operationId":"getWorkflows"}'
+ghlcsilent "a method field buried inside body, not a structural field at all, is ignored for classification" \
+  mcp__highlevel__execute_operation '{"operationId":"getContact","body":{"method":"DELETE"}}'
+check "getHTTPMethod flattens the acronym boundary apart from the titlecase word after it" \
+  sh -c '. "$1/.claude/scripts/lib.sh"; [ "$(lh_ghl_flatten getHTTPMethod)" = "get http method" ]' _ "$work"
+ghlcsilent "getHTTPMethod is a clear read once flattened, get is a read word and nothing else fires" mcp__highlevel__execute_operation '{"operationId":"getHTTPMethod"}'
 
-# LH-025: the tools on the shipped HighLevel connection that change a contact,
-# which can start a workflow that sends, or post a blog, ask first. Mail rules
-# are refused.
-for t in mcp__highlevel__contacts_add-tags mcp__highlevel__contacts_create-contact mcp__highlevel__contacts_upsert-contact \
-         mcp__highlevel__contacts_update-contact mcp__highlevel__opportunities_update-opportunity \
-         mcp__highlevel__blogs_create-blog-post mcp__highlevel__blogs_update-blog-post mcp__highlevel__socialmediaposting_create-post; do
-  check "the ask check is wired to $t" sh -c 'printf "%s" "$1" | grep -Eq "^($2)"' _ "$t" "$matcher"
-  out=$(hook ask-mcp.sh "$t" x y)
-  check "$t asks the founder first" has "$out" '"ask"'
-done
-for t in mcp__highlevel__contacts_get-contacts mcp__highlevel__locations_get-location mcp__highlevel__conversations_get-messages; do
-  out=$(hook ask-mcp.sh "$t" x y)
-  check "$t, a read, does not ask" test -z "$out"
-done
-check "the refusal is wired to create_filter" sh -c 'printf "%s" "$1" | grep -Eq "^($2)"' _ mcp__286d__create_filter "$deny"
-out=$(hook deny-mcp.sh mcp__286d__create_filter x y)
+# Five confirmed bugs the old blacklist let through or got wrong stay fixed.
+ghlcdeny "a users operation, getUser, is refused, singular now included" mcp__highlevel__execute_operation '{"operationId":"getUser"}'
+ghlcdeny "listAPIKeys is refused, refuse beats the read-looking list" mcp__highlevel__execute_operation '{"operationId":"listAPIKeys"}'
+ghlcdeny "a fetch with a bare DELETE method and path is refused, not silently allowed" mcp__highlevel__fetch '{"method":"DELETE","path":"/contacts/123"}'
+ghlcdeny "trashContact is refused, trash is a new refuse word" mcp__highlevel__execute_operation '{"operationId":"trashContact"}'
+ghlcdeny "createCharge is refused, charge is a new refuse word" mcp__highlevel__execute_operation '{"operationId":"createCharge"}'
+ghlcdeny "activateWorkflow is refused outright, not just guided" mcp__highlevel__execute_operation '{"operationId":"activateWorkflow"}'
+
+# LH-042: classification reads only tool_input, never the envelope around
+# it (checked here through mcp-guard.sh itself, envelope and all).
+out=$(mg mcp__1b3d__execute_operation '{"operationId":"locations_get-location"}')
+check "a clean read is silent even though the envelope's own cwd and transcript_path say /Users/jo, which used to trip the 'users' refuse word" test -z "$out"
+
+# A malformed or unreadable envelope, or trailing garbage after it closes,
+# is the same doubt as a missing operation: deny with the describe_operation
+# next step, never a silent allow.
+out=$(printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","tool_name":"mcp__highlevel__execute_operation","tool_input":{not json at all' |
+  CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/mcp-guard.sh" 2>/dev/null)
+check "malformed JSON denies with the describe_operation next step, rather than crashing or asking" has "$out" '"deny"'
+check "and it names describe_operation" has "$out" 'describe_operation'
+out=$(printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","tool_name":"mcp__highlevel__execute_operation","tool_input":{"operationId":"getUser"}}GARBAGE' |
+  CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/mcp-guard.sh" 2>/dev/null)
+check "garbage trailing after the envelope's own JSON closes denies too, rather than trusting the tool_input found before it" has "$out" '"deny"'
+
+# A large junk operation name, still valid JSON: must not crash, and must
+# still come out safe (guided, on a name nothing can classify).
+junk=$(awk 'BEGIN { for (i = 0; i < 20000; i++) printf "x" }')
+out=$(mg mcp__highlevel__execute_operation "{\"operationId\":\"$junk\"}")
+check "a 20KB junk operation name comes back, so the hook did not hang or crash" test -n "$out"
+check "and it classifies safely, guiding rather than guessing" isguide "$out"
+
+# fetch and search: judged only when the input looks GoHighLevel-shaped
+# (checked here directly against the shape helper).
+check "a Google-Drive-style fetch of a bare id, no method/path/operation shape and no HighLevel markers, is not GoHighLevel-shaped" \
+  sh -c '. "$1/.claude/scripts/lib.sh"; . "$1/.claude/scripts/ghl-op.sh"; ! lh_ghl_shaped "{\"id\":\"doc123\"}"' _ "$work"
+check "a locationId makes it GoHighLevel-shaped" \
+  sh -c '. "$1/.claude/scripts/lib.sh"; . "$1/.claude/scripts/ghl-op.sh"; lh_ghl_shaped "{\"locationId\":\"LOC1\"}"' _ "$work"
+
+# LH-025: mail rules are refused outright, and a mailbox read never asks or
+# denies.
+out=$(mg mcp__286d__create_filter '{}')
 check "a mailbox rule is refused" has "$out" '"deny"'
-out=$(hook deny-mcp.sh mcp__claude_ai_Microsoft_365__outlook_email_search x y)
-check "outlook_email_search, a read, is not refused" test -z "$out"
-out=$(hook ask-mcp.sh mcp__claude_ai_Microsoft_365__outlook_email_search x y)
-check "and does not ask" test -z "$out"
+out=$(mg mcp__claude_ai_Microsoft_365__outlook_email_search '{}')
+check "outlook_email_search, a read, is silent" test -z "$out"
+
+# ------------------------------------------- ten reproduced bugs, fixed
+# Each case failed a specific way before the fix (noted) and must pass now.
+bks=$(printf '\134')  # a literal backslash, built at runtime: typing \u
+                       # directly in this file risks the same kind of
+                       # decode-before-it-runs that these bugs are about,
+                       # so the escape sequences below are assembled, never
+                       # written out whole.
+
+# 1. A tool whose name ends __fetch, not GoHighLevel-shaped, used to crash
+# with "lh_ghl_shaped: command not found" (ghl-op.sh was only sourced on
+# the branch that needed it) and printed a guide note instead of nothing.
+out=$(mg mcp__browser__fetch '{"url":"https://example.com"}' 2>/tmp/lh-bug1-stderr.$$)
+check "bug 1: a plain fetch is silent, not guided" test -z "$out"
+check "bug 1: and it never wrote to stderr" test ! -s /tmp/lh-bug1-stderr.$$
+rm -f /tmp/lh-bug1-stderr.$$
+
+# 2. tool_name and permission_mode are read from the TOP LEVEL only. A
+# nested, spoofed "tool_name" inside tool_input used to win a first-match
+# text search and hide a real send_message behind a harmless-looking read.
+out=$(mg mcp__286d__send_message '{"tool_name":"mcp__drive__get_file"}')
+check "bug 2: a nested tool_name inside tool_input never overrides the real, top-level one" has "$out" '"deny"'
+
+# 3. A mailbox-style send, any spelling: send_email and send-email deny the
+# same way __send_message already did. Resend's send-email included.
+mgdeny "bug 3: mcp__286d__send_email denies, same as send_message" mcp__286d__send_email '{}'
+mgdeny "bug 3: resend's send-email (hyphenated) denies too" mcp__resend__send-email '{}'
+
+# 4. Precedence: a deny signal is checked before any read word can exempt
+# it. read_and_send_email used to reach "guide" because "read" made it look
+# like a read before the send/email check ever ran.
+mgdeny "bug 4: read_and_send_email still denies, read never exempts a send" mcp__286d__read_and_send_email '{}'
+
+# 5. A cold send, whichever tool: "cold" next to a send verb is cold
+# outreach, refused outright, never left to a tool to run on its own.
+mgdeny "bug 5: send_cold_email denies, cold outreach is never sent by a tool" mcp__x__send_cold_email '{}'
+
+# 6. Turning a sequence or campaign on, by name, denies the same way
+# active:true already did for Apollo's own sequences_create/update.
+mgdeny "bug 6: apollo_sequences_activate denies, the founder starts it themselves" mcp__2bc3__apollo_sequences_activate '{}'
+
+# 7. GoHighLevel: any write touching a conversation or a message asks, not
+# only one whose own name happens to say "send".
+ghlcask "bug 7: conversations_messages_create asks, not just a send-named op" mcp__highlevel__execute_operation '{"operationId":"conversations_messages_create"}'
+
+# 8. Deleting something that reaches a real person (a calendar event, a
+# contact, a post already out) asks, rather than being quietly guided.
+mgask "bug 8: delete_event asks, it can remove something someone else already has" mcp__c954__delete_event '{}'
+
+# 9. A tool name hiding a word behind a \u escape: decoded when it is
+# plain ASCII (so buy/purchase/checkout and the rest of the word lists
+# still catch it), and never trusted when it is not, in which case the
+# whole call is asked about, never silently allowed and never merely
+# guided.
+hidden_purchase="mcp__v__${bks}u0070urch${bks}u0061se_item"  # decodes to mcp__v__purchase_item
+env_json="{\"session_id\":\"a\",\"permission_mode\":\"auto\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"$hidden_purchase\",\"tool_input\":{}}"
+out=$(printf '%s' "$env_json" | CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/mcp-guard.sh" 2>/dev/null)
+check "bug 9: a \\u-escaped, plain-ASCII 'purchase' in the tool name is still denied" has "$out" '"deny"'
+unreadable="mcp__v__weird${bks}u00e9item"  # é is outside ASCII: this hook cannot safely resolve it
+env_json2="{\"session_id\":\"a\",\"permission_mode\":\"auto\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"$unreadable\",\"tool_input\":{}}"
+out=$(printf '%s' "$env_json2" | CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/mcp-guard.sh" 2>/dev/null)
+check "bug 9: a tool name carrying an unreadable \\u escape asks" has "$out" '"ask"'
+check "bug 9: and it is never silent" test -n "$out"
+check "bug 9: and it is never merely guided" hasnt "$out" additionalContext
+
+# 10. The fetch/search shape gate only counts a real GoHighLevel marker
+# (an operation id field, locationId, leadconnector, highlevel), never a
+# bare structural-sounding key like "url" that any connector's tools carry.
+out=$(mg mcp__gdrive__fetch '{"url":"https://example.com/report.pdf"}')
+check "bug 10: a fetch carrying only a url is not routed to the GoHighLevel classifier" test -z "$out"
+big=$(awk 'BEGIN { printf "{\"url\":\"https://example.com/"; for (i = 0; i < 8000; i++) printf "x"; printf "\"}" }')
+out=$(mg mcp__gdrive__fetch "$big")
+check "bug 10: the shape check on a large tool_input still returns promptly and silently" test -z "$out"
 
 # LH-025: the GoHighLevel key lives in the computer's own password store and
 # reaches only GoHighLevel, only as Claude Code connects. The checks never show

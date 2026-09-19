@@ -15,6 +15,8 @@ One workflow running on the founder's own business before they leave Atlanta.
 
 **Dates.** Every programme date comes from the cohort block in `../../references/gates.md`. Take today's date from the founder's own computer. Once a date in that block has passed, do not announce it as though it is still ahead: say "your clinic session" or "the Saturday of your programme" instead.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 ## Prerequisites
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
@@ -38,6 +40,8 @@ One workflow running on the founder's own business before they leave Atlanta.
    - Change only what they ask for, and never replace their copy without their yes. The other packs get their words from the values step, not here.
 
 ## Step 1: bottleneck diagnostic
+
+Before asking, offer to look instead (`../../references/sources.md`): their own notes or email, if a source that might show where things go quiet is connected.
 
 Find the one repetitive task that costs the most time or leaks the most revenue. Ask:
 

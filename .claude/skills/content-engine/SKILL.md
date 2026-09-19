@@ -13,6 +13,8 @@ The shapes of every file this writes are in `../../references/contract.md`, rela
 
 **Dates.** Every programme date is in `../../references/gates.md`, in one block. Take them from there, never from memory. Once a date has passed, use relative words for it, such as "the Saturday of your programme", rather than naming a day that has gone.
 
+**Before the questions, offer to look instead:** follow `../../references/sources.md`.
+
 ## Prerequisites
 
 **First, the gate this one is built on.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `content` row in its engine table. This engine needs Gate A, from the mapping in `../../references/gates.md`.
@@ -86,7 +88,7 @@ Each post has:
 
 If the Brain flagged thin proof, lean on point of view and observation rather than inventing results. **Never invent numbers, customers, or outcomes.**
 
-**If the Brain says little about how they actually work,** ask before writing the method pieces: "walk me through what you do on a typical job, step by step". One answer gives you ten posts. Never make up how a named customer's job went, or what happened inside their business.
+**If the Brain says little about how they actually work,** offer to look first (`../../references/sources.md`: their own notes, old proposals, meeting notes), then ask before writing the method pieces: "walk me through what you do on a typical job, step by step". One answer gives you ten posts. Never make up how a named customer's job went, or what happened inside their business.
 
 ### If track is b2c
 
