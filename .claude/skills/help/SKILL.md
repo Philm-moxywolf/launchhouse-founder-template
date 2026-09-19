@@ -51,6 +51,7 @@ The Launchhouse checks run separately. If this folder has `growth-engine/.launch
 Read `growth-engine/.state/setup.md`.
 - If GoHighLevel or Apollo is not done, and they are trying to publish or build a sequence, send them to `/growth-engine:connect`.
 - Apollo is B2B only. A B2C founder not seeing Apollo is correct.
+- GoHighLevel connects two ways: a connector, signed in from Settings, then Connectors, and this folder's own fallback, for Code only, when sign-in does not work. If a founder's connector setting lets sending and posting through without asking, that is on them to fix, because in Cowork none of this folder's checks run: `/growth-engine:connect` sets it, and "check my connections" checks it again.
 
 ### 5. Progress
 
@@ -117,6 +118,10 @@ It is a backstop, not a guarantee. They still read their own work before it goes
 **"It is asking permission for everything."** Their folder's settings let Claude save work without asking. If they opened a folder that is not their copy of the Launchhouse repository, the settings are missing. `/growth-engine:start` creates them when they are missing. Some things always ask, on purpose: publishing, spending Apollo credits, and adding people to a sequence.
 
 **"My Desktop folder is out of date."** It shows the last save. Unsaved changes, or changes made only in Cowork, appear there after the next save in Claude.
+
+**"It's connected but no tools appear."** Disconnect and connect again, from inside a chat: open Settings, then Connectors, disconnect **HighLevel**, then connect it again the way `/growth-engine:connect` sets out. Starting a new conversation afterwards often clears it on its own.
+
+**"Windows won't keep the connection."** Some Windows setups lose the connector's sign-in between sessions. Use the fallback instead: it is Code only, and `/growth-engine:connect` walks through it under "If signing in does not work on this computer."
 
 **"I cannot get any of this working."** Do not keep troubleshooting past two failed attempts. Send them to the Slack channel.
 

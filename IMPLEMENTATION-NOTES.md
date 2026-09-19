@@ -60,6 +60,25 @@ Copies are written read-only and made writable only to replace them. The sync ru
 
 **Hand check.** On a Mac and on a Windows PC (including one with OneDrive-redirected Desktop), save a Brain. Confirm the Desktop folder appears with the right files for the founder's track, that each copy is read-only, and that editing a copy and saving again moves the edited copy into `Your edits` rather than losing it.
 
+## GoHighLevel via the Claude account connector (feature/desktop-copies)
+
+**What.** GoHighLevel's primary route is now a Claude account connector, named **HighLevel**, at `https://services.leadconnectorhq.com/mcp/anthropic/v2`, added from Settings, then Connectors, then Add custom connector, and signed in with OAuth. It works the same way in Code, Cowork, the browser and on a phone. It gives six tools: `list_locations`, `search_operations`, `describe_operation`, `execute_operation`, `search` and `fetch`, covering 625 operations across 40 domains. The founder's own connector setting for `execute_operation` should be set to Needs approval where that choice is offered. The former route, a Private Integration key in the computer's own password store read by `ghl-headers.sh` into `.mcp.json`, stays as a fallback, for Code only, now pointing at the same v2 address, with a new `--disconnect` mode for when both routes end up connected at once. `connections.md`, `connect-tools`, `ghl-values` and `publish-content` were rewritten so a skill searches for an operation and reads what it needs before running it, rather than assuming a fixed tool name.
+
+**Why.** The old route only ever worked from Code, on one machine, needed a founder to make and store a key by hand, and had no custom values tool at all. The connector removes the keychain item, the `headersHelper`, the Windows `cygpath`/`sh.exe` path and the quit-and-reopen step for most founders, works in Cowork, and covers Social Planner posts and statistics, conversations, contacts and custom values in one catalog. The tradeoff accepted: the connector depends on Anthropic's OAuth custom-connector code path, which has had Windows-specific bugs closed "not planned," and HighLevel's own v2 URL "will likely change." Both are why the fallback stays.
+
+**Sources.** HighLevel help, MCP multi-account for Claude (v2 endpoint, OAuth, Claude Code/Cowork steps): https://help.gohighlevel.com/support/solutions/articles/155000008360-highlevel-mcp-multi-account-support-for-claude . HighLevel help, MCP for Anthropic increased scopes (625/571/243/244/84 operations): https://help.gohighlevel.com/support/solutions/articles/155000008391-highlevel-mcp-for-anthropic-increased-scopes . HighLevel developer docs, LeadConnector MCP server: https://marketplace.gohighlevel.com/docs/other/mcp/ . Claude help, custom connectors (Free plan: one connector): https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp . Anthropic issue trackers for the Windows OAuth persistence bugs: https://github.com/anthropics/claude-code/issues/52565 and https://github.com/anthropics/claude-code/issues/86605 . The full comparison against alternatives (community MCP servers, Zapier, Composio, Pipedream, a Launchhouse marketplace app) is in the research report this change was built from.
+
+**Rejected: a blanket ask on every GoHighLevel call, reads included.** Simpler to build and to reason about, but rejected because the owner wants the most control for the agent: a founder should not have to approve `list_locations` or `search_operations` just to read their own business back. Reads go ahead unprompted only when `ghl-op.sh`'s classifier is sure; anything it cannot classify still asks, and refuse words still win outright. This tradeoff is documented, not silently dropped.
+
+**Hand checks for this change** (in addition to the maintainer checks below):
+- Real sub-account sign-in, on a Mac and on a Windows PC: whether a sub-account user (not an agency admin) can complete the OAuth flow and see their one location, and whether the connector persists across app restarts on Windows.
+- The operations exist under the scopes the consent screen offers: Social Planner posts as draft and as scheduled, Social Planner statistics, conversations send, and custom values create and update.
+- Whether a hook "ask" (on a write `execute_operation` call) plus the connector's own approval setting gives the founder two prompts for the same action, or one.
+- The connector's own per-tool approval setting, on the Free and a paid Claude plan: whether the choice is actually offered, or only the default.
+- The real `execute_operation` input shape, and that `ghl-op.sh` classifies real calls the way its fixtures expect.
+- That `fetch` and `search` cannot be used to execute a write, on a real connected account.
+- The values job end to end, with no guard firing on a recorded evidence line.
+
 ## Every open issue on GitHub
 
 All 30 are still open on GitHub. None is closed until the branch is merged. "Closed" below means closed by this branch.

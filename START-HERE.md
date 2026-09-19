@@ -2,7 +2,7 @@
 
 This folder is where your Launchhouse work lives from now on. Claude works in it with you, on your own computer, and it is saved to your own GitHub.
 
-You might be wondering whether this is more setup than the app was. It is less. There is no passphrase and no database. The one key, for GoHighLevel, stays in your computer's own password store and never goes in the chat. You never open a terminal. Everything happens in apps you click through.
+You might be wondering whether this is more setup than the app was. It is less. There is no passphrase and no database. GoHighLevel connects the same way as your other tools, by signing in. You never open a terminal. Everything happens in apps you click through.
 
 ## 1. Install three things, once
 
@@ -41,9 +41,9 @@ If you are new and have nothing in the app, skip this step. "start launchhouse" 
 
 ## 6. Connect your tools
 
-If you sell to businesses, open **Settings** in the Claude app, then **Connectors**, and connect **Apollo**. Then say **"connect my tools"**. Claude walks you through GoHighLevel and checks everything works.
+Open **Settings** in the Claude app, then **Connectors**, then **Add custom connector**. Name it `HighLevel`, paste `https://services.leadconnectorhq.com/mcp/anthropic/v2` as the URL, and connect it. It signs you in to GoHighLevel and asks you to pick your business's sub-account. If you sell to businesses, do the same for **Apollo** from **Browse connectors**. Then say **"connect my tools"**, and Claude checks everything works.
 
-For GoHighLevel you make a key in your GoHighLevel account and add it, by clicking, to your computer's own password store: Keychain Access on a Mac, Credential Manager on a Windows PC. Claude never sees it. Nothing asks about GoHighLevel until you do this.
+If signing in does not work on your computer, say "connect my tools" anyway: Claude offers a fallback for GoHighLevel that uses a key from your GoHighLevel account, added by clicking to your computer's own password store, Keychain Access on a Mac or Credential Manager on a Windows PC. Claude never sees it. That fallback only works in the Code tab, not in Cowork.
 
 ## Finding your finished work
 
@@ -55,7 +55,7 @@ Claude saves your work as you go. To send it up to GitHub, open GitHub Desktop a
 
 ## Using Cowork as well
 
-Cowork can work in this same folder. It is good for dropping in photos, documents and old posts, and for thinking things through. Anything saved into the `growth-engine` folder is seen by both.
+Cowork can work in this same folder. It is good for dropping in photos, documents and old posts, and for thinking things through. Anything saved into the `growth-engine` folder is seen by both. GoHighLevel connects the same way in Cowork as in Code, but none of the Launchhouse checks run there: your own connector setting for GoHighLevel, set to ask before it posts or sends, is what keeps that in your hands.
 
 ## Stuck
 

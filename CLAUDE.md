@@ -51,6 +51,7 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 **GoHighLevel**
 - Only ever reply to someone who wrote first. Before sending, read their conversation and check it holds a message from them. Show the founder the reply and get a yes.
 - A first message to someone who has not written is never sent by a tool. It goes by hand, from the founder's own phone.
+- In Cowork, none of these checks run. The founder's own connector setting is what stops a post or a send going out without asking: it must stay set to Needs approval.
 
 **Apollo**
 - Build sequences paused.

@@ -129,7 +129,7 @@ First add one line to the Decisions block of `growth-engine/log/memory.md`: `- Y
 
 ## Step 7: put them into GoHighLevel
 
-**Their GoHighLevel connector cannot do this part.** It reads an account and posts content. It has no custom values tool at all, so do not send them round that loop looking for one.
+**Try the connector first.** If GoHighLevel is connected as the account connector, use `search_operations` to look for custom values. If it finds a create or update operation, read what it needs with `describe_operation`, then use it the way `../../references/connections.md` sets out: show the founder the whole list before anything is written, and wait for one yes that covers every create and change on it. If `search_operations` finds nothing for custom values, or GoHighLevel is connected only in the fallback shape, move on to putting them in by hand.
 
 **First, everything back to draft.** Straight after the load, they go to `Automation`, then `Workflows`, select the published ones and set them to draft under `Bulk Actions`, page by page, so nothing fires while they paste.
 

@@ -53,7 +53,7 @@ case $tool in
     esac
     case $kc in
       *ghl-headers*)
-        printf '%s' "$kc" | grep -Eqx 'sh (\.claude/scripts/ghl-headers\.sh|"\$CLAUDE_PROJECT_DIR/\.claude/scripts/ghl-headers\.sh") --(check|connect)( < /dev/null)?' \
+        printf '%s' "$kc" | grep -Eqx 'sh (\.claude/scripts/ghl-headers\.sh|"\$CLAUDE_PROJECT_DIR/\.claude/scripts/ghl-headers\.sh") --(check|connect|disconnect)( < /dev/null)?' \
           || lh_deny_pre "$keymsg" ;;
     esac
     case $kc in

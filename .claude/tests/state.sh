@@ -485,20 +485,29 @@ conn_ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %
 
 [ ! -e "$repo/.mcp.json" ] \
   && ! git -C "$repo" ls-files --error-unmatch .mcp.json >/dev/null 2>&1 \
-  && grep -qF '"enabledMcpjsonServers": ["highlevel"]' "$repo/.claude/settings.json" \
-  && ! grep -rqF --exclude-dir=tests 'mcp/anthropic' "$repo/.claude" "$repo/START-HERE.md"
+  && grep -qF '"enabledMcpjsonServers": ["highlevel"]' "$repo/.claude/settings.json"
 conn_ok $? "no server is shipped, and the one connect-tools writes is approved when the app reopens"
 
+# GoHighLevel's address is named only as the v2 connector address: every
+# mention of leadconnectorhq.com/mcp/ under .claude (excluding tests) and in
+# START-HERE.md is the same /mcp/anthropic/v2 address, never the old bare one.
 ct="$repo/.claude/skills/connect-tools/SKILL.md"
+mcp_lines=$(grep -rE --exclude-dir=tests 'leadconnectorhq\.com/mcp/' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
+mcp_v2_lines=$(grep -rE --exclude-dir=tests 'leadconnectorhq\.com/mcp/anthropic' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
+grep -qF 'services.leadconnectorhq.com/mcp/anthropic/v2' "$ct" \
+  && grep -qF 'services.leadconnectorhq.com/mcp/anthropic/v2' "$repo/.claude/references/connections.md" \
+  && [ "$mcp_lines" = "$mcp_v2_lines" ]
+conn_ok $? "only the v2 GoHighLevel address is named anywhere"
+
 ! grep -qi 'connect \*\*HighLevel\*\*' "$repo/START-HERE.md" \
   && grep -qF '"connect my tools"' "$repo/START-HERE.md" \
-  && grep -qF 'Claude walks you through GoHighLevel' "$repo/START-HERE.md" \
-  && grep -qF 'Keychain Access on a Mac, Credential Manager on a Windows PC' "$repo/START-HERE.md" \
+  && grep -qF 'Add custom connector' "$repo/START-HERE.md" \
+  && grep -qF 'Add custom connector' "$ct" \
+  && grep -qF 'Keychain Access on a Mac or Credential Manager on a Windows PC' "$repo/START-HERE.md" \
   && ! grep -qF 'no key to paste' "$repo/START-HERE.md" \
   && grep -qF 'sh .claude/scripts/ghl-headers.sh --connect < /dev/null' "$ct"
 conn_ok $? "START-HERE and connect-tools send the founder the same way to GoHighLevel: say connect my tools, no connector"
-grep -qF 'If this is Cowork, or the check says it works on a Mac or a Windows PC only, stop this part.' "$ct" \
-  && grep -qF 'GoHighLevel is connected from Code on this folder, not from Cowork' "$ct" \
+grep -qF 'this fallback is for Code only' "$ct" \
   && grep -qF "this check works on a Mac or a Windows PC only" "$repo/.claude/scripts/ghl-headers.sh"
 conn_ok $? "in Cowork, connect-tools says GoHighLevel connects from Code and carries on"
 
@@ -510,6 +519,32 @@ grep -qF "In **Keychain Item Name**, type \`Launchhouse GoHighLevel\`" "$ct" \
   && grep -qF "ghl_values_item='Launchhouse GoHighLevel values'" "$repo/.claude/scripts/ghl-store.sh" \
   && grep -qF 'the name is exactly `Launchhouse GoHighLevel values`' "$repo/.claude/skills/ghl-values/SKILL.md"
 conn_ok $? "connect-tools, ghl-values, the reference and the helper name the same password store items"
+
+# ghl-values tries the account connector's custom values operation first, and
+# no longer claims GoHighLevel has no custom values tool at all.
+! grep -qF 'has no custom values tool at all' "$repo/.claude/skills/ghl-values/SKILL.md" \
+  && grep -qF 'Try the connector first' "$repo/.claude/skills/ghl-values/SKILL.md"
+conn_ok $? "ghl-values tries the connector before falling back to custom values by hand"
+
+# Connect-tools mentions the disconnect step and asks the approval question,
+# each with its own exact wording.
+grep -qF 'ghl-headers.sh --disconnect < /dev/null' "$ct"
+conn_ok $? "connect-tools tells them how to remove the fallback connection"
+
+grep -qF 'Does GoHighLevel ask you before it posts or sends?' "$ct"
+conn_ok $? "connect-tools asks whether GoHighLevel asks before it posts or sends"
+
+# Cowork behaviour is documented in each founder-facing file, in that file's
+# own words: none of the Launchhouse checks run there, so the founder's own
+# connector setting is what stops a post or a send going out without asking.
+grep -qF 'it must stay set to Needs approval' "$repo/CLAUDE.md"
+conn_ok $? "CLAUDE.md says the connector setting must stay Needs approval in Cowork"
+
+grep -qF 'your own connector setting for GoHighLevel, set to ask before it posts or sends' "$repo/START-HERE.md"
+conn_ok $? "START-HERE says the founder's own connector setting keeps Cowork in their hands"
+
+grep -qF 'in Cowork none of this folder' "$repo/.claude/skills/help/SKILL.md"
+conn_ok $? "help says none of this folder's checks run in Cowork"
 
 # The store is read with what ships with the computer, and never in the chat.
 grep -q 'security find-generic-password' "$repo/.claude/scripts/ghl-store.sh" \
@@ -1192,6 +1227,20 @@ dt_ok $([ ! -e "$dt_desktop_missing" ] && echo 0 || echo 1) "a Desktop path that
 rm -rf "$dt_repo3" "$dt_desktop3"
 
 fi
+
+# ghl-op.sh: it exists, is plain POSIX sh, is wired into settings.json's
+# PreToolUse array for execute_operation/fetch/search, and ghl-headers.sh
+# points at the v2 endpoint everywhere it names GoHighLevel's address.
+ghlop="$repo/.claude/scripts/ghl-op.sh"
+[ -f "$ghlop" ] && head -1 "$ghlop" | grep -qx '#!/bin/sh'
+conn_ok $? "ghl-op.sh exists and starts with a plain POSIX shebang"
+! grep -Eq '\[\[|\barray\b|\blocal\b' "$ghlop"
+conn_ok $? "ghl-op.sh has no bashisms"
+grep -qF 'ghl-op.sh' "$repo/.claude/settings.json" \
+  && grep -qF 'execute_operation|fetch|search' "$repo/.claude/settings.json"
+conn_ok $? "settings.json routes execute_operation, fetch and search to ghl-op.sh"
+grep -qF 'ghl=https://services.leadconnectorhq.com/mcp/anthropic/v2' "$repo/.claude/scripts/ghl-headers.sh"
+conn_ok $? "ghl-headers.sh points the fallback connection at the v2 endpoint"
 
 if [ "$fail" = 0 ]; then
   printf '\nAll state checks passed.\n'
