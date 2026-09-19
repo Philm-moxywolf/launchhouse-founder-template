@@ -10,6 +10,8 @@ This is Launchhouse itself. You do not need to open or change anything in here, 
 | `scripts/` | The checks that run as work is written, so nothing breaks the six rules, and the script that keeps the Desktop copies up to date |
 | `references/` | What each file should look like, and what each gate asks for |
 | `routines/` | The scheduled jobs that draft for you, like the Monday plan |
+| `output-styles/` | The plain way Claude talks with you |
+| `tests/` | Checks on the checks, for whoever looks after Launchhouse. You never need them |
 | `settings.json` | Turns the checks on and lets Claude save your work without asking every time |
 
 Because all of it is in this folder, there is nothing to install. When there is a new version, open GitHub Desktop, pull the folder, then quit and reopen the Claude app.
