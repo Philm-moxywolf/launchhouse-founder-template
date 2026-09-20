@@ -9,7 +9,7 @@
       "Bash(git diff:*)",
       "Bash(git rev-parse:*)",
       "Bash(git remote -v)",
-      "Bash(git pull --no-rebase)",
+      "Bash(git pull --no-rebase:*)",
       "Bash(git fetch)",
       "Bash(git branch -r)",
       "Bash(git restore:*)",
@@ -43,7 +43,16 @@
       "Bash(rm growth-engine/.gitignore)",
       "Bash(powershell -NoProfile -Command Expand-Archive:*)",
       "Bash(rm growth-engine/.state/log.bytes)",
-      "Bash(rm growth-engine/.state/memory.lock)"
+      "Bash(rm growth-engine/.state/memory.lock)",
+      "Bash(git remote get-url:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git remote rename:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git branch --unset-upstream)",
+      "Bash(git fetch origin)",
+      "Bash(git fetch upstream)",
+      "Bash(git ls-remote:*)"
     ],
     "deny": [
       "Bash(security find-generic-password:*)",

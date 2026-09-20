@@ -83,14 +83,26 @@ Write `growth-engine/.state/profile.md`:
 The folder is saved with git, so every change can be seen and undone, and so it can be kept on their GitHub. Handle this without making a thing of it.
 
 1. **Check git.** Run `git rev-parse --is-inside-work-tree`.
-   - If it is not a git folder, run `git init`. Tell them in one sentence: "I have set this folder up to keep a history of your work, so nothing is ever lost."
+   - If it is not a git folder, run `git init`. Tell them in one sentence: "I have set this folder up to keep a history of your work, so nothing is ever lost, and so it can move with you to another computer."
 2. **Check the identity.** Run `git config user.name` and `git config user.email`.
-   - If either is empty, ask for the email address they use for GitHub. Set both for this folder only: `git config user.name "<name>"` and `git config user.email "<email>"`.
+   - If either is empty, ask for the email you want on your saves (not necessarily a GitHub email; GitHub only comes up below, if they want a copy there). Set both for this folder only: `git config user.name "<name>"` and `git config user.email "<email>"`.
 3. **Commit.** Run `git add -A` then `git commit -m "Set up the Launchhouse folder"`. If there is nothing new to commit, that is fine.
-4. **Check for GitHub.** Run `git remote -v`.
-   - If the remote you would push to names `Philm-moxywolf`, do not push. That is the public original every founder copies. Tell them in one sentence: "Your work is saved on this computer, but this folder points at the public Launchhouse original, so I will not send your business there." Ask them to show a mentor.
-   - If there is another remote, run `git push`. If the push asks for a login or fails, do not troubleshoot. Say their work is saved on this computer, and that it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**.
-   - If there is no remote, say nothing about GitHub now.
+4. **Check for GitHub.** Run `git remote -v`. Decide which state this folder is in, from git alone, in this order. Never ask the founder what they did.
+
+   - **State B, cloned the template itself.** A remote's URL contains `philm-moxywolf` (any case): that is the public Launchhouse original, not the founder's own copy.
+     - If it is named `origin`, rename it: `git remote rename origin upstream`. This is what makes GitHub Desktop offer **Publish repository** instead of **Push**, or worse, **Fork**. If a remote already named `upstream` points somewhere else, leave both alone and say a mentor should sort out the remotes before publishing.
+     - Run `git branch --unset-upstream` if the current branch tracks that remote, so nothing here quietly pushes or pulls it again.
+   - **State C, no remote at all.** If, after that, there is no remote named `origin`, there is no copy on GitHub yet. Ask: "Would you like a copy of this folder on GitHub? It's your backup, it's how your work moves to another computer, and it's what your weekly routines run against." If they say not now, write an empty file at the git folder's own bookkeeping path so this is not asked again: run `git rev-parse --git-dir` and create `<that path>/launchhouse/no-github` (untracked, never under `growth-engine/`, never committed). Say nothing more about GitHub for now.
+     - If they say yes: tell them, in one plain sentence: "In GitHub Desktop, press **Publish repository**, and make sure **Keep this code private** is ticked. Publish, never Fork: a Fork would make your business public, and that can never be undone." Wait for them to say they have done it.
+     - Once they confirm, `origin`'s URL names the owner and repo GitHub Desktop just created. Run exactly one check, right now, never wired into anything that runs again: `curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/<owner>/<repo>`. If you cannot work out the owner or repo from the URL, ask for their GitHub username and the repository name instead.
+       - `404` means it is private. Say nothing more is needed.
+       - `200` means it is public. Tell them plainly: their business is readable by anyone on the internet right now, and they should either delete that repository and publish again with **Keep this code private** ticked, or make it private from that repository's Settings on GitHub.
+   - **State D, `origin` exists and its repo name is `launchhouse-founder-template`** (case-insensitively), under an owner that is not Philm-moxywolf. Its URL alone cannot tell a private founder copy from a public GitHub fork of the public template, so check once, read only, no token, right now, never wired into anything that runs again: `curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/<owner>/<repo>`, working the owner and repo out of the `origin` URL (ask for their GitHub username and the repository name if you cannot). Never put this check in a hook: it runs here, in the skill, once, only in this state.
+     - `404` means it is private. Say nothing more is needed, and carry on to State A below.
+     - `200` means it is public. Tell them plainly: anyone can read their business there right now, and the fix is to delete that repository on GitHub and publish again privately, or switch it to private from that repository's own Settings on GitHub. Do not push until they have done one of those.
+   - **State A, followed the guide.** `origin` exists, is not the public original, and either its repo name is not `launchhouse-founder-template` or State D's check just came back private. Run `git push origin`. If the push asks for a login or fails, do not troubleshoot. Say their work is saved on this computer, and that it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**. No lecture, no extra questions, nothing about forks or publishing: a founder in this state already did it right.
+   - `origin` is the only remote this folder ever pushes to or pulls from. Never push or pull without naming it.
+   - If they clone this folder onto a second computer, one thing does not come across on its own: say "connect my tools" again there. The GoHighLevel connection lives in that computer's own password store, not in the folder.
 
 ## 5. Hand on
 

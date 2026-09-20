@@ -442,8 +442,28 @@ grep -Eq "$dashes" "$style" "$repo/CLAUDE.md" "$repo/README.md" "$repo/START-HER
 [ $? = 1 ]; ok $? "founder-facing text has no em or en dashes and no exclamation points"
 
 start="$repo/.claude/skills/start/SKILL.md"
-grep -q 'Philm-moxywolf.*do not push' "$start"
-ok $? "the start skill never pushes to the public original"
+grep -q 'git remote rename origin upstream' "$start" && grep -q 'Publish, never Fork' "$start"
+ok $? "the start skill never pushes to the public original, and renames it instead of pushing"
+
+# The four states, decided from git alone, in this exact order, and never by
+# asking the founder what they did.
+grep -q '\*\*State B, cloned the template itself\.\*\*' "$start" \
+  && grep -q '\*\*State C, no remote at all\.\*\*' "$start" \
+  && grep -q '\*\*State D, `origin` exists and its repo name is `launchhouse-founder-template`\*\*' "$start" \
+  && grep -q '\*\*State A, followed the guide\.\*\*' "$start"
+ok $? "the start skill names all four states, in order"
+
+grep -q 'No lecture, no extra questions, nothing about forks or publishing' "$start"
+ok $? "State A behaves with no lecture, exactly as the governing rule requires"
+
+grep -q 'launchhouse-founder-template`\*\* (case-insensitively), under an owner that is not Philm-moxywolf' "$start" \
+  && grep -q 'Never put this check in a hook: it runs here, in the skill, once, only in this state' "$start" \
+  && grep -q 'api.github.com/repos/<owner>/<repo>' "$start"
+ok $? "State D checks the fork-shaped repo name once, read only, in the skill and never a hook"
+
+grep -q 'anyone can read their business there right now' "$start" \
+  && grep -q 'delete that repository on GitHub and publish again privately, or switch it to private' "$start"
+ok $? "State D tells a founder on a public fork plainly, and names the fix"
 
 grep -q 'AskUserQuestion' "$start" && grep -q 'Pacific time, like Los Angeles or San Diego' "$start" && ! grep -q 'the Europe/London time' "$start"
 ok $? "the start skill offers choices and names the timezone the everyday way"
@@ -1276,6 +1296,11 @@ sc_run() { # session_id [more env, e.g. CLAUDE_CODE_REMOTE=true]
   ( cd "$sc_dir" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
       CLAUDE_PROJECT_DIR="$sc_dir" env "$@" sh .claude/scripts/setup-check.sh "$sid" < /dev/null 2>/dev/null )
 }
+sc_run_full() { # session_id, --full mode, bypasses the once-per-session sentinel
+  sid=$1
+  ( cd "$sc_dir" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+      CLAUDE_PROJECT_DIR="$sc_dir" sh .claude/scripts/setup-check.sh --full "$sid" < /dev/null 2>/dev/null )
+}
 
 # A fresh, correctly set up folder still gets the every-session Connectors
 # guidance (a script can never see a connector itself), so "silent" here
@@ -1310,6 +1335,41 @@ out=$(sc_run sess-maintainer)
 case $out in *'Philm-moxywolf'*) r=1 ;; *) r=0 ;; esac
 sc_ok $r "an untracked maintainer marker suppresses the origin warning"
 rm -f "$sc_bk/maintainer"
+git -C "$sc_dir" remote set-url origin https://github.com/test-founder/launchhouse-founder-template.git
+
+# No copy on GitHub at all: no remote named origin (or any remote) prints the
+# new line, --full bypasses the once-per-session sentinel the same way the
+# other setup-check cases above do.
+git -C "$sc_dir" remote remove origin
+out=$(sc_run_full sess-no-origin)
+case $out in *'no copy on GitHub yet'*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "no remote at all prints the no-copy-on-GitHub line"
+
+# Suppressed once an untracked .git/launchhouse/no-github marker exists (the
+# start skill writes this when a founder says not now to GitHub).
+: > "$sc_bk/no-github"
+out=$(sc_run_full sess-no-origin-declined)
+case $out in *'no copy on GitHub yet'*) r=1 ;; *) r=0 ;; esac
+sc_ok $r "the no-github marker suppresses the no-copy-on-GitHub line"
+rm -f "$sc_bk/no-github"
+git -C "$sc_dir" remote add origin https://github.com/test-founder/launchhouse-founder-template.git
+
+# The public-original problem line now points at publishing, never a mentor.
+git -C "$sc_dir" remote set-url origin https://github.com/Philm-moxywolf/launchhouse-founder-template.git
+out=$(sc_run_full sess-origin-publish)
+case $out in *'Philm-moxywolf'*'publish'*) r=0 ;; *) r=1 ;; esac
+sc_ok $r "the public-original line points at publishing a fresh copy"
+case $out in *mentor*) r=1 ;; *) r=0 ;; esac
+sc_ok $r "and it no longer tells them to show a mentor"
+git -C "$sc_dir" remote set-url origin https://github.com/test-founder/launchhouse-founder-template.git
+
+# State A, unambiguous: a founder's own, differently named private repo.
+# setup-check is a hook, and State D's fork check only ever runs inside the
+# start skill, so a hook must never print anything about GitHub here.
+git -C "$sc_dir" remote set-url origin https://github.com/sam-founder/my-launchhouse.git
+out=$(sc_run_full sess-state-a)
+case $out in *GitHub*|*Philm-moxywolf*) r=1 ;; *) r=0 ;; esac
+sc_ok $r "State A: a founder's own repo prints nothing about GitHub from the hook"
 git -C "$sc_dir" remote set-url origin https://github.com/test-founder/launchhouse-founder-template.git
 
 cp "$sc_dir/.claude/settings.json" "$sc_dir/.claude/settings.json.bak"

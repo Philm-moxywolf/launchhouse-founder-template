@@ -238,6 +238,8 @@ If their settings do not offer this, say the Launchhouse checks cover it in this
 
 Then tell them, once, that if a connection stops working later they can say "something is not working".
 
+A founder who brought work across from the app can now ask Claude to check that imported work against what these accounts actually show.
+
 ## Connect a source
 
 Separately from GoHighLevel, Apollo and the mailbox, the engines can offer to look in a founder's own files, notes, cloud storage or email instead of asking them to type an answer from memory. That offer, and how to check what is already connected, add one, and use it safely, is in `../../references/sources.md`. It is a different kind of connection, read-only and only ever used after a yes, so it is not part of the setup above.
