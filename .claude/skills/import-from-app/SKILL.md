@@ -165,7 +165,33 @@ Then tell the founder what it found:
 - **Held lines.** List each as "worth a look", with the file, the line, and the reason in plain words. The app already stopped the worst cases, so these are usually small. Offer to fix them one at a time. Change a line only after they say yes to that line.
 - **Notes.** Mention the count and offer to show them.
 
-## 6. Save, and hand on
+## 6. Check it against the live accounts
+
+Offer this once, in plain words: this work came from the app, and the founder's live accounts may have moved on since. Say Claude can look at what is connected and say where the two disagree, and that this changes nothing by itself.
+
+**Only check what is actually connected.** Before saying a connector is missing, use ToolSearch for its tools: a connected connector's tools are often deferred, not absent, until searched for. If nothing is connected at all, say so in one line and offer "connect my tools" instead of running any check below.
+
+Every check here is read-only. Nothing is changed, sent, activated or bought by this step, whatever it finds.
+
+**GoHighLevel, if connected.**
+- Read `growth-engine/engines/ops/ghl-values.md` for the custom values it names, and read the account's own custom values back, following `../../references/connections.md` for how to search for and run that job. Say which named values are missing from the account, and which are present but still hold `PLACEHOLDER` or are empty.
+- Read the accounts to post to, and name which social accounts are connected.
+- For any workflow their imports describe, say whether the account's copy is live or draft. Report only. Never turn one on, off, or edit it.
+
+**Apollo, B2B only, if connected.** Say whether a sequence matching their imported outreach exists in the account, whether it is active or paused, and how many people are in it. Never start, activate or add to it.
+
+**Mailbox, B2B only, if connected.** There is nothing in their imported files to compare it against. Just say whether it can write drafts.
+
+Report back as a short list: what matches, what differs, what is missing. For each difference, offer the one plain next step and wait for a yes before doing any of it:
+- custom values missing or holding `PLACEHOLDER`: "fill my custom values"
+- no matching Apollo sequence: "build my Apollo sequence"
+- nothing connected, or a connector missing: "connect my tools"
+
+**The rules, stated plainly:** this step only ever reads. It never sends a message, never activates a workflow or a sequence, never buys anything. A live workflow or an active sequence is reported to the founder, never touched. Their imported files are the source of truth for the words. The account is the source of truth for what is actually live.
+
+**If their imported work predates their account setup,** say plainly that nothing is wrong: the account simply has not been set up yet. Point them at the clinic steps for setting it up.
+
+## 7. Save, and hand on
 
 1. Run `git add -A` then `git commit -m "Adjusted to the new setup"`.
 2. If `git remote -v` shows a remote, run `git push`. If that fails, say their work is saved on this computer and GitHub can be sorted later.
