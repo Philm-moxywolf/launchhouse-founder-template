@@ -201,6 +201,19 @@ check "ask-mcp.sh is gone" test ! -e "$scripts/ask-mcp.sh"
 check "neither is named in settings.json any more" sh -c '! grep -qE "deny-mcp|ask-mcp" "$1"' _ "$settings"
 check "ghl-op.sh is not named in settings.json, it is a sourced library now" sh -c '! grep -q "scripts/ghl-op.sh" "$1"' _ "$settings"
 
+# The remote/branch/fetch allowlist that lets the start skill normalize
+# remotes (rename the template to upstream, add or point origin, unset a
+# stray upstream tracking branch) without a permission prompt mid-setup.
+check "settings.json allows git remote get-url" grep -qF '"Bash(git remote get-url:*)"' "$settings"
+check "settings.json allows git remote add" grep -qF '"Bash(git remote add:*)"' "$settings"
+check "settings.json allows git remote remove" grep -qF '"Bash(git remote remove:*)"' "$settings"
+check "settings.json allows git remote rename" grep -qF '"Bash(git remote rename:*)"' "$settings"
+check "settings.json allows git remote set-url" grep -qF '"Bash(git remote set-url:*)"' "$settings"
+check "settings.json allows git branch --unset-upstream" grep -qF '"Bash(git branch --unset-upstream)"' "$settings"
+check "settings.json allows git fetch origin" grep -qF '"Bash(git fetch origin)"' "$settings"
+check "settings.json allows git fetch upstream" grep -qF '"Bash(git fetch upstream)"' "$settings"
+check "settings.json allows git ls-remote" grep -qF '"Bash(git ls-remote:*)"' "$settings"
+
 mg() { # tool_name, tool_input-json, mode (default acceptEdits)
   m=${3:-acceptEdits}
   printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"%s","hook_event_name":"PreToolUse","tool_name":"%s","tool_input":%s}' \
@@ -794,6 +807,26 @@ if command -v git >/dev/null 2>&1; then
   check "pushing to a private origin is allowed while the original is an upstream" hasnt "$out" '"deny"'
   out=$(hook guard-pre.sh Bash command "git push upstream main")
   check "pushing to that upstream is refused" has "$out" '"deny"'
+
+  # KNOWN LIMITATION, documented not fixed here: lh_push_to_original only
+  # pattern-matches "philm-moxywolf" in the resolved remote's URL. A GitHub
+  # fork keeps the same repo name under a different, non-philm-moxywolf
+  # owner, so this guard has no way to tell a fork from any other founder's
+  # private copy and lets a push to one through. The mitigation for a fork
+  # is the UI-level "Publish, never Fork" intervention in the start skill
+  # (fix #1), not this guard, which cannot see GitHub's fork relationship at
+  # all from a git remote URL alone.
+  git -C "$work" remote set-url origin https://github.com/some-random-founder/launchhouse-founder-template.git
+  out=$(hook guard-pre.sh Bash command "git push")
+  check "KNOWN LIMITATION: a push to a fork-shaped URL under a non-philm-moxywolf owner is NOT refused" hasnt "$out" '"deny"'
+  # A push to the template itself, any owner-case spelling, is still refused:
+  # the fork-vs-template line is drawn on the owner name in the URL alone.
+  git -C "$work" remote set-url origin https://github.com/Philm-Moxywolf/launchhouse-founder-template.git
+  out=$(hook guard-pre.sh Bash command "git push")
+  check "a push to the template itself, any case, is still refused" has "$out" '"deny"'
+  # Restore origin to what it was before this block, since nothing later in
+  # this file should see the fork or template URL left behind.
+  git -C "$work" remote set-url origin https://github.com/sam-bakes/my-launchhouse.git
 fi
 
 # Desktop copies privacy guard: a shell copy of real people's details out of

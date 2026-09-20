@@ -59,6 +59,8 @@ Check the Brain's Flags section and surface anything unresolved. These two items
 - **B2B:** the sending domain, and whether SPF, DKIM and DMARC are set.
 - **B2C:** whether Instagram is Business or Creator and linked to a Facebook Page.
 
+**No copy on GitHub.** Run `git remote -v`. If there is no `origin`, say one plain line: their routines are off, because a routine runs against their GitHub copy, and that includes the countdown to Atlanta. Point them at "start launchhouse" to set one up.
+
 ## 4. Self-reported items, only when it matters
 
 When the founder asks "am I ready", or a gate is being checked this week, ask each item the computed state has at `ask`. Ask one question at a time.

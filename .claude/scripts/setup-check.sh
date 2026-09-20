@@ -98,7 +98,7 @@ else
     case $identity in *"user.name "*) name_set=1 ;; esac
     case $identity in *"user.email "*) email_set=1 ;; esac
     if [ "$name_set" = 0 ] || [ "$email_set" = 0 ]; then
-      add_problem 'Setup: git does not have a name and email set for saving work in this folder, so saves may not be attributed to the founder. Mention this once, in plain words, and offer to set them from the name they gave you and the email address they use for GitHub.'
+      add_problem 'Setup: git does not have a name and email set for saving work in this folder, so saves may not be attributed to the founder. Mention this once, in plain words, and offer to set them from the name they gave you and the email you want on your saves.'
     fi
 
     # The public original every founder's copy comes from. Skip when an
@@ -108,9 +108,24 @@ else
       origin=$(git -C "$root" config --get remote.origin.url 2>/dev/null)
       case $(printf '%s' "$origin" | LC_ALL=C tr 'A-Z' 'a-z') in
         *philm-moxywolf*)
-          add_problem 'Setup: this folder'"'"'s origin still points at the public Launchhouse original (Philm-moxywolf), not the founder'"'"'s own copy, so saving here would never reach their own GitHub. Mention this once, in plain words, and tell them to show a mentor rather than push.'
+          add_problem 'Setup: this folder'"'"'s origin still points at the public Launchhouse original (Philm-moxywolf), not the founder'"'"'s own copy, so saving here would never reach their own GitHub. Mention this once, in plain words, and offer to rename that remote to upstream and publish a fresh copy from GitHub Desktop, never a fork.'
           ;;
       esac
+    fi
+
+    # No copy on GitHub at all: no backup, no moving between computers, and
+    # the scheduled routines cannot run against a folder that is not there.
+    # Its own mention-once key, separate from "setup", so it still says its
+    # piece even in a session that already reported (and dropped) another
+    # setup problem. Suppressed entirely once the founder has said, through
+    # the start skill, that they do not want a GitHub copy (an untracked
+    # .git/launchhouse/no-github marker).
+    if [ -z "$bk" ] || [ ! -f "$bk/no-github" ]; then
+      remotes=$(git -C "$root" remote 2>/dev/null)
+      if [ -z "$remotes" ] && { [ "$full" = 1 ] || ! lh_setup_seen no-github; }; then
+        no_github_problem='Setup: this folder has no copy on GitHub yet, so there is no backup, it cannot move between computers, and the scheduled routines cannot run. Mention this once, in plain words, and offer to walk them through putting it on GitHub.'
+        lh_setup_mark no-github
+      fi
     fi
   fi
 fi
@@ -141,10 +156,17 @@ fi
 if [ "$full" = 1 ] || ! lh_setup_seen setup; then
   if [ -n "$problems" ]; then
     printf '%s' "$problems"
-  elif [ "$full" = 1 ]; then
+  elif [ "$full" = 1 ] && [ -z "$no_github_problem" ]; then
     printf 'Setup: checked git, this folder, the settings and the scaffold. Nothing wrong.\n'
   fi
   lh_setup_mark setup
+fi
+
+# The no-github notice has its own mention-once key (set above), so it still
+# says its piece even in a session where the "setup" key was already marked
+# by an earlier, unrelated problem (or by a clean check).
+if [ -n "$no_github_problem" ]; then
+  printf '%s\n' "$no_github_problem"
 fi
 
 # ------------------------------------------------------------- connectors --
