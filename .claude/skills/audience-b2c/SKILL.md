@@ -64,7 +64,7 @@ Other work a co-founder does, such as partnerships, is not built here.
    - If it genuinely does not exist, do not leave them stuck. Say in one plain sentence that this engine writes from their Founder Brain, about an hour of their own answers that every engine reads, and offer to build it with them now. If they say yes, follow the `founder-brain` skill, then come back here. If not now, give them the one next step for when they are ready: `/growth-engine:brain`, or say "build my founder brain".
    - Do not ask them to describe their business again from scratch, and do not guess at their offer, audience or voice.
 3. **Check the track.** If `Track` is not `b2c`, stop and route the founder to the outreach engine (`/growth-engine:outreach`).
-4. **Check the Instagram account type.** Look in `growth-engine/.state/setup.md` first, then the Brain's Channels section and Flags. If it is still a personal account, tell them to convert to Business or Creator and link a Facebook Page before anything else works. It takes two minutes.
+4. **Check the Instagram account type.** Look in `growth-engine/.state/setup.md` first, then the Brain's Channels section and Flags. If it is still a personal account, tell them to convert to Business or Creator and link a Facebook Page before anything else works. It takes two minutes. For the conversion itself and bio or link-in-bio copy, point them at `instagram-setup-expert` (`/growth-engine:instagram`) rather than doing it here.
 5. **When the Brain is not enough.** If something this engine needs is missing or thin, do not guess and do not stop. Ask for it, one question at a time, and say in a few words why you are asking. Make it easy to answer: a sentence in their own words, a pick from two or three options you suggest, something they already wrote pasted in, a file added with `/growth-engine:add-files`, or "not sure yet", which you note as a gap and work around. Never suggest a number, a result or a customer: those only ever come from them. If what they tell you belongs in the Brain, say so, and that "update my brain" puts it there.
 6. **Check the gate this builds on.** Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md` and check the `audience` row in its engine table. This engine needs Gate B, from the mapping in `../../references/gates.md`.
 
@@ -152,7 +152,7 @@ This is where the automation lives, and it is fully sanctioned.
 
 **DM qualify and book.** A short conversation flow that qualifies the inbound and routes to a booking link or product page. Three or four steps, no interrogation.
 
-**Link in bio.** A GoHighLevel form or calendar destination.
+**Link in bio.** A GoHighLevel form or calendar destination. It should point at the founder's working booking link; use `booking-reviews-expert` (`/growth-engine:booking`) to get that link set up. For the bio and link-in-bio copy itself, use `instagram-setup-expert` (`/growth-engine:instagram`) rather than writing it here.
 
 **Cap the follow-up.** One follow-up, then stop. If they do not reply to the first message and do not reply to the follow-up, the conversation is over and nothing more goes out. Write the stop into the copy, because a flow with no exit carries on at somebody who has already decided.
 

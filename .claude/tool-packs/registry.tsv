@@ -1,5 +1,0 @@
-id	name	suffix_regex	tracks	origin
-ghl	GoHighLevel	^(execute_operation|list_locations|search_operations|describe_operation|locations_get-location|socialmediaposting_.*|social-media-posting_.*|conversations_.*|contacts_get-contacts)$	both	template
-apollo	Apollo	^apollo_	b2b	template
-gmail	Gmail	^(create_draft|list_drafts|search_threads|get_thread|list_labels|label_thread|update_draft|get_draft)$	b2b	template
-outlook	Microsoft 365 (Outlook)	^outlook_	b2b	template

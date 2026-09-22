@@ -1,0 +1,10 @@
+id	name	kind	suffix_regex	tracks	origin
+ghl	GoHighLevel	tool	^(execute_operation|list_locations|search_operations|describe_operation|locations_get-location|socialmediaposting_.*|social-media-posting_.*|conversations_.*|contacts_get-contacts)$	both	template
+apollo	Apollo	tool	^apollo_	b2b	template
+gmail	Gmail	tool	^(create_draft|list_drafts|search_threads|get_thread|list_labels|label_thread|update_draft|get_draft)$	b2b	template
+outlook	Microsoft 365 (Outlook)	tool	^outlook_	b2b	template
+booking-reviews	Booking and reviews	guide	-	both	template
+email-compliance	Email compliance	guide	-	both	template
+instagram-setup	Instagram setup	guide	-	b2c	template
+linkedin-profile	LinkedIn profile	guide	-	b2b	template
+domains	Domains and DNS	guide	-	both	template

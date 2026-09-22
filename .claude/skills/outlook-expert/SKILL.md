@@ -2,10 +2,11 @@
 name: outlook-expert
 description: Claude's expert on the founder's connected Microsoft 365 mailbox: checking for replies, drafting once the founder's admin has turned write tools on, and answering how-it-works questions. Trigger on "Outlook", "Microsoft 365", "connect Outlook", "connect my email", "how do I check Outlook", "check my Outlook connection", "who replied", "check for replies", "put my outreach emails in my drafts".
 ---
+<!-- Installed from .claude/skill-packs/outlook/skills/outlook-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
 
 # Microsoft 365 (Outlook) expert
 
-Makes Claude an expert on the founder's Microsoft 365 mailbox for the B2B outreach engine. Everything it knows comes from `.claude/tool-packs/outlook/pack.md` and `.claude/tool-packs/outlook/knowledge.md`; read both before answering anything.
+Makes Claude an expert on the founder's Microsoft 365 mailbox for the B2B outreach engine. Everything it knows comes from `.claude/skill-packs/outlook/pack.md` and `.claude/skill-packs/outlook/references/knowledge.md`; read both before answering anything.
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command. Show plain words; never show a tool name or a suffix in chat.
 
@@ -13,7 +14,7 @@ Makes Claude an expert on the founder's Microsoft 365 mailbox for the B2B outrea
 
 ## 1. Read the pack
 
-Read `../../tool-packs/outlook/pack.md` and `../../tool-packs/outlook/knowledge.md`. If `verified_on` in `pack.md` is more than a few months old, say once that this pack may be out of date and offer to refresh it with the `tool-pack-builder` skill; carry on with what it knows either way.
+Read `../../skill-packs/outlook/pack.md` and `../../skill-packs/outlook/references/knowledge.md`. If `verified_on` in `pack.md` is more than a few months old, say once that this pack may be out of date and offer to refresh it with the `skill-pack-builder` skill; carry on with what it knows either way.
 
 ## 2. Check the connection
 
@@ -55,3 +56,5 @@ Keep `growth-engine/.state/tools.md` current, in the shape in `../../references/
 For "how does X work" questions about Microsoft 365 itself (scheduled send, sending limits, why a message might land in Junk, how an admin turns write tools on), answer from `knowledge.md`'s Limits and quotas, Failure modes and fixes, and Workflows sections, in plain words. Say once that this file was last checked on `verified_on` and offer to refresh it if the founder wants current numbers double-checked.
 
 **Never send or forward anything from this step, and never draft speculatively.** Only propose a draft when the caller's own tool list actually shows `outlook_create_draft` or `outlook_create_reply_draft`; otherwise say plainly that drafting is off today and point to the manual route.
+
+Deliverability depends on the sending domain's DNS records being correct (SPF, DKIM, DMARC) in Microsoft 365. If the founder's outreach is landing in Junk, send them to `domains-expert` (or `/growth-engine:domains`) to check and fix it.

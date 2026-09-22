@@ -176,6 +176,43 @@ answer() {
   printf '%s' "$a"
 }
 
+# The domains skill pack's own DNS evidence, written by
+# `dns-check.sh --record` into growth-engine/.state/domain.md (see
+# ../references/contract.md). When spf, dkim and dmarc all read pass there,
+# prints "DNS checked <date>: SPF, DKIM, DMARC pass" for the Gate C B2B
+# "domain setup" item's evidence; empty otherwise. This never marks the item
+# done by itself: "sending has started" still has no file that can prove it,
+# so the item stays self-reported (ask) even with all three DNS checks green.
+domain_md="$ge/.state/domain.md"
+domain_dns_evidence() {
+  [ -f "$domain_md" ] || return 1
+  # Each of spf, dkim and dmarc must appear as exactly one well-shaped row
+  # ("| key | value |", four pipe-delimited fields once split) and that row
+  # must read pass. A key that is missing, appears more than once (a
+  # duplicated or malformed write), or is shaped wrong counts as not proven
+  # -- fail safe, never take the last or first match silently.
+  ok=$(awk -F'|' '
+    {
+      line = $0
+      gsub(/^[ 	]+|[ 	]+$/, "", line)
+      if (line !~ /^\|/) next
+      n = split(line, c, "|")
+      for (i = 1; i <= n; i++) gsub(/^[ 	]+|[ 	]+$/, "", c[i])
+      if (n != 4) next
+      k = tolower(c[2]); v = tolower(c[3])
+      if (k == "spf") { spf_n++; if (v == "pass") spf_pass = 1 }
+      if (k == "dkim") { dkim_n++; if (v == "pass") dkim_pass = 1 }
+      if (k == "dmarc") { dmarc_n++; if (v == "pass") dmarc_pass = 1 }
+    }
+    END {
+      if (spf_n == 1 && spf_pass && dkim_n == 1 && dkim_pass && dmarc_n == 1 && dmarc_pass) print "1"
+      else print "0"
+    }' "$domain_md" 2>/dev/null)
+  [ "$ok" = 1 ] || return 1
+  checked=$(awk -F': ' '/^- Checked:/ { print $2; exit }' "$domain_md" 2>/dev/null)
+  printf 'DNS checked %s: SPF, DKIM, DMARC pass' "${checked:-an unknown date}"
+}
+
 # An engine whose gate is not met still has a way through: the founder can say
 # to go ahead anyway, recorded as a dated line in
 # growth-engine/.state/gate-overrides.md: "<date> | <gate> | <engine> | <words>".
@@ -314,7 +351,15 @@ if [ "$track" = b2b ]; then
     row C firstlines "First lines exist for the 25" "not done" "$c of 25 rows in outreach-firstlines.csv" outreach
   fi
   ops_row
-  self_row C domain "Domain setup is done and sending has started" outreach
+  if dns_evi=$(domain_dns_evidence); then
+    if a=$(answer domain); then
+      row C domain "Domain setup is done and sending has started" answered "$dns_evi; sending: $a" outreach
+    else
+      row C domain "Domain setup is done and sending has started" ask "$dns_evi; sending has started: no answer recorded yet" outreach
+    fi
+  else
+    self_row C domain "Domain setup is done and sending has started" outreach
+  fi
 elif [ "$track" = b2c ]; then
   o=$(num "$(idx_count engines/audience/dm-openers.md)")
   if carried engines/audience/dm-openers.md; then

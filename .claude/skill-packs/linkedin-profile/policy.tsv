@@ -1,0 +1,37 @@
+# suffix_regex	decision	reason
+#
+# Tighten-only, checked against the real .claude/scripts/mcp-guard.sh in a
+# scratch Launchhouse folder (see tests.tsv). These rows cover the
+# unofficial LinkedIn MCP connector observed in this environment (tool
+# names such as mcp__MCP_Server_for_LinkedIn__<suffix>). LinkedIn's own
+# User Agreement bars both unauthorized automated access and any script or
+# tool that scrapes or copies the service (references/knowledge.md,
+# ../../references/social-accounts.md), so every one of these seventeen
+# suffixes is refused or asked, never left silent. Three rows below (
+# send_message, connect_with_person) match what the base guard already
+# denies on the word "linkedin" in the tool name alone; they are kept here
+# anyway, explicit and sourced to this pack, so the deny still holds even
+# for a future connector whose own name does not happen to contain
+# "linkedin". The fourteen read rows tighten a call the base guard would
+# otherwise leave silent (a plain get/search read).
+#
+# ------------------------------------------------------- write / send / connect
+^close_session$	deny	This unofficial LinkedIn connector is never used to manage a LinkedIn session at all, closing it included. LinkedIn's own User Agreement bars unauthorized automated access (../../references/social-accounts.md); the founder manages their own LinkedIn session by signing in and out themselves.
+^connect_with_person$	deny	Launchhouse never sends a LinkedIn connection request from here. LinkedIn's own User Agreement bars bots or automated methods that add contacts; the founder sends every connection request by hand, from LinkedIn itself.
+^send_message$	deny	Launchhouse never sends a LinkedIn message from here, cold or otherwise. LinkedIn's own User Agreement bars automated sends; the founder sends every message by hand, from LinkedIn itself.
+#
+# --------------------------------------------------------------------- reads
+^get_company_employees$	ask	This unofficial LinkedIn connector risks the founder's account being restricted or banned, a decision LinkedIn does not reverse on request (../../references/social-accounts.md). Check the founder actually wants this read before it runs, and offer the export route instead: their own LinkedIn "Get a copy of your data" archive, added with /growth-engine:add-files.
+^get_company_posts$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^get_company_profile$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^get_conversation$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^get_feed$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^get_inbox$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^get_job_details$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^get_my_profile$	ask	Same ban risk as every other call on this unofficial connector, even for the founder's own profile. Check the founder wants this read, and offer the export route instead: their own "Save to PDF" or "Get a copy of your data" from LinkedIn itself, added with /growth-engine:add-files.
+^get_person_profile$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^get_sidebar_profiles$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^search_companies$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^search_conversations$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^search_jobs$	ask	Same ban risk as every other call on this unofficial connector. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.
+^search_people$	ask	Same ban risk as every other call on this unofficial connector, and the shape of read a scraper would use at scale. Check the founder wants this read, and offer the export route instead: /growth-engine:add-files with their own LinkedIn data.

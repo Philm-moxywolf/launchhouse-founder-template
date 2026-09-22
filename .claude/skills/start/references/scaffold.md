@@ -185,9 +185,11 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 
 The Launchhouse checks enforce most of this automatically. When a file is held or a tool is stopped, tell the founder in one plain sentence what happened and what to do, never as an error.
 
-## Tool packs
+## Skill packs
 
-Beyond GoHighLevel, Apollo, Gmail and Microsoft 365, a founder can connect any other tool: a scheduler, a second inbox, a different CRM. Each connected tool can have an expert pack, in `.claude/tool-packs/<id>/`: a sourced knowledge file, a specialist agent and an expert skill, plus tighten-only rules on top of the checks above. When a connection is being planned, or a tool is connected, use its `<id>-expert` skill if it has a pack, or offer to build one with the `tool-pack-builder` skill.
+A skill pack is a plugin-like bundle, in `.claude/skill-packs/<id>/`: its own skills, agents, scripts and reference material, in one folder. Two kinds. A **tool** pack is tied to one connected tool (GoHighLevel, Apollo, Gmail, Microsoft 365, or any other a founder connects later: a scheduler, a second inbox, a different CRM), plus tighten-only rules on top of the checks above. A **guide** pack covers a roadmap area with no single connector (a pricing playbook, local SEO): no tool inventory, and rules only where its skills genuinely touch a connector. When a connection is being planned, a tool is connected, or a roadmap area comes up, use the pack's own `<id>-expert` skill if it has one, or offer to build a pack with the `skill-pack-builder` skill.
 
-A pack can only ever add to the six rules and the checks above, never loosen them. In Cowork, no hooks run at all, on a pack's tools any more than on GoHighLevel's or Apollo's: the connector's own "Needs approval" setting is what still holds a send or a spend, so set it the same way there.
+Founders (or a maintainer working with them) edit a pack's own source, in its folder: `skills/`, `agents/`, `references/`. Launchhouse re-installs the copies under `.claude/skills/` and `.claude/agents/` from there; a founder never edits the installed copy directly, marked with a comment saying so.
+
+A pack can only ever add to the six rules and the checks above, never loosen them. In Cowork, no hooks run at all, on a pack's tools any more than on GoHighLevel's or Apollo's: the connector's own "Needs approval" setting is what still holds a send or a spend, so set it the same way there. Guide packs exist for domains, Instagram setup, LinkedIn profile, booking and reviews, and email compliance, and social accounts are never automated: see `.claude/references/social-accounts.md` for that.
 ```

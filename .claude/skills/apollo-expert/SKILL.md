@@ -2,6 +2,7 @@
 name: apollo-expert
 description: Answer a founder's question about Apollo, or route a job that needs it to the right skill, or run one directly through the apollo-specialist agent. Trigger on "Apollo", "apollo.io", "connect Apollo", "how do I ... in Apollo", "check my Apollo", "my Apollo sequence", "my 25", "credits", or any Apollo question this pack can answer. B2B track only.
 ---
+<!-- Installed from .claude/skill-packs/apollo/skills/apollo-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
 
 # Apollo expert
 
@@ -11,7 +12,7 @@ description: Answer a founder's question about Apollo, or route a job that needs
 
 ## 1. Read first
 
-Read `.claude/tool-packs/apollo/pack.md` and `.claude/tool-packs/apollo/knowledge.md` before answering anything or routing anywhere.
+Read `.claude/skill-packs/apollo/pack.md` and `.claude/skill-packs/apollo/references/knowledge.md` before answering anything or routing anywhere.
 
 ## 2. Check the connection
 
@@ -55,6 +56,8 @@ After proving or changing a connection, write or update the row in `growth-engin
 Answer from `knowledge.md`'s Mental model, Tool map, Limits and quotas, and Failure modes sections. Say plainly that this pack was last checked on `verified_on` in `pack.md`, and that Apollo's own docs, pricing and credit allowances can move past that date; offer to refresh the pack (its Refreshing steps) if the founder's own account behaves differently from what is written here, especially anything marked `(unverified)`.
 
 **Never guess at a credit cost, a rate limit or a price this file does not carry as sourced.** If the founder's question needs something the pack does not know, say so plainly, and either look it up (Apollo's own current docs) or send them to `apollo_usage_stats_credit_usage_stats` for their own account's real numbers, rather than inventing an answer that sounds right.
+
+Apollo's tracking domain and the connected mailbox both depend on working DNS (SPF, DKIM, DMARC and the rest). If emails are landing in spam, opens aren't tracking, or Apollo flags the domain as unverified, send the founder to `domains-expert` (or `/growth-engine:domains`) to check and fix it.
 
 ## What this pack will never do
 

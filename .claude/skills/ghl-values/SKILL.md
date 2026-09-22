@@ -84,6 +84,8 @@ Never ask for something the Brain or their files already say. Before asking, off
 3. How they sign off, and the name they sign with.
 4. `Discovery booking` only: what a call with them is like. Their booking link is copied out of their own `Discovery call` calendar with `Share`, then `Copy Link`, so if the snapshot is not loaded yet, do not ask for it. Leave that value blank and say plainly that they paste it on the day. `DM qualify and book` only: where the routing message sends people, unless their files already say. If it is a GoHighLevel calendar they have not made yet, leave `DM Booking Link` blank and say plainly that they paste it on the day, once the calendar exists.
 
+The booking link and the review link themselves come from the `booking-reviews-expert` skill (or `/growth-engine:booking`), never invented here. If either is not yet working, send them there first and paste it in once it is.
+
 ## Step 4: write the words
 
 - Their voice from the Brain and their own posts. Short sentences. No em dashes or en dashes, and none of the sales words the house style rules out.
@@ -130,6 +132,8 @@ First add one line to the Decisions block of `growth-engine/log/memory.md`: `- Y
 3. **Save.** Run `git add growth-engine` then `git commit -m "GoHighLevel values: <snapshot>"`. Push if there is a remote. If the push fails, say it is saved on this computer.
 
 ## Step 7: put them into GoHighLevel
+
+**Check the copy first.** Before any of this is pasted into the founder's live account, use the `email-compliance-reviewer` agent on `engines/ops/ghl-values.md` and fix what it flags with the founder before continuing.
 
 **Try the connector first.** If GoHighLevel is connected as the account connector, call `ghl-specialist` with `PHASE: plan` to use `search_operations` and look for custom values, and read what a matching operation needs with `describe_operation`. Show the founder the whole list before anything is written, the way `../../references/connections.md` sets out, and wait for one yes that covers every create and change on it. That one yes is the approval: grant it (`sh .claude/scripts/approve.sh --grant ghl <the create/update operation suffix>:<count>`), call `ghl-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` the full list verbatim, then clear the grant (`sh .claude/scripts/approve.sh --clear ghl`). If `search_operations` finds nothing for custom values, or GoHighLevel is connected only in the fallback shape, move on to putting them in by hand.
 

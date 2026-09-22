@@ -39,17 +39,20 @@ Ask: "Can you log in to GoHighLevel?" The programme buys the Starter plan in Ses
 
 Look at the tools available to you. The account connector gives six general tools: `list_locations`, `search_operations`, `describe_operation`, `execute_operation`, `search` and `fetch`. The fallback gives one tool per job, with names ending in things like `locations_get-location`. Either means it is connected. `../../references/connections.md` explains both.
 
-**If there are none,** walk them through connecting it. This is the main route, and it is a sign-in, not a key.
+**If there are none,** walk them through connecting it. This is the main route, and it is a sign-in, not a key. The install step comes first, or the sign-in window in Claude finishes and no tools ever appear.
 
-1. In the Claude app, open **Settings**, then **Connectors**.
-2. Choose **Add custom connector**.
-3. Name it `HighLevel`.
-4. For the URL, paste `https://services.leadconnectorhq.com/mcp/anthropic/v2`.
-5. Click **Add**, then **Connect**.
-6. Sign in to GoHighLevel in the window that opens.
-7. Pick their business's sub-account.
-8. Approve what it asks for.
-9. Start a new conversation in this folder, then say "check my connections".
+1. Give them the install link (the full URL lives in `../../references/connections.md`; paste it into the chat for them to click, never ask them to type it). They sign in, pick their business's sub-account and not the agency, and approve. Then they come back to Claude.
+2. In the Claude app, open **Settings**, then **Connectors**.
+3. Choose **Add custom connector**.
+4. Name it `HighLevel`.
+5. For the URL, paste `https://services.leadconnectorhq.com/mcp/anthropic/v2`.
+6. Click **Add**, then **Connect**.
+7. Sign in to GoHighLevel in the window that opens.
+8. Pick their business's sub-account.
+9. Approve what it asks for.
+10. Start a new conversation in this folder, then say "check my connections".
+
+**If the sign-in still does nothing:** open the install link again, check the sub-account picked is the business's own, then press Connect again. If it still does nothing, record `needs a hand` and send them to the Slack channel. If the link opens an error page instead of a sub-account chooser, the link itself has changed: record `needs a hand` and send them to the Slack channel rather than trying another link.
 
 **The free Claude plan connects one custom connector.** That is all GoHighLevel needs, so never tell a founder on the free plan they must upgrade to connect it. A paid plan allows more than one, if they connect other custom connectors later.
 
@@ -117,7 +120,7 @@ Do not tick a box. Read their own account back to them, which a broken connectio
 
 **B2C only: Instagram**
 - If an Instagram account appears in the accounts list, record `Instagram Business or Creator | done | <date> | Instagram connected in Social Planner: <name>`. GoHighLevel only connects Business or Creator accounts.
-- If there is none, remind them to convert Instagram to Business or Creator and link it to a Facebook Page. Record `not started`.
+- If there is none, remind them to convert Instagram to Business or Creator and link it to a Facebook Page. Record `not started`. Instagram has to be in that shape before GoHighLevel will connect it; use the `instagram-setup-expert` skill, or `/growth-engine:instagram`, to walk them through getting it there.
 
 **The approval setting.** Ask with clickable choices (the AskUserQuestion tool): "Does GoHighLevel ask you before it posts or sends?" **Yes**, **No**, **Not sure**. Record `GoHighLevel approval setting | <their answer> | <date> | asked directly` in `growth-engine/.state/setup.md`. If the answer is No, walk them back to the connector's tool settings and set `execute_operation` to **Needs approval**, if that choice is there.
 
@@ -203,6 +206,8 @@ Look for the connector's tools: for Gmail, tools whose names end in `create_draf
 4. On Microsoft 365, if it says an administrator must approve, that is whoever set up their Microsoft 365, often the founder themselves.
 5. Start a new conversation in this folder if the tools do not appear.
 
+The domain they send from also needs SPF, DKIM and DMARC set up, or their outreach emails land in spam even with the mailbox connected. Use the `domains-expert` skill, or `/growth-engine:domains`, to check or fix that.
+
 ### Prove it
 
 Call `gmail-specialist` or `outlook-specialist` with `PHASE: plan`, whichever matches. A read never needs a grant.
@@ -234,8 +239,8 @@ If their settings do not offer this, say the Launchhouse checks cover it in this
 
 Whenever the founder names a tool they plan to connect, add or update its row in `growth-engine/.state/tools.md` (shape in `../../references/contract.md`) as `planned`, before it is even connected. Once a check above proves it, update that same row to `connected` or `verified`, with the evidence the tool actually returned, never what the founder said.
 
-- **If the tool has a pack** (listed in `.claude/tool-packs/registry.tsv`: GoHighLevel, Apollo, Gmail, Microsoft 365, or one a founder built before), use its `<id>-expert` skill for anything about how that tool works, instead of improvising.
-- **If it does not,** once it is connected, offer once, in plain words, to build one with the `tool-pack-builder` skill, so the next conversation does not have to relearn the tool from nothing.
+- **If the tool has a pack** (listed in `.claude/skill-packs/registry.tsv`: GoHighLevel, Apollo, Gmail, Microsoft 365, or one a founder built before), use its `<id>-expert` skill for anything about how that tool works, instead of improvising.
+- **If it does not,** once it is connected, offer once, in plain words, to build one with the `skill-pack-builder` skill, so the next conversation does not have to relearn the tool from nothing.
 
 ## 5. Save and hand on
 

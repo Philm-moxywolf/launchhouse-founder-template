@@ -68,7 +68,7 @@ c"
 luwrite .claude/conflict-me.md "conflict v1"
 luwrite .claude/delete-me.md "delete v1"
 luwrite .claude/gone-upstream-kept.md "kept v1"
-luwrite .claude/tool-packs/registry.tsv "id	name	suffix_regex	tracks	origin"
+luwrite .claude/skill-packs/registry.tsv "id	name	kind	suffix_regex	tracks	origin"
 luwrite .launchhouse-update-ignore "docs/"
 luwrite docs/ignored.md "ignored v1"
 luwrite growth-engine/founder-work.md "should never move"
@@ -102,8 +102,8 @@ luhead=$( cd "$luup" && git rev-parse HEAD )
   git remote add upstream "$luup"
 )
 mkdir -p "$lufounder/.claude/scripts" "$lufounder/.claude/tests"
-cp "$scripts/update.sh" "$scripts/lib.sh" "$scripts/tool-packs.sh" "$lufounder/.claude/scripts/"
-chmod +x "$lufounder/.claude/scripts/update.sh" "$lufounder/.claude/scripts/tool-packs.sh"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$scripts/skill-packs.sh" "$lufounder/.claude/scripts/"
+chmod +x "$lufounder/.claude/scripts/update.sh" "$lufounder/.claude/scripts/skill-packs.sh"
 printf '#!/bin/sh\nexit 0\n' > "$lufounder/.claude/tests/run.sh"
 chmod +x "$lufounder/.claude/tests/run.sh"
 ( cd "$lufounder" && git add -A && git commit -q -m "add the update engine under test, and a passing check stub" )
@@ -270,7 +270,7 @@ check "and the founder's overlapping edit is untouched" has "$(cat "$lufounder/.
 
 # ---------------------------------------------------------- checks=none
 # A founder copy with no check of any kind (no .claude/tests/run.sh, no
-# .claude/scripts/tool-packs.sh) still applies, and says so plainly rather
+# .claude/scripts/skill-packs.sh) still applies, and says so plainly rather
 # than silently skipping.
 lunone="$luwork/none"
 mkdir -p "$lunone"
@@ -350,6 +350,66 @@ check "and --plan run from the bootstrap location finds real changes" has "$boot
 check "and the plan state landed under the real repository's .git, not a nested one" \
   test -f "$luboot/.git/launchhouse/update/plan.tsv"
 
+# ------------------------------------------ detect-base: identical trees
+# A merge commit can have a .claude tree byte-identical to one of its
+# parents -- a PR that never touches .claude still produces a brand new
+# merge commit on the mainline. More than one upstream commit can then
+# carry the exact same .claude tree, and --detect-base's scan (a template
+# copy, no shared history) must still say "exact" and pick one
+# deterministically: the newest matching commit on upstream's first-parent
+# history, never whichever one git happened to visit first.
+
+dtwork="$luwork/dup-tree"
+dtup="$dtwork/upstream"
+mkdir -p "$dtup"
+( cd "$dtup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$dtup/.claude"
+printf '%s
+' "$dtup" > "$dtup/.claude/launchhouse-upstream"
+printf 'v1
+' > "$dtup/.claude/foo.md"
+printf 'root
+' > "$dtup/README.md"
+( cd "$dtup" && git add -A && git commit -q -m "commit A: the base .claude tree" )
+dtbase=$( cd "$dtup" && git rev-parse HEAD )
+
+# A side branch that never touches .claude at all.
+( cd "$dtup" && git checkout -q -b topic )
+printf 'root, with a topic branch edit
+' > "$dtup/README.md"
+( cd "$dtup" && git add -A && git commit -q -m "commit B: a topic branch edit outside .claude" )
+
+# Merge it back with --no-ff, forcing a real merge commit whose own tree
+# (and .claude subtree) comes out identical to commit A's, since neither
+# side touched .claude between them.
+( cd "$dtup" && git checkout -q main 2>/dev/null || git checkout -q master )
+dtmergeout=$( cd "$dtup" && git merge -q --no-ff -m "commit C: merge the topic branch, .claude untouched" topic 2>&1 )
+dtmerge=$( cd "$dtup" && git rev-parse HEAD )
+check "identical-tree fixture: the merge commit's .claude tree matches commit A's" \
+  match_eq "$( cd "$dtup" && git rev-parse "$dtmerge:.claude" )" "$( cd "$dtup" && git rev-parse "$dtbase:.claude" )"
+check "identical-tree fixture: the merge commit is not commit A itself" \
+  hasnt "$dtmerge" "$dtbase"
+
+dtfounder="$dtwork/founder"
+mkdir -p "$dtfounder"
+( cd "$dtup" && git archive "$dtbase" ) | ( cd "$dtfounder" && tar -x )
+(
+  cd "$dtfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$dtup"
+)
+mkdir -p "$dtfounder/.claude/scripts"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$dtfounder/.claude/scripts/"
+chmod +x "$dtfounder/.claude/scripts/update.sh"
+
+dtdbout=$( ( cd "$dtfounder" && sh .claude/scripts/update.sh --detect-base < /dev/null ) 2>&1 )
+check "detect-base reports exact when two upstream commits share an identical .claude tree" \
+  has "$dtdbout" "exact "
+check "detect-base picks the newest identical-tree commit, not the oldest" \
+  has "$dtdbout" "exact $dtmerge"
+
+rm -rf "$dtwork"
+
 # ------------------------------------------------------------ upstream trust
 # The "upstream" remote must point at the canonical Launchhouse address
 # before any fetch. A copy whose remote was pointed somewhere else (by hand,
@@ -397,8 +457,8 @@ mkdir -p "$lustale"
   git remote add upstream "$luup"
 )
 mkdir -p "$lustale/.claude/scripts" "$lustale/.claude/tests"
-cp "$scripts/update.sh" "$scripts/lib.sh" "$scripts/tool-packs.sh" "$lustale/.claude/scripts/"
-chmod +x "$lustale/.claude/scripts/update.sh" "$lustale/.claude/scripts/tool-packs.sh"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$scripts/skill-packs.sh" "$lustale/.claude/scripts/"
+chmod +x "$lustale/.claude/scripts/update.sh" "$lustale/.claude/scripts/skill-packs.sh"
 printf '#!/bin/sh\nexit 0\n' > "$lustale/.claude/tests/run.sh"
 chmod +x "$lustale/.claude/tests/run.sh"
 ( cd "$lustale" && git add -A && git commit -q -m "add the update engine under test" )
@@ -451,12 +511,470 @@ check "nothing was reverted" match_eq "$spoof_post_head" "$spoof_pre_head"
 check "and the working tree is unchanged" match_eq "$spoof_post_status" "$spoof_pre_status"
 check "and the spoofed commit's file still exists" test -f "$luspoof/.claude/spoofed.md"
 
+# ------------------------------------------------ generated skill/agent paths
+# A skill or agent path shaped like .claude/skills/<name>/SKILL.md or
+# .claude/agents/<name>.md, carrying the skill-packs.sh --install marker as
+# its first body line, is classified "generated" -- regenerated by
+# skill-packs.sh --install all in the apply worktree, never taken, merged
+# or held like an ordinary file. The one exception: a founder's own file at
+# that exact path, changed since base, that carries no marker at all -- that
+# is a real collision with something the founder wrote themselves, and is
+# held as a "conflict" for explicit review rather than silently clobbered.
+
+lugiwork=${TMPDIR:-/tmp}/lh-update-geninstall-test.$$
+trap 'rm -rf "$lugiwork"' EXIT
+lugiup="$lugiwork/upstream"
+lugifounder="$lugiwork/founder"
+mkdir -p "$lugiup" "$lugifounder" || exit 1
+
+( cd "$lugiup" && git init -q && git config user.name Up && git config user.email up@example.com )
+
+lugiwrite() { # relative path, content
+  mkdir -p "$lugiup/$(dirname "$1")"
+  printf '%s\n' "$2" > "$lugiup/$1"
+}
+
+# --- commit 1: the version the founder's copy starts from. No demo pack
+# yet, at either path.
+lugiwrite .claude/launchhouse-upstream "$lugiup"
+lugiwrite .claude/skill-packs/registry.tsv "id	name	kind	suffix_regex	tracks	origin"
+( cd "$lugiup" && git add -A && git commit -q -m commit1 )
+lugibase=$( cd "$lugiup" && git rev-parse HEAD )
+
+# --- commit 2: upstream ships a new, fully valid "demo" skill pack (one
+# skill, one agent), plus both of their already-installed copies -- the
+# same way a real release commits an installed skill or agent alongside its
+# pack, same as compiled-policy.sh.
+lugiwrite .claude/skill-packs/registry.tsv "id	name	kind	suffix_regex	tracks	origin
+demo	Demo	tool	^demo_	both	template"
+lugiwrite .claude/skill-packs/demo/pack.md "---
+id: demo
+name: Demo
+kind: tool
+skills: [demo-expert]
+agents: [demo-specialist]
+scripts: []
+connectors: [demo]
+vendor_url: https://example.invalid
+tracks: both
+jobs: [demo]
+job_skills: []
+specialist: demo-specialist
+expert_skill: demo-expert
+inventory_source: documented
+verified_on: 2026-09-22
+origin: template
+---
+
+Fixture pack for the generated/conflict classification tests only."
+lugiwrite .claude/skill-packs/demo/skills/demo-expert/SKILL.md "---
+name: demo-expert
+description: A demo pack skill, for the generated/conflict classification tests only.
+---
+
+Demo skill body."
+lugiwrite .claude/skills/demo-expert/SKILL.md "---
+name: demo-expert
+description: A demo pack skill, for the generated/conflict classification tests only.
+---
+<!-- Installed from .claude/skill-packs/demo/skills/demo-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
+
+Demo skill body."
+lugiwrite .claude/skill-packs/demo/agents/demo-specialist.md "---
+name: demo-specialist
+description: A demo pack agent, for the generated/conflict classification tests only.
+model: sonnet
+---
+
+Demo agent body."
+lugiwrite .claude/agents/demo-specialist.md "---
+name: demo-specialist
+description: A demo pack agent, for the generated/conflict classification tests only.
+model: sonnet
+---
+<!-- Installed from .claude/skill-packs/demo/agents/demo-specialist.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
+
+Demo agent body."
+lugiwrite .claude/skill-packs/demo/references/knowledge.md "# Demo
+
+## Mental model
+Demo.
+
+## Connecting and auth
+Demo.
+
+## Tool map
+
+| tool | class | what it does | inputs that matter | gotchas |
+|---|---|---|---|---|
+| \`demo_thing\` | read | Demo. | none | none |
+
+## Workflows for Launchhouse jobs
+
+### demo
+
+Demo.
+
+## Limits and quotas
+Demo.
+
+## Failure modes and fixes
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Demo | Demo | Demo |
+
+## Rules that apply here
+Demo.
+
+## Sources
+- Demo: https://example.invalid (checked 2026-09-22)
+
+## Refreshing this pack
+Demo."
+lugiwrite .claude/skill-packs/demo/references/evals.md "# Demo evals
+
+### 1. one
+Founder says: \"x\"
+Expected: x
+
+### 2. two
+Founder says: \"x\"
+Expected: x
+
+### 3. three
+Founder says: \"x\"
+Expected: x
+
+### 4. four
+Founder says: \"x\"
+Expected: x
+
+### 5. five (guard rail)
+Founder says: \"x\"
+Expected: refuse
+
+### 6. six (guard rail)
+Founder says: \"x\"
+Expected: refuse
+
+### 7. seven (guard rail)
+Founder says: \"x\"
+Expected: refuse
+
+### 8. eight
+Founder says: \"x\"
+Expected: x"
+lugiwrite .claude/skill-packs/demo/references/inventory.txt "# source: documented https://example.invalid checked 2026-09-22
+demo_thing"
+lugiwrite .claude/skill-packs/demo/policy.tsv ""
+lugiwrite .claude/skill-packs/demo/tests.tsv ""
+( cd "$lugiup" && git add -A && git commit -q -m commit2 )
+lugihead=$( cd "$lugiup" && git rev-parse HEAD )
+
+# --- the founder's copy: template-style, from commit1, same as the main
+# fixture above. The founder separately wrote their OWN agent at the exact
+# path the pack will later claim -- unrelated to the pack, no marker.
+( cd "$lugiup" && git archive "$lugibase" ) | ( cd "$lugifounder" && tar -x )
+(
+  cd "$lugifounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lugiup"
+)
+mkdir -p "$lugifounder/.claude/agents"
+printf '%s\n' "---
+name: demo-specialist
+description: The founder's own agent, written before the demo pack existed, unrelated to it.
+model: sonnet
+---
+
+The founder's own words, never a pack's." > "$lugifounder/.claude/agents/demo-specialist.md"
+( cd "$lugifounder" && git add -A && git commit -q -m "founder's own agent at a path the pack will later claim" )
+
+lugi() { ( cd "$lugifounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+mkdir -p "$lugifounder/.claude/scripts"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$scripts/skill-packs.sh" "$lugifounder/.claude/scripts/"
+chmod +x "$lugifounder/.claude/scripts/update.sh" "$lugifounder/.claude/scripts/skill-packs.sh"
+( cd "$lugifounder" && git add -A && git commit -q -m "add the update engine and skill-packs.sh under test" )
+
+lugi --detect-base >/dev/null
+lugi --set-base "$lugibase" >/dev/null
+( cd "$lugifounder" && git add -A && git commit -q -m "record the base version" )
+
+lugiplanout=$(lugi --plan)
+lugiplantsv="$lugifounder/.git/launchhouse/update/plan.tsv"
+lugirow() { grep -F "$(printf '%s\t' "$1")" "$lugiplantsv"; }
+
+check "a brand new upstream-marked skill path is classified generated, not add" \
+  has "$(lugirow .claude/skills/demo-expert/SKILL.md)" 'generated'
+check "and never add" \
+  hasnt "$(lugirow .claude/skills/demo-expert/SKILL.md)" '	add	'
+check "a founder's own unmarked file at a path upstream now generates is held as a conflict" \
+  has "$(lugirow .claude/agents/demo-specialist.md)" 'conflict'
+check "and never silently regenerated" \
+  hasnt "$(lugirow .claude/agents/demo-specialist.md)" '	generated	'
+
+# Holding the conflict (keeping the founder's own file exactly as it is) is
+# a valid resolution on its own, already proven at the plan level above:
+# skill-packs.sh --validate all (which apply's own checks run) correctly
+# refuses to call that state clean, since the founder's file now collides
+# with a name the pack claims -- proving the conflict is real, not a false
+# positive, is the other half of what this fixture is for.
+cat > "$lugiwork/decisions-hold.tsv" <<EOF
+.claude/skill-packs/registry.tsv	apply
+.claude/skill-packs/demo/pack.md	apply
+.claude/skill-packs/demo/skills/demo-expert/SKILL.md	apply
+.claude/skill-packs/demo/agents/demo-specialist.md	apply
+.claude/skill-packs/demo/references/knowledge.md	apply
+.claude/skill-packs/demo/references/evals.md	apply
+.claude/skill-packs/demo/references/inventory.txt	apply
+.claude/skill-packs/demo/policy.tsv	apply
+.claude/skill-packs/demo/tests.tsv	apply
+.claude/agents/demo-specialist.md	hold
+EOF
+lugiholdout=$( ( cd "$lugifounder" && sh .claude/scripts/update.sh --apply "$lugiwork/decisions-hold.tsv" --allow-no-checks < /dev/null ) 2>&1 )
+check "holding the conflict is refused by the pack validator's own collision check, proving the held state is a real collision" \
+  has "$lugiholdout" 'collides with an installed copy this pack does not own'
+check "holding the conflict never moves HEAD" \
+  match_eq "$( cd "$lugifounder" && git rev-parse HEAD )" "$( cd "$lugifounder" && git log --format=%H -1 )"
+check "and the founder's own agent is untouched" \
+  has "$(cat "$lugifounder/.claude/agents/demo-specialist.md" 2>/dev/null)" "The founder's own words, never a pack's."
+
+# The other resolution: the founder accepts the pack's own version instead
+# (take-theirs). Now nothing collides, the checks pass, and the generated
+# skill (which was never in question) lands the same way either time.
+cat > "$lugiwork/decisions-take.tsv" <<EOF
+.claude/skill-packs/registry.tsv	apply
+.claude/skill-packs/demo/pack.md	apply
+.claude/skill-packs/demo/skills/demo-expert/SKILL.md	apply
+.claude/skill-packs/demo/agents/demo-specialist.md	apply
+.claude/skill-packs/demo/references/knowledge.md	apply
+.claude/skill-packs/demo/references/evals.md	apply
+.claude/skill-packs/demo/references/inventory.txt	apply
+.claude/skill-packs/demo/policy.tsv	apply
+.claude/skill-packs/demo/tests.tsv	apply
+.claude/agents/demo-specialist.md	take-theirs
+EOF
+lugi --plan >/dev/null
+lugitakeout=$( ( cd "$lugifounder" && sh .claude/scripts/update.sh --apply "$lugiwork/decisions-take.tsv" --allow-no-checks < /dev/null ) 2>&1 )
+check "apply succeeds once the conflict is resolved with take-theirs" has "$lugitakeout" 'result=applied'
+check "the generated skill file now exists, regenerated by --install all" \
+  test -f "$lugifounder/.claude/skills/demo-expert/SKILL.md"
+check "and carries the install marker" \
+  has "$(cat "$lugifounder/.claude/skills/demo-expert/SKILL.md" 2>/dev/null)" 'Installed from .claude/skill-packs/demo/skills/demo-expert/SKILL.md'
+check "the resolved conflict now carries the pack's own agent, marker included" \
+  has "$(cat "$lugifounder/.claude/agents/demo-specialist.md" 2>/dev/null)" 'Installed from .claude/skill-packs/demo/agents/demo-specialist.md'
+
+rm -rf "$lugiwork"
+
+# ------------------------------------------------ founder-edited-after-install
+# A path shaped like an installed skill, upstream-marked and genuinely owned
+# by a real pack, but whose content at HEAD no longer matches what
+# skill-packs.sh --install would produce from HEAD's own pack source: the
+# founder hand-edited the installed copy's body after it was installed,
+# without touching the marker line at all. This must be held as a
+# "conflict", never silently regenerated over the edit, and the file on
+# disk must come out of an apply byte-for-byte unchanged when that conflict
+# is held.
+
+ludrwork=${TMPDIR:-/tmp}/lh-update-drift-test.$$
+trap 'rm -rf "$ludrwork"' EXIT
+ludrup="$ludrwork/upstream"
+ludrfounder="$ludrwork/founder"
+mkdir -p "$ludrup" "$ludrfounder" || exit 1
+
+( cd "$ludrup" && git init -q && git config user.name Up && git config user.email up@example.com )
+
+ludrwrite() { # relative path, content
+  mkdir -p "$ludrup/$(dirname "$1")"
+  printf '%s\n' "$2" > "$ludrup/$1"
+}
+
+ludrwrite .claude/launchhouse-upstream "$ludrup"
+ludrwrite .claude/skill-packs/registry.tsv "id	name	kind	suffix_regex	tracks	origin
+drift	Drift	tool	^drift_	both	template"
+ludrwrite .claude/skill-packs/drift/pack.md "---
+id: drift
+name: Drift
+kind: tool
+skills: [drift-expert]
+agents: []
+scripts: []
+connectors: [drift]
+vendor_url: https://example.invalid
+tracks: both
+jobs: [drift]
+job_skills: []
+specialist: none
+expert_skill: drift-expert
+inventory_source: documented
+verified_on: 2026-09-22
+origin: template
+---
+
+Fixture pack for the drift-after-install classification test only."
+ludrwrite .claude/skill-packs/drift/skills/drift-expert/SKILL.md "---
+name: drift-expert
+description: A drift pack skill, for the drift-after-install classification test only.
+---
+
+Original skill body, as the pack itself has it."
+ludrwrite .claude/skills/drift-expert/SKILL.md "---
+name: drift-expert
+description: A drift pack skill, for the drift-after-install classification test only.
+---
+<!-- Installed from .claude/skill-packs/drift/skills/drift-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
+
+Original skill body, as the pack itself has it."
+( cd "$ludrup" && git add -A && git commit -q -m commit1 )
+ludrbase=$( cd "$ludrup" && git rev-parse HEAD )
+
+# The founder's copy: template-style, from that same commit. No
+# skill-packs.sh in this fixture at all -- the classification the fix makes
+# lives entirely in update.sh's own git-blob reads, never needs
+# skill-packs.sh to run, and leaving it out means apply's own checks find
+# nothing to run and this fixture can use --allow-no-checks, the same way
+# the "checks=none" fixture above does, instead of having to build out a
+# whole second valid pack (knowledge.md, evals.md, policy.tsv, tests.tsv)
+# just to satisfy --validate all.
+( cd "$ludrup" && git archive "$ludrbase" ) | ( cd "$ludrfounder" && tar -x )
+(
+  cd "$ludrfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$ludrup"
+)
+mkdir -p "$ludrfounder/.claude/scripts"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$ludrfounder/.claude/scripts/"
+chmod +x "$ludrfounder/.claude/scripts/update.sh"
+( cd "$ludrfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+# The founder edits the INSTALLED copy's body by hand, keeping the marker
+# line exactly as it was -- this is the drift the fix must catch.
+printf '%s\n' "---
+name: drift-expert
+description: A drift pack skill, for the drift-after-install classification test only.
+---
+<!-- Installed from .claude/skill-packs/drift/skills/drift-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
+
+The founder's own hand-edit, made after install, never touching the marker." > "$ludrfounder/.claude/skills/drift-expert/SKILL.md"
+( cd "$ludrfounder" && git add -A && git commit -q -m "founder hand-edits the installed copy after install" )
+
+# commit2: a harmless, unrelated upstream change, so this fixture also
+# proves an apply can go through and land an ordinary upstream change while
+# the drift conflict stays held next to it, rather than only ever seeing
+# "nothing to apply" once the one conflicting row is held.
+ludrwrite NOTES.md "upstream notes, v2"
+( cd "$ludrup" && git add -A && git commit -q -m commit2 )
+
+ludr() { ( cd "$ludrfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+ludr --detect-base >/dev/null
+ludr --set-base "$ludrbase" >/dev/null
+( cd "$ludrfounder" && git add -A && git commit -q -m "record the base version" )
+
+ludrplanout=$(ludr --plan)
+ludrplantsv="$ludrfounder/.git/launchhouse/update/plan.tsv"
+ludrrow() { grep -F "$(printf '%s\t' "$1")" "$ludrplantsv"; }
+
+check "an installed copy the founder hand-edited after install, marker intact, is held as a conflict" \
+  has "$(ludrrow .claude/skills/drift-expert/SKILL.md)" 'conflict'
+check "and never silently regenerated" \
+  hasnt "$(ludrrow .claude/skills/drift-expert/SKILL.md)" '	generated	'
+
+ludr_before=$(cksum_of "$ludrfounder/.claude/skills/drift-expert/SKILL.md")
+cat > "$ludrwork/decisions-hold.tsv" <<EOF
+.claude/skills/drift-expert/SKILL.md	hold
+NOTES.md	apply
+EOF
+ludrapplyout=$( ( cd "$ludrfounder" && sh .claude/scripts/update.sh --apply "$ludrwork/decisions-hold.tsv" --allow-no-checks < /dev/null ) 2>&1 )
+check "holding the drift conflict still applies (nothing else was pending)" has "$ludrapplyout" 'result=applied'
+check "and the founder's hand-edited file is byte-for-byte unchanged" \
+  match_eq "$(cksum_of "$ludrfounder/.claude/skills/drift-expert/SKILL.md")" "$ludr_before"
+
+rm -rf "$ludrwork"
+
+# --------------------------------------------------------- spoofed marker
+# A file that merely starts with the install-marker prefix but names a pack
+# source that does not actually exist anywhere in the repository must never
+# be trusted as "generated": it falls through to whatever this codebase
+# already does with an ordinary new upstream file (here, a plain "add"),
+# never silently regenerated or treated as pack-owned.
+
+luspwork=${TMPDIR:-/tmp}/lh-update-spoof-marker-test.$$
+trap 'rm -rf "$luspwork"' EXIT
+luspup="$luspwork/upstream"
+luspfounder="$luspwork/founder"
+mkdir -p "$luspup" "$luspfounder" || exit 1
+
+( cd "$luspup" && git init -q && git config user.name Up && git config user.email up@example.com )
+
+luspwrite() { # relative path, content
+  mkdir -p "$luspup/$(dirname "$1")"
+  printf '%s\n' "$2" > "$luspup/$1"
+}
+
+luspwrite .claude/launchhouse-upstream "$luspup"
+luspwrite .claude/skill-packs/registry.tsv "id	name	kind	suffix_regex	tracks	origin"
+( cd "$luspup" && git add -A && git commit -q -m commit1 )
+luspbase=$( cd "$luspup" && git rev-parse HEAD )
+
+( cd "$luspup" && git archive "$luspbase" ) | ( cd "$luspfounder" && tar -x )
+(
+  cd "$luspfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$luspup"
+)
+mkdir -p "$luspfounder/.claude/scripts"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$luspfounder/.claude/scripts/"
+chmod +x "$luspfounder/.claude/scripts/update.sh"
+( cd "$luspfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+luspr() { ( cd "$luspfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+luspr --detect-base >/dev/null
+luspr --set-base "$luspbase" >/dev/null
+( cd "$luspfounder" && git add -A && git commit -q -m "record the base version" )
+
+# commit2: upstream ships a file shaped exactly like an installed skill,
+# with a marker-shaped first body line, but the pack it names
+# (skill-packs/nonexistent/skills/spoofed-expert/SKILL.md) does not exist
+# anywhere in the repository -- forged or simply wrong, either way never a
+# pack this repository actually owns.
+luspwrite .claude/skills/spoofed-expert/SKILL.md "---
+name: spoofed-expert
+description: A file shaped like an installed skill, with a marker naming a pack source that does not exist.
+---
+<!-- Installed from .claude/skill-packs/nonexistent/skills/spoofed-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
+
+Never actually produced by any real pack."
+( cd "$luspup" && git add -A && git commit -q -m "commit2: a file with a spoofed install marker" )
+
+luspplanout=$(luspr --plan)
+luspplantsv="$luspfounder/.git/launchhouse/update/plan.tsv"
+lusprow() { grep -F "$(printf '%s\t' "$1")" "$luspplantsv"; }
+
+check "a spoofed marker naming a pack source that does not exist is never classified generated" \
+  hasnt "$(lusprow .claude/skills/spoofed-expert/SKILL.md)" '	generated	'
+check "it falls through to this codebase's own category for a plain new upstream file" \
+  has "$(lusprow .claude/skills/spoofed-expert/SKILL.md)" '	add	'
+
+rm -rf "$luspwork"
+
 # -------------------------------------------------------------- real-history
 # Optional: clones the actual public Launchhouse template repository and
 # runs a status / detect-base / plan / apply cycle against it, with all
 # conflicts held. Needs network access, so it only runs when LH_UPDATE_REAL=1.
 
 if [ "${LH_UPDATE_REAL:-0}" = 1 ]; then
+  # Unset before doing anything else in this block. --apply below runs the
+  # real upstream tree's own .claude/tests/run.sh inside its worktree, and
+  # that real run.sh in turn shells out to its own copy of this very
+  # update-cases.sh (see run.sh's "own self-contained suite" call). An
+  # exported LH_UPDATE_REAL=1 is inherited by every child process, so
+  # without this it leaks into that nested invocation, which clones the
+  # public repo and runs a whole extra real-history cycle of its own --
+  # whose nested run.sh does the same again, unbounded. Real-history is a
+  # property of this top-level run only; every check --apply triggers must
+  # run as an ordinary, non-real-history pass.
+  unset LH_UPDATE_REAL
   rhwork=${TMPDIR:-/tmp}/lh-update-real-test.$$
   rm -rf "$rhwork"
   mkdir -p "$rhwork"
@@ -515,7 +1033,21 @@ if [ "${LH_UPDATE_REAL:-0}" = 1 ]; then
     check "real-history: --status reaches the real upstream" has "$rhstatusout" 'upstream_url='
 
     rhdbout=$( ( cd "$rhfounder" && sh .claude/scripts/update.sh --detect-base < /dev/null ) 2>&1 )
-    check "real-history: --detect-base finds the exact base commit" has "$rhdbout" "exact $base_sha"
+    # A merge commit can have a .claude tree identical to one of its
+    # parents (a PR that never touched .claude still produces a new merge
+    # commit upstream), so more than one upstream commit can be an equally
+    # correct "exact" base -- not only the literal $base_sha this fixture
+    # happened to pick with --skip=7. What matters is that --detect-base
+    # reports "exact" at all, and that whatever commit it names carries the
+    # very same .claude tree as $base_sha, not that it names $base_sha
+    # itself byte for byte.
+    rhdb_reported_sha=$(printf '%s
+' "$rhdbout" | awk '$1=="exact"{print $2; exit}')
+    rhdb_reported_tree=$( [ -n "$rhdb_reported_sha" ] && ( cd "$rhclone" && git rev-parse -q --verify "$rhdb_reported_sha:.claude" 2>/dev/null ) )
+    rhdb_expected_tree=$( cd "$rhclone" && git rev-parse -q --verify "$base_sha:.claude" 2>/dev/null )
+    check "real-history: --detect-base reports exact" has "$rhdbout" "exact "
+    check "real-history: --detect-base's exact commit carries the same .claude tree as the base" \
+      match_eq "$rhdb_reported_tree" "$rhdb_expected_tree"
 
     ( cd "$rhfounder" && sh .claude/scripts/update.sh --set-base "$base_sha" < /dev/null >/dev/null )
     ( cd "$rhfounder" && git add -A && git commit -q -m "record the base version" )

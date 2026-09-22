@@ -158,6 +158,104 @@ norm_hash() { # commit, path
   git show "$s" 2>/dev/null | tr -d '\r' | cksum | awk '{ print $1 "-" $2 }'
 }
 
+# --------------------------------------------------- install-marker helpers
+# Small, standalone reimplementations of skill-packs.sh's own frontmatter
+# readers (lh_frontmatter / lh_fm_value / lh_fm_list), operating on a plain
+# file instead of skill-packs.sh's own $packs_dir layout: update.sh reads a
+# pack.md's content straight out of a git blob, never off disk, and cannot
+# safely source skill-packs.sh itself (its own argv dispatch at the bottom
+# would run against update.sh's own arguments instead). Kept in lockstep
+# with skill-packs.sh's originals by hand; both are small and this pairing
+# is exercised by update-cases.sh.
+lh_um_frontmatter() { # file
+  awk '
+    NR == 1 && $0 !~ /^---[ \t]*$/ { print "NOFRONT"; exit }
+    NR == 1 { next }
+    /^---[ \t]*$/ { exit }
+    { print }
+  ' "$1"
+}
+lh_um_fm_value() { # frontmatter text, key
+  printf '%s\n' "$1" | awk -F ':' -v k="$2" '
+    $0 ~ "^" k ":" { sub("^" k ":[ \t]*", ""); print; exit }
+  '
+}
+lh_um_fm_list() { # frontmatter text, key
+  v=$(lh_um_fm_value "$1" "$2")
+  inner=$(printf '%s' "$v" | sed -n 's/^\[\(.*\)\]$/\1/p')
+  [ -n "$inner" ] || return 0
+  printf '%s\n' "$inner" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | awk 'NF'
+}
+
+# The claimed pack-relative source path out of an install marker line, e.g.
+# "skill-packs/demo/skills/demo-expert/SKILL.md" from
+# "<!-- Installed from .claude/skill-packs/demo/skills/demo-expert/SKILL.md.
+# Edit the pack's copy, not this one; Launchhouse re-installs it. -->".
+# Empty if the line is not shaped exactly like a marker skill-packs.sh
+# itself would write.
+lh_marker_claimed_src() { # marker line
+  printf '%s\n' "$1" | sed -n "s#^<!-- Installed from \.claude/\(.*\)\. Edit the pack's copy, not this one; Launchhouse re-installs it\. -->\$#\1#p"
+}
+
+# True (exit 0) only if the claimed source path is exactly the one
+# skill-packs.sh's own install mapping would use for this destination path:
+# same pack id embedded in it, skills vs agents matching the destination's
+# own shape, and the destination's own name (the skill or agent name)
+# reproduced exactly -- never a marker that merely starts with the right
+# prefix. Sets lh_mm_id, lh_mm_kind and lh_mm_name on success.
+lh_marker_maps_to() { # dest_path, claimed_rel_src
+  mp_p=$1; mp_claimed=$2
+  case $mp_p in
+    .claude/skills/*/SKILL.md)
+      mp_name=${mp_p#.claude/skills/}; mp_name=${mp_name%/SKILL.md}
+      mp_kind=skills
+      ;;
+    .claude/agents/*.md)
+      mp_name=${mp_p#.claude/agents/}; mp_name=${mp_name%.md}
+      mp_kind=agents
+      ;;
+    *) return 1 ;;
+  esac
+  case $mp_claimed in
+    skill-packs/*/"$mp_kind"/*) : ;;
+    *) return 1 ;;
+  esac
+  mp_id=${mp_claimed#skill-packs/}
+  mp_id=${mp_id%%/*}
+  [ -n "$mp_id" ] || return 1
+  if [ "$mp_kind" = skills ]; then
+    mp_expected="skill-packs/$mp_id/skills/$mp_name/SKILL.md"
+  else
+    mp_expected="skill-packs/$mp_id/agents/$mp_name.md"
+  fi
+  [ "$mp_claimed" = "$mp_expected" ] || return 1
+  lh_mm_id=$mp_id; lh_mm_kind=$mp_kind; lh_mm_name=$mp_name
+  return 0
+}
+
+# True (exit 0) only if, at the given commit, the claimed pack source file
+# actually exists AND that pack's own pack.md actually lists this exact
+# name under the matching skills:/agents: key -- the last line of defence
+# against a marker that merely has the right shape but names a pack id, or
+# a name inside a real pack, that never claimed this file at all.
+lh_marker_src_registered() { # commit, id, kind(skills|agents), name
+  c=$1; id=$2; kind=$3; name=$4
+  case $kind in
+    skills) srcp=".claude/skill-packs/$id/skills/$name/SKILL.md" ;;
+    agents) srcp=".claude/skill-packs/$id/agents/$name.md" ;;
+    *) return 1 ;;
+  esac
+  git rev-parse -q --verify "$c:$srcp" >/dev/null 2>&1 || return 1
+  pmd_sha=$(blob_sha "$c" ".claude/skill-packs/$id/pack.md") || return 1
+  [ -n "$pmd_sha" ] || return 1
+  msr_tmp="${TMPDIR:-/tmp}/lh-um-packmd.$$"
+  git show "$pmd_sha" > "$msr_tmp" 2>/dev/null
+  msr_fm=$(lh_um_frontmatter "$msr_tmp")
+  rm -f "$msr_tmp"
+  [ "$msr_fm" != NOFRONT ] && [ -n "$msr_fm" ] || return 1
+  lh_um_fm_list "$msr_fm" "$kind" | grep -qxF -- "$name"
+}
+
 # ------------------------------------------------------------------ status
 
 cmd_status() {
@@ -204,8 +302,15 @@ cmd_detect_base() {
   root_tree=$(git rev-parse -q --verify "$root_commit:.claude" 2>/dev/null)
   [ -n "$root_tree" ] || { echo "none"; exit 0; }
 
+  # Walk upstream's first-parent (mainline) history only, newest first. A
+  # merge commit can have a tree identical to one of its parents (a PR that
+  # touched nothing under .claude still produces a new merge commit), so more
+  # than one upstream commit can carry the exact same .claude tree. Scoping
+  # the scan to first-parent history and taking the first (i.e. newest) match
+  # makes the choice deterministic instead of depending on git rev-list's
+  # date-based ordering across side branches.
   best=""; best_n=""
-  for c in $(git rev-list "upstream/$db" 2>/dev/null); do
+  for c in $(git rev-list --first-parent "upstream/$db" 2>/dev/null); do
     ct=$(git rev-parse -q --verify "$c:.claude" 2>/dev/null) || continue
     if [ "$ct" = "$root_tree" ]; then
       printf 'exact %s\n' "$c"
@@ -302,9 +407,97 @@ build_registry_merge() { # path, hsha, usha
   mkdir -p "$state/merged/$(dirname "$p")" 2>/dev/null
   {
     git show "$usha" 2>/dev/null
-    [ -n "$hsha" ] && git show "$hsha" 2>/dev/null | tail -n +2 | awk -F '\t' '$5 == "local"'
+    [ -n "$hsha" ] && git show "$hsha" 2>/dev/null | tail -n +2 | awk -F '\t' '$6 == "local"'
   } > "$state/merged/$p"
   write_row "$p" registry-merge apply "union: upstream rows plus local-origin rows"
+}
+
+# The first body line right after a blob's frontmatter's closing ---, or
+# empty if the blob has no frontmatter or no such line. Used only to pull
+# out a candidate marker line for lh_carries_install_marker to check
+# structurally; finding this line proves nothing on its own.
+lh_first_body_line() { # commit, path
+  s=$(blob_sha "$1" "$2") || return 1
+  [ -n "$s" ] || return 1
+  git show "$s" 2>/dev/null | awk '
+    NR == 1 && $0 !~ /^---[ \t]*$/ { exit 1 }
+    NR == 1 { infm = 1; next }
+    infm && /^---[ \t]*$/ {
+      infm = 0
+      if ((getline nextline) > 0) { print nextline }
+      exit 0
+    }
+    infm { next }
+    END { if (infm) exit 1 }
+  '
+}
+
+# True (exit 0) only if the path's blob at a given commit is a skill or
+# agent file skill-packs.sh --install writes (frontmatter, then a first
+# body line shaped like an install marker) AND that marker names EXACTLY
+# the pack source path skill-packs.sh's own mapping would install to this
+# destination: same pack id, skills vs agents matching the destination's
+# own shape, the destination's own name reproduced exactly, the claimed
+# source file actually present at this commit, and that pack's own pack.md
+# at this commit actually listing this name. A marker that merely starts
+# with the right prefix -- forged, foreign, or naming a pack id or name
+# that never claimed this file -- fails this, the same as no marker at all;
+# it is never trusted by shape alone.
+lh_carries_install_marker() { # commit, path
+  cim_c=$1; cim_p=$2
+  cim_line=$(lh_first_body_line "$cim_c" "$cim_p") || return 1
+  case $cim_line in
+    '<!-- Installed from .claude/skill-packs/'*) : ;;
+    *) return 1 ;;
+  esac
+  cim_claimed=$(lh_marker_claimed_src "$cim_line")
+  [ -n "$cim_claimed" ] || return 1
+  lh_marker_maps_to "$cim_p" "$cim_claimed" || return 1
+  lh_marker_src_registered "$cim_c" "$lh_mm_id" "$lh_mm_kind" "$lh_mm_name"
+}
+
+# True (exit 0) only if the path at a commit is, content-wise, exactly what
+# skill-packs.sh --install would produce right now from that SAME commit's
+# own pack source for this path (the source blob's content, with the
+# marker line spliced in right after the frontmatter's closing ---),
+# compared CRLF-insensitively like every other equality check in this
+# script. Never called on a path lh_carries_install_marker has not already
+# confirmed carries a structurally valid marker at this commit.
+lh_matches_install_output() { # commit, path
+  mio_c=$1; mio_p=$2
+  mio_dest_sha=$(blob_sha "$mio_c" "$mio_p") || return 1
+  [ -n "$mio_dest_sha" ] || return 1
+  mio_line=$(lh_first_body_line "$mio_c" "$mio_p") || return 1
+  mio_claimed=$(lh_marker_claimed_src "$mio_line")
+  [ -n "$mio_claimed" ] || return 1
+  mio_src_sha=$(blob_sha "$mio_c" ".claude/$mio_claimed") || return 1
+  [ -n "$mio_src_sha" ] || return 1
+  mio_src="${TMPDIR:-/tmp}/lh-um-mio-src.$$"
+  mio_out="${TMPDIR:-/tmp}/lh-um-mio-out.$$"
+  mio_dest="${TMPDIR:-/tmp}/lh-um-mio-dest.$$"
+  git show "$mio_src_sha" > "$mio_src" 2>/dev/null
+  awk -v marker="$mio_line" '
+    NR == 1 && $0 !~ /^---[ \t]*$/ { print; nofront = 1; next }
+    NR == 1 { print; infm = 1; next }
+    infm && /^---[ \t]*$/ { print; if (!nofront) print marker; infm = 0; next }
+    { print }
+  ' "$mio_src" > "$mio_out"
+  git show "$mio_dest_sha" > "$mio_dest" 2>/dev/null
+  mio_a=$(tr -d '\r' < "$mio_out" | cksum)
+  mio_b=$(tr -d '\r' < "$mio_dest" | cksum)
+  rm -f "$mio_src" "$mio_out" "$mio_dest"
+  [ "$mio_a" = "$mio_b" ]
+}
+
+# Is this an "installed-path" shape at all: the generic location
+# skill-packs.sh --install writes a pack's skills and agents to. Content
+# (the marker check above), not this shape alone, is what actually decides
+# generated vs conflict -- this only narrows which paths bother checking.
+lh_installed_path_shape() { # path
+  case $1 in
+    .claude/skills/*/SKILL.md|.claude/agents/*.md) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 process_path() { # path
@@ -318,6 +511,43 @@ process_path() { # path
   [ -n "$bsha" ] && bn=$(norm_hash "$basecommit" "$p")
   [ -n "$hsha" ] && hn=$(norm_hash HEAD "$p")
   [ -n "$usha" ] && un=$(norm_hash "$uh" "$p")
+
+  if lh_installed_path_shape "$p" && [ -n "$usha" ] && lh_carries_install_marker "$uh" "$p"; then
+    # Upstream now ships this exact path as a skill-pack install: it is
+    # regenerated by skill-packs.sh --install all (after --compile) in the
+    # apply worktree, never taken, merged or held as an ordinary file --
+    # but only once two things are both true, not merely because the path
+    # and the upstream marker line up. First, the founder's own copy at
+    # HEAD (if any) must itself carry a structurally valid marker; a file
+    # that exists, was changed since base, and carries no marker (or a
+    # forged/foreign one -- lh_carries_install_marker fails those exactly
+    # the same as no marker at all) is a real collision with the founder's
+    # own work, held for review. Second, even a genuinely marked file must
+    # still match what skill-packs.sh --install would produce from HEAD's
+    # own pack source right now: a founder can hand-edit an installed copy
+    # after install without ever touching the marker line itself, and that
+    # drift must never be silently regenerated away.
+    founder_conflict=0
+    conflict_reason=""
+    if [ -n "$hsha" ]; then
+      if lh_carries_install_marker HEAD "$p"; then
+        if ! lh_matches_install_output HEAD "$p"; then
+          founder_conflict=1
+          conflict_reason="the installed copy carries the pack's own marker but no longer matches what the pack would produce; it looks like the founder edited it after install"
+        fi
+      elif [ "$hn" != "$bn" ]; then
+        founder_conflict=1
+        conflict_reason="upstream now generates this from a skill pack, but the founder's own copy carries no install marker (or an untrustworthy one) and was changed locally"
+      fi
+    fi
+    if [ "$founder_conflict" = 1 ]; then
+      write_row "$p" conflict hold "$conflict_reason"
+    else
+      write_row "$p" generated regenerate "regenerated by skill-packs.sh --install all after --compile in the apply worktree"
+    fi
+    write_diffs "$p"
+    return 0
+  fi
 
   if [ -z "$bsha" ]; then
     # Not tracked at base.
@@ -342,7 +572,7 @@ process_path() { # path
     return 0
   fi
 
-  if [ "$p" = ".claude/tool-packs/compiled-policy.sh" ]; then
+  if [ "$p" = ".claude/skill-packs/compiled-policy.sh" ]; then
     write_row "$p" generated regenerate "compiled from registry.tsv and every pack's policy; regenerated on apply"
     write_diffs "$p"
     return 0
@@ -367,7 +597,7 @@ process_path() { # path
   # Both changed.
   if [ -z "$usha" ]; then
     write_row "$p" deleted-upstream-kept hold "deleted upstream, changed locally"
-  elif [ "$p" = ".claude/tool-packs/registry.tsv" ]; then
+  elif [ "$p" = ".claude/skill-packs/registry.tsv" ]; then
     build_registry_merge "$p" "$hsha" "$usha"
   elif [ "$p" = ".claude/settings.json" ]; then
     write_row "$p" settings hold "settings.json changed on both sides; always held for review"
@@ -430,6 +660,18 @@ run_checks_in() { # dir
   d=$1
   (
     cd "$d" || exit 1
+    # LH_UPDATE_RELOCATED and LH_UPDATE_ROOT are internal markers for this
+    # invocation's own re-exec from .git/launchhouse/update/run/ (see
+    # cmd_apply above): they are exported so a re-exec of THIS script keeps
+    # finding the right root once it is running from inside .git. But
+    # exported vars are inherited by every child process, and the checks
+    # below can themselves shell out to update.sh again -- upstream's own
+    # .claude/tests/run.sh exercises the update engine's test suite, which
+    # runs update.sh many times over against its own throwaway fixture
+    # repos. Left set, every one of those nested runs would trust this
+    # apply's root instead of working out its own, breaking unrelated
+    # fixtures. Unset here, in this subshell only, before any check runs.
+    unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT
     # Only the checks that exist in the updated tree are run. A test
     # harness proves this by placing its own stub .claude/tests/run.sh (one
     # that exits 0 or 1) in the fake founder/upstream trees it builds --
@@ -444,10 +686,10 @@ run_checks_in() { # dir
       ran=1
       sh .claude/tests/state.sh || exit 1
     fi
-    if [ -f .claude/scripts/tool-packs.sh ]; then
+    if [ -f .claude/scripts/skill-packs.sh ]; then
       ran=1
-      sh .claude/scripts/tool-packs.sh --validate all || exit 1
-      sh .claude/scripts/tool-packs.sh --check-compiled || exit 1
+      sh .claude/scripts/skill-packs.sh --validate all || exit 1
+      sh .claude/scripts/skill-packs.sh --check-compiled || exit 1
     fi
     [ "$ran" = 1 ] || echo "checks=none"
     exit 0
@@ -614,8 +856,39 @@ cmd_apply() {
     esac
   done < "$state/plan.tsv"
 
-  ( cd "$wt" && sh .claude/scripts/tool-packs.sh --compile ) >/dev/null 2>&1
-  ( cd "$wt" && git add -- .claude/tool-packs/compiled-policy.sh ) >/dev/null 2>&1
+  # Rows classed "generated" (compiled-policy.sh, and any skill or agent
+  # path upstream now ships as a skill-pack install) were skipped by the
+  # per-row loop above on purpose: they are regenerated here, once, from
+  # whatever the worktree's own pack sources now are, never taken, merged
+  # or held like an ordinary file. A generated skill/agent path is removed
+  # first so --install always finds a clean slot to write into, rather than
+  # comparing against whatever stale copy the worktree started with and
+  # refusing on a difference that update.sh itself is about to resolve.
+  gen_paths=$(awk -F '\t' '$2 == "generated" { print $1 }' "$state/plan.tsv")
+  printf '%s\n' "$gen_paths" | while IFS= read -r gp; do
+    [ -n "$gp" ] || continue
+    case $gp in .claude/skill-packs/compiled-policy.sh) continue ;; esac
+    rm -f "$wt/$gp"
+  done
+  if [ -f "$wt/.claude/scripts/skill-packs.sh" ]; then
+    ( cd "$wt" && sh .claude/scripts/skill-packs.sh --compile ) >/dev/null 2>&1
+    ( cd "$wt" && git add -- .claude/skill-packs/compiled-policy.sh ) >/dev/null 2>&1
+    # A non-zero exit here is never treated as fatal to the whole update: it
+    # means --install refused to overwrite one drifted path (most often the
+    # very path a "conflict" row above just held for the founder's own
+    # review), and the loop inside --install already moved on to every
+    # other skill and agent regardless of that one refusal. Aborting the
+    # entire update over one already-flagged path would block every other
+    # generated file from landing along with it. sh .claude/scripts/
+    # skill-packs.sh --check-installed remains the after-the-fact audit for
+    # anything left missing or drifted once the update is applied.
+    ( cd "$wt" && sh .claude/scripts/skill-packs.sh --install all ) >/dev/null 2>&1
+    # Added separately: "git add -A -- a b" fails outright, adding NEITHER
+    # path, the moment one pathspec matches nothing -- and a founder copy
+    # can genuinely have no .claude/agents (or no .claude/skills) at all.
+    [ -d "$wt/.claude/skills" ] && ( cd "$wt" && git add -A -- .claude/skills ) >/dev/null 2>&1
+    [ -d "$wt/.claude/agents" ] && ( cd "$wt" && git add -A -- .claude/agents ) >/dev/null 2>&1
+  fi
 
   short=$(printf '%s' "$cur_upstream" | cut -c1-12)
   mkdir -p "$wt/.claude"

@@ -37,6 +37,7 @@ The folder holds one folder per kind: the founder's own material in `brain/` and
 | `.state/imported.md` | `.state/imported.md` | both | none | import-from-app, once the app's work is in |
 | `.state/index.md` | `.state/index.md` | both | none | rebuilt automatically after every write |
 | `.state/tools.md` | `.state/tools.md` | both | none | connect-tools, any `<id>-expert` skill |
+| `.state/domain.md` | `.state/domain.md` | both | none | `dns-check.sh --record` (the domains skill pack) |
 
 In the rest of this file, and in every skill, a file named on its own, such as `content-30.md`, means the file at its path in this table.
 
@@ -353,7 +354,7 @@ While it exists, a leftover zip, or a leftover downloaded folder whose name star
 
 ## .state/tools.md
 
-Where each tool the founder has connected or planned stands, one row per tool, rewritten in place when a check runs again. Written and kept by `connect-tools` and by each tool's own `<id>-expert` skill (see `.claude/tool-packs/`, below).
+Where each tool the founder has connected or planned stands, one row per tool, rewritten in place when a check runs again. Written and kept by `connect-tools` and by each tool's own `<id>-expert` skill (see `.claude/skill-packs/`, below).
 
 ```markdown
 # Tools
@@ -365,9 +366,33 @@ Where each tool the founder has connected or planned stands, one row per tool, r
 
 **status** is one of: `planned`, `connected`, `verified`, `dropped`. **Evidence** is only what a tool actually returned, or `founder planned it` for `planned`.
 
-## Tool packs
+## .state/domain.md
 
-Beyond GoHighLevel, Apollo, Gmail and Microsoft 365, a founder can connect any other tool. `.claude/tool-packs/<id>/` makes Claude an expert on one connected tool: a manifest, a sourced knowledge file, an inventory of the tools that really exist, tighten-only policy rules on top of `mcp-guard.sh`, and deterministic tests, plus a specialist agent, an expert skill and a command shim. `.claude/tool-packs/registry.tsv` indexes every pack; `.claude/tool-packs/README.md` is the full spec. Founders may build their own with the `tool-pack-builder` skill; a founder-built pack lives beside the shipped ones and follows the same rules.
+Written only by `sh .claude/skill-packs/domains/scripts/dns-check.sh <domain> ... --record` (the `domains` skill pack), never by hand. Counts only: pass, warn, fail or skip per check, the domain name, and the date checked. Never a DNS record's actual value, and never a person's details.
+
+```markdown
+# Domain check
+
+Written by dns-check.sh --record. Counts only: no DNS record values, no people.
+
+- Domain: northfield.io
+- Checked: 2026-09-21
+
+| check | state |
+|---|---|
+| mx | pass |
+| spf | pass |
+| dkim | pass |
+| dmarc | pass |
+
+Overall: pass
+```
+
+Gate C's B2B domain item (`../references/gates.md`) reads this file: when `spf`, `dkim` and `dmarc` all show `pass`, the gate's evidence line says so, though the item itself stays self-reported for whether sending has actually started.
+
+## Skill packs
+
+Beyond GoHighLevel, Apollo, Gmail and Microsoft 365, a founder can connect any other tool. `.claude/skill-packs/<id>/` makes Claude an expert on one connected tool: a manifest, a sourced knowledge file, an inventory of the tools that really exist, tighten-only policy rules on top of `mcp-guard.sh`, and deterministic tests, plus a specialist agent, an expert skill and a command shim. `.claude/skill-packs/registry.tsv` indexes every pack; `.claude/skill-packs/README.md` is the full spec. Founders may build their own with the `skill-pack-builder` skill; a founder-built pack lives beside the shipped ones and follows the same rules.
 
 ## drafts/
 

@@ -56,7 +56,7 @@ Every date comes from the cohort block in `../../references/gates.md`. Name a se
 ## 3. Flags and time-critical items
 
 Check the Brain's Flags section and surface anything unresolved. These two items quietly break the weekend, so raise them even if the founder asked about something else:
-- **B2B:** the sending domain, and whether SPF, DKIM and DMARC are set.
+- **B2B:** the sending domain, and whether SPF, DKIM and DMARC are set. If this is not sorted, point the founder at `domains-expert` (or `/growth-engine:domains`) to check and fix it.
 - **B2C:** whether Instagram is Business or Creator and linked to a Facebook Page.
 
 **No copy on GitHub.** Run `git remote -v`. If there is no `origin`, say one plain line: their routines are off, because a routine runs against their GitHub copy, and that includes the countdown to Atlanta. Point them at "start launchhouse" to set one up.

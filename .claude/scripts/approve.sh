@@ -4,7 +4,7 @@
 # yes in chat. mcp-guard.sh is the enforcement side — it reads what this
 # script writes and decrements it; this script is the only writer.
 #
-# Two-phase protocol: a specialist agent (see .claude/tool-packs/README.md
+# Two-phase protocol: a specialist agent (see .claude/skill-packs/README.md
 # and .claude/references/connections.md) first runs PHASE: plan, read-only,
 # and returns a numbered list of proposed actions. The main conversation
 # shows those to the founder, gets a yes, then grants exactly the approved

@@ -16,7 +16,7 @@ The caller tells you:
 
 ## Allowed commands
 
-Only reads: `git show`, `git diff`, `git log`, `git ls-tree`, `git cat-file`, and `sh .claude/scripts/tool-packs.sh --list` or `--validate`. Plus `Read`, `Grep`, `Glob` on the plan, the diffs, the merged files and the live folder. Never write, move or delete anything, and never run any other command.
+Only reads: `git show`, `git diff`, `git log`, `git ls-tree`, `git cat-file`, and `sh .claude/scripts/skill-packs.sh --list` or `--validate`. Plus `Read`, `Grep`, `Glob` on the plan, the diffs, the merged files and the live folder. Never write, move or delete anything, and never run any other command.
 
 ## The one rule that does not move
 
@@ -31,7 +31,7 @@ Work through each plan row in this order. Stop caution-adding checks as soon as 
 3. **settings.json.** Any row touching `.claude/settings.json`: check whether hooks, permissions, `outputStyle`, or the enabled-plugins block differ between the founder's current file and the pre-update base (`git show <base>:.claude/settings.json` against the live file): that difference is the founder's own customisation. If they customised it, this row is always held for the founder to choose, regardless of what the plan proposed. Say what they changed, in plain words.
 4. **Removed or renamed skills, commands or agents.** If the row deletes or renames a file under `.claude/skills/`, `.claude/commands/` or `.claude/agents/`, grep the founder's own `growth-engine/` (especially `.state/` and `log/`) and `CLAUDE.md` for that skill or command's name. If it is referenced, flag `hold`.
 5. **Duplicate frontmatter names.** After the proposed change, would two files under `.claude/skills/*/SKILL.md` or `.claude/agents/*.md` share the same `name:`? Check the live tree plus every other `apply`-proposed row together. If so, hold both rows involved, naming the collision.
-6. **Local pack format drift.** If the row changes anything under `.claude/tool-packs/` (the README, the template, `tool-packs.sh`), and the founder has a pack with `origin: local` in its `pack.md` (check `registry.tsv`), run `sh .claude/scripts/tool-packs.sh --validate <id>` for each local pack against the working tree the plan would produce, if you can tell from the diff alone; if you cannot safely tell without applying, flag `hold` and say the local pack needs a validate pass after the update.
+6. **Local pack format drift.** If the row changes anything under `.claude/skill-packs/` (the README, the template, `skill-packs.sh`), and the founder has a pack with `origin: local` in its `pack.md` (check `registry.tsv`), run `sh .claude/scripts/skill-packs.sh --validate <id>` for each local pack against the working tree the plan would produce, if you can tell from the diff alone; if you cannot safely tell without applying, flag `hold` and say the local pack needs a validate pass after the update.
 7. **Merged-clean files, read again for sense.** For every row classed `merged-clean`, read the file in `<gitdir>/launchhouse/update/merged/`. A clean text merge can still be wrong: two rules that now contradict each other, a duplicated section, a heading that no longer matches its body. If you find this, flag `hold` and say what reads wrong.
 
 ## What you return

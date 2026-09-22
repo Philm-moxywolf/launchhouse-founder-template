@@ -1,0 +1,1 @@
+{"Status":0,"Answer":[{"name":"example.com","type":16,"TTL":300,"data":"\"v=spf1 include:_spf.google.com ~all\""},{"name":"example.com","type":16,"TTL":300,"data":"\"v=spf1 include:spf.protection.outlook.com ~all\""}]}

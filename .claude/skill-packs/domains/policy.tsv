@@ -1,0 +1,14 @@
+# suffix_regex	decision	reason
+#
+# Guide pack, optional file: only present because domains-specialist calls
+# Cloudflare DNS write tools for the done-for-them route. Tighten-only:
+# mcp-guard.sh applies a row here only when it is stricter than its own
+# decision. The exact suffixes Cloudflare's official connector exposes were
+# not observed live when this pack was built (pack.md: inventory_source
+# documented), so these rows match the documented naming pattern Cloudflare's
+# own DNS tooling uses (create/update/delete a dns record) rather than one
+# fixed connector's exact tool names; refresh this file once a founder has
+# Cloudflare connected and ToolSearch shows the real suffixes (references/
+# knowledge.md, "Refreshing this pack").
+^(cloudflare_)?(dns_record|zone_dns_record|dns)s?_(create|update|edit|patch|write)$	ask	Adding or changing a DNS record can break the founder's mail or their site if it is wrong. Check the founder has seen the exact record (type, name, value, TTL) and said yes before it is written.
+^(cloudflare_)?(dns_record|zone_dns_record|dns)s?_delete$	ask	Deleting a DNS record can break the founder's mail or their site, and is never part of a vague "clean up." Check the founder named this exact record and said yes before it is removed.

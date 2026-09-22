@@ -108,7 +108,7 @@ A piece the founder has read but not approved counts as not done, on purpose.
 | The list is built | file-backed | at least 25 files in `people/` with `kind: prospect` and a status other than `cut` |
 | First lines exist for the 25 | file-backed | `engines/outreach/outreach-firstlines.csv` has the header `email,first_name,company,first_line` and 25 rows |
 | The workflow is built | file-backed | `engines/ops/ops-workflow.md` names the bottleneck and the pack to publish first, and holds its copy |
-| Domain setup is done and sending has started | self-reported | ask |
+| Domain setup is done and sending has started | self-reported, half file-backed | ask, with the DNS half read from `.state/domain.md` when the domains skill pack has checked it |
 
 Twenty five messages, low volume, to a list the founder built and can explain. Nothing anywhere counts replies.
 

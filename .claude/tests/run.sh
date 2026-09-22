@@ -848,22 +848,125 @@ check "cp of a harmless file to the Desktop is allowed" hasnt "$out" '"deny"'
 out=$(hook guard-pre.sh Bash command "sh .claude/scripts/desktop-copy.sh < /dev/null")
 check "desktop-copy.sh's own on-demand run is never refused by the privacy guard" hasnt "$out" '"deny"'
 
-# -------------------------------------------------------------- tool-packs.sh
+# -------------------------------------------------------------- skill-packs.sh
 # The pack validator, compiler and per-pack test runner, against the real
-# .claude/tool-packs/. A pack still under construction by another worker
+# .claude/skill-packs/. A pack still under construction by another worker
 # shows up here as a real FAIL, same as any other missing piece — that is
 # the point of running it in the suite.
-tp="$here/../scripts/tool-packs.sh"
-check "tool-packs.sh --validate all reports no problems" sh -c '"$1" --validate all >/dev/null 2>&1' _ "$tp"
-check "tool-packs.sh --compile then --check-compiled agree" sh -c '"$1" --compile >/dev/null 2>&1 && "$1" --check-compiled >/dev/null 2>&1' _ "$tp"
-check "tool-packs.sh --test all passes every pack's own tests" sh -c '"$1" --test all >/dev/null 2>&1' _ "$tp"
+tp="$here/../scripts/skill-packs.sh"
+check "skill-packs.sh --validate all reports no problems" sh -c '"$1" --validate all >/dev/null 2>&1' _ "$tp"
+check "skill-packs.sh --compile then --check-compiled agree" sh -c '"$1" --compile >/dev/null 2>&1 && "$1" --check-compiled >/dev/null 2>&1' _ "$tp"
+check "skill-packs.sh --test all passes every pack's own tests" sh -c '"$1" --test all >/dev/null 2>&1' _ "$tp"
+
+# ------------------------------------------------- skill-packs.sh: name safety
+# Grammar enforcement and symlink/traversal defence on pack ids and on
+# skill/agent/script names sourced from pack.md or the filesystem, against
+# the throwaway $work copy of skill-packs.sh (so nothing here ever touches
+# the real .claude/skill-packs/). A snapshot of $work's own file list, taken
+# before and compared after, proves a refusal really did write nothing.
+wtp="$work/.claude/scripts/skill-packs.sh"
+wsnapshot() { find "$work" -type f 2>/dev/null | sort; }
+
+snap_before=$(wsnapshot)
+badidout=$( ( cd "$work" && sh .claude/scripts/skill-packs.sh --validate '../../escaped-pack' 2>&1 ) )
+badidrc=$?
+check "a pack id containing ../ is refused" test "$badidrc" -ne 0
+check "and names the problem on stderr" has "$badidout" 'is not a valid name'
+check "nothing was written anywhere under the fixture folder" match_eq "$(wsnapshot)" "$snap_before"
+
+mkdir -p "$work/.claude/skill-packs/badnames/skills/ok-skill"
+printf -- '---\nname: ok-skill\ndescription: fixture\n---\n\nbody\n' > "$work/.claude/skill-packs/badnames/skills/ok-skill/SKILL.md"
+printf -- '---\nid: badnames\nname: Bad Names\nkind: guide\nskills: [foo/bar]\nagents: []\nscripts: []\ntracks: both\norigin: template\n---\n\nFixture pack whose pack.md names a skill with a slash in it.\n' \
+  > "$work/.claude/skill-packs/badnames/pack.md"
+snap_before=$(wsnapshot)
+badnameout=$( ( cd "$work" && sh .claude/scripts/skill-packs.sh --install badnames 2>&1 ) )
+badnamerc=$?
+check "a skill name containing / in pack.md is refused" test "$badnamerc" -ne 0
+check "and names the problem on stderr" has "$badnameout" 'is not a valid name'
+check "nothing was installed to .claude/skills/ from it" test ! -e "$work/.claude/skills/foo"
+check "nothing was written anywhere under the fixture folder" match_eq "$(wsnapshot)" "$snap_before"
+
+mkdir -p "$work/elsewhere/foo"
+printf -- '---\nname: foo\ndescription: fixture\n---\n\nbody, reached only by following the symlink\n' > "$work/elsewhere/foo/SKILL.md"
+mkdir -p "$work/.claude/skill-packs/symlinkpack"
+printf -- '---\nid: symlinkpack\nname: Symlink Pack\nkind: guide\nskills: [foo]\nagents: []\nscripts: []\ntracks: both\norigin: template\n---\n\nFixture pack whose skills/ directory is a symlink.\n' \
+  > "$work/.claude/skill-packs/symlinkpack/pack.md"
+ln -s "$work/elsewhere" "$work/.claude/skill-packs/symlinkpack/skills"
+snap_before=$(wsnapshot)
+symlinkout=$( ( cd "$work" && sh .claude/scripts/skill-packs.sh --install symlinkpack 2>&1 ) )
+symlinkrc=$?
+check "a symlinked skill directory presented as a pack source is refused" test "$symlinkrc" -ne 0
+check "and names it as a symlink on stderr" has "$symlinkout" 'symlink'
+check "nothing was installed to .claude/skills/foo through the symlink" test ! -e "$work/.claude/skills/foo"
+check "nothing new was written outside what this fixture set up itself" \
+  match_eq "$(wsnapshot | grep -v '^'"$work"'/elsewhere/\|^'"$work"'/\.claude/skill-packs/symlinkpack/')" \
+  "$(printf '%s\n' "$snap_before" | grep -v '^'"$work"'/elsewhere/\|^'"$work"'/\.claude/skill-packs/symlinkpack/')"
+
+rm -rf "$work/.claude/skill-packs" "$work/elsewhere"
+
+# ------------------------------------------- mcp-guard.sh: compiled-policy
+# fallback. mcp-guard.sh prefers .claude/skill-packs/compiled-policy.sh, and
+# must fall back to the legacy .claude/tool-packs/compiled-policy.sh both
+# when the new path is simply absent AND when it exists but fails its own
+# sh -n syntax check (a corrupt or half-written file) -- never silently
+# source nothing in the second case just because a file happens to be
+# sitting at the new path. A fixture folder of its own, never $work, so a
+# broken compiled-policy.sh here can never bleed into any other test.
+mgfb=${TMPDIR:-/tmp}/lh-mcpguard-fallback-test.$$
+mkdir -p "$mgfb/.claude/scripts" "$mgfb/growth-engine"
+cp -R "$scripts" "$mgfb/.claude/"
+: > "$mgfb/growth-engine/.launchhouse"
+
+mgfb_legacy_policy() {
+  mkdir -p "$mgfb/.claude/tool-packs"
+  cat > "$mgfb/.claude/tool-packs/compiled-policy.sh" <<'EOF'
+#!/bin/sh
+LH_PACK_DETECT_RULES=''
+LH_PACK_DENY_RULES=''
+LH_PACK_ASK_RULES=''
+lh_pack_detect() { lh_pack_id=""; lh_pack_name=""; }
+lh_pack_policy() {
+  suffix=$1
+  lh_pack_decision=""
+  lh_pack_reason=""
+  case "$suffix" in
+    legacy_fallback_tool) lh_pack_decision=deny; lh_pack_reason="Synthetic: legacy fallback pack test." ;;
+  esac
+}
+EOF
+}
+
+mgfb_call() { # tool suffix
+  printf '{"tool_name":"mcp__test__%s","tool_input":{}}' "$1" |
+    CLAUDE_PROJECT_DIR="$mgfb" sh "$mgfb/.claude/scripts/mcp-guard.sh" 2>/dev/null
+}
+
+# Case 1: the new path is simply absent, the legacy path is present and
+# valid -- falls back, the legacy pack's own deny rule is honoured.
+rm -rf "$mgfb/.claude/skill-packs" "$mgfb/.claude/tool-packs"
+mgfb_legacy_policy
+out=$(mgfb_call legacy_fallback_tool)
+check "compiled-policy.sh absent at the new path falls back to the legacy path" has "$out" '"deny"'
+
+# Case 2: the new path exists but is broken (fails sh -n) -- still falls
+# back to the legacy path, rather than silently sourcing nothing.
+mkdir -p "$mgfb/.claude/skill-packs"
+printf 'this is not valid POSIX sh ((( \n' > "$mgfb/.claude/skill-packs/compiled-policy.sh"
+out=$(mgfb_call legacy_fallback_tool)
+check "a syntactically broken compiled-policy.sh at the new path also falls back to the legacy path" has "$out" '"deny"'
+
+# Confirmed broken, so the fallback in case 2 really was exercised and not
+# skipped because the new file happened to be syntactically fine.
+check "and the new path's own file really does fail sh -n"   sh -c '! sh -n "$1" 2>/dev/null' _ "$mgfb/.claude/skill-packs/compiled-policy.sh"
+
+rm -rf "$mgfb"
 
 # ---------------------------------------------------------- prompt-state.sh
 # Connection planning: a verb (connect, set up, integrate, ...) followed
-# later in the same sentence by a tool-packs registry name, or by a generic
+# later in the same sentence by a skill-packs registry name, or by a generic
 # word for one (tool, app, crm, connector, integration, account).
-mkdir -p "$work/.claude/tool-packs"
-cp "$here/../tool-packs/registry.tsv" "$work/.claude/tool-packs/registry.tsv"
+mkdir -p "$work/.claude/skill-packs"
+cp "$here/../skill-packs/registry.tsv" "$work/.claude/skill-packs/registry.tsv"
 
 promptcheck() { # description, prompt text, match|nomatch
   desc=$1; ptext=$2; expect=$3
@@ -891,15 +994,15 @@ promptcheck "'set up' my account in ordinary talk never fires, account is droppe
 # (search_threads). Both ask for less than mcp-guard already gives, so the
 # first must stay deny and the second must still tighten to ask, never fall
 # back to silent just because the pack's own row says ask instead of deny.
-rm -rf "$work/.claude/tool-packs"
-mkdir -p "$work/.claude/tool-packs/loosen"
-printf 'id\tname\tsuffix_regex\ttracks\torigin\n' > "$work/.claude/tool-packs/registry.tsv"
-printf 'loosen\tLoosen Test\t^(send_message|search_threads)$\tboth\ttemplate\n' >> "$work/.claude/tool-packs/registry.tsv"
+rm -rf "$work/.claude/skill-packs"
+mkdir -p "$work/.claude/skill-packs/loosen"
+printf 'id\tname\tkind\tsuffix_regex\ttracks\torigin\n' > "$work/.claude/skill-packs/registry.tsv"
+printf 'loosen\tLoosen Test\ttool\t^(send_message|search_threads)$\tboth\ttemplate\n' >> "$work/.claude/skill-packs/registry.tsv"
 {
   printf '^send_message$\task\tSynthetic: must never loosen what mcp-guard already denies.\n'
   printf '^search_threads$\task\tSynthetic: a plain read still gets asked when a pack says so.\n'
-} > "$work/.claude/tool-packs/loosen/policy.tsv"
-sh "$work/.claude/scripts/tool-packs.sh" --compile >/dev/null 2>&1
+} > "$work/.claude/skill-packs/loosen/policy.tsv"
+sh "$work/.claude/scripts/skill-packs.sh" --compile >/dev/null 2>&1
 
 out=$(mg mcp__test__send_message '{}')
 check "a pack's own 'ask' can never loosen a deny mcp-guard already reaches" has "$out" '"deny"'
@@ -1095,6 +1198,103 @@ check "a non-specialist subagent's Write is unaffected (allowed)" test -z "$out"
 
 out=$(gpagent Write "{\"file_path\":\"$work/growth-engine/people/sam-example-com.md\",\"content\":\"x\"}" "")
 check "the main thread's own Write is unaffected too (allowed)" test -z "$out"
+
+# ------------------------------------------------------------- dns-check.sh
+# The domains pack's DNS checker, run offline against canned DoH JSON
+# responses (LH_DNS_TESTING=1, LH_DNS_FIXTURE_DIR), so these tests need no
+# network and never depend on a real domain's DNS staying the same. Fixtures
+# live under the pack itself: .claude/skill-packs/domains/scripts/fixtures/dns/.
+
+dns_script=$(cd "$here/../skill-packs/domains/scripts" 2>/dev/null && pwd)/dns-check.sh
+dns_fixtures=$(cd "$here/../skill-packs/domains/scripts/fixtures/dns" 2>/dev/null && pwd)
+
+dnscheck() { # fixture dir name, then dns-check.sh's own arguments (domain first)
+  fx=$1; shift
+  LH_DNS_TESTING=1 LH_DNS_FIXTURE_DIR="$dns_fixtures/$fx" sh "$dns_script" "$@" 2>/dev/null
+}
+
+if [ -n "$dns_fixtures" ] && { [ -x "$dns_script" ] || [ -f "$dns_script" ]; }; then
+  out=$(dnscheck pass example.com --mailbox google)
+  check "pass fixture: overall status is pass" has "$out" 'status=pass'
+  check "pass fixture: mx passes" has "$out" 'mx=pass'
+  check "pass fixture: spf passes" has "$out" 'spf=pass'
+  check "pass fixture: dkim passes" has "$out" 'dkim=pass'
+  check "pass fixture: dmarc passes" has "$out" 'dmarc=pass'
+  check "pass fixture: no todo lines" hasnt "$out" '^todo='
+  dnscheck pass example.com --mailbox google > /dev/null
+  check "pass fixture: exit code is 0" test "$?" = 0
+
+  out=$(dnscheck missing-dkim example.com --mailbox google)
+  check "missing-dkim fixture: dkim fails" has "$out" 'dkim=fail'
+  check "missing-dkim fixture: spf still passes" has "$out" 'spf=pass'
+  check "missing-dkim fixture: names the selector in its todo" has "$out" 'google._domainkey.example.com'
+  dnscheck missing-dkim example.com --mailbox google > /dev/null
+  check "missing-dkim fixture: exit code is 1" test "$?" = 1
+
+  out=$(dnscheck dup-spf example.com --mailbox google)
+  check "dup-spf fixture: spf fails (two records, not a warn)" has "$out" 'spf=fail'
+  check "dup-spf fixture: todo says merge, not add" has "$out" 'more than one SPF record'
+
+  out=$(dnscheck no-dmarc example.com --mailbox google)
+  check "no-dmarc fixture: dmarc fails" has "$out" 'dmarc=fail'
+  check "no-dmarc fixture: spf and dkim still pass" has "$out" 'spf=pass'
+  check "no-dmarc fixture: dkim still passes" has "$out" 'dkim=pass'
+
+  out=$(dnscheck microsoft-selectors example.com --mailbox microsoft)
+  check "microsoft-selectors fixture: dkim passes" has "$out" 'dkim=pass'
+  check "microsoft-selectors fixture: selector2 passes" has "$out" 'dkim_selector2=pass'
+  check "microsoft-selectors fixture: overall status is pass" has "$out" 'status=pass'
+
+  # A resolver failure (Status -1 in the canned DoH JSON, distinct from a
+  # clean "no records" answer) must degrade overall status to at least
+  # warn, never leave it at pass, and the script must exit non-zero.
+  out=$(dnscheck resolver-failure example.com --mailbox google)
+  check "resolver-failure fixture: mx reads unknown, not pass or fail" has "$out" 'mx=unknown'
+  check "resolver-failure fixture: overall status degrades to warn" has "$out" 'status=warn'
+  check "resolver-failure fixture: names the failed check in its todo" has "$out" 'Could not check MX'
+  dnscheck resolver-failure example.com --mailbox google > /dev/null
+  check "resolver-failure fixture: exit code is non-zero" test "$?" != 0
+
+  # A failed Microsoft selector2 DKIM lookup (its own CNAME query fails)
+  # must never be recorded as a pass -- it reads unknown, degrades overall
+  # to at least warn, and exits non-zero, the same as any other resolver
+  # failure.
+  out=$(dnscheck selector2-lookup-failed example.com --mailbox microsoft)
+  check "selector2-lookup-failed fixture: selector2 reads unknown, never pass" has "$out" 'dkim_selector2=unknown'
+  check "and never pass" hasnt "$out" 'dkim_selector2=pass'
+  check "selector2-lookup-failed fixture: the main dkim selector still passes on its own" has "$out" 'dkim=pass'
+  check "selector2-lookup-failed fixture: overall status degrades to warn" has "$out" 'status=warn'
+  dnscheck selector2-lookup-failed example.com --mailbox microsoft > /dev/null
+  check "selector2-lookup-failed fixture: exit code is non-zero" test "$?" != 0
+
+  # A domain argument carrying a newline or a pipe is rejected outright,
+  # before it is ever used in a command or a path.
+  baddomain_nl=$(printf 'example.com\nrm -rf /')
+  out=$(LH_DNS_TESTING=1 LH_DNS_FIXTURE_DIR="$dns_fixtures/pass" sh "$dns_script" "$baddomain_nl" --mailbox google 2>&1)
+  check "a domain with an embedded newline is refused" has "$out" 'is not a valid hostname'
+  LH_DNS_TESTING=1 LH_DNS_FIXTURE_DIR="$dns_fixtures/pass" sh "$dns_script" "$baddomain_nl" --mailbox google >/dev/null 2>&1
+  check "and exits non-zero" test "$?" != 0
+  out=$(LH_DNS_TESTING=1 LH_DNS_FIXTURE_DIR="$dns_fixtures/pass" sh "$dns_script" 'example.com|touch /tmp/lh-dns-pwned' --mailbox google 2>&1)
+  check "a domain with a pipe character is refused" has "$out" 'is not a valid hostname'
+
+  # --json produces well-formed-looking output with every field, not a
+  # truncated object (this caught a real bug: a missing trailing newline
+  # before piping into the read loop silently dropped the last field).
+  out=$(dnscheck pass example.com --mailbox google --json)
+  check "--json includes website_www (the last field)" has "$out" '"website_www":"pass"'
+  check "--json includes an empty todo array when nothing is wrong" has "$out" '"todo":\[\]'
+
+  # --record writes growth-engine/.state/domain.md, counts only, no record
+  # values. Uses the shared $work fixture folder from earlier in this file.
+  ( cd "$work" && LH_DNS_TESTING=1 LH_DNS_FIXTURE_DIR="$dns_fixtures/pass" CLAUDE_PROJECT_DIR="$work"       sh "$dns_script" example.com --mailbox google --record > /dev/null 2>&1 )
+  check "--record writes growth-engine/.state/domain.md" test -f "$ge/.state/domain.md"
+  domainmd=$(cat "$ge/.state/domain.md" 2>/dev/null)
+  check "--record's file names the domain" has "$domainmd" 'example.com'
+  check "--record's file holds no DNS record values (no v=spf1, no DKIM key text)" hasnt "$domainmd" 'v=spf1'
+  rm -f "$ge/.state/domain.md"
+else
+  printf 'SKIP  dns-check.sh tests (script not found at %s)\n' "$dns_script"
+fi
 
 # -------------------------------------------------------- the update engine
 # .claude/scripts/update.sh has its own self-contained suite, since it needs

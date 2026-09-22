@@ -90,6 +90,8 @@ If the Brain flagged thin proof, lean on point of view and observation rather th
 
 **If the Brain says little about how they actually work,** offer to look first (`../../references/sources.md`: their own notes, old proposals, meeting notes), then ask before writing the method pieces: "walk me through what you do on a typical job, step by step". One answer gives you ten posts. Never make up how a named customer's job went, or what happened inside their business.
 
+B2B posts point readers back at the founder's LinkedIn profile, so it should be in shape. If it needs work, offer the `linkedin-profile-expert` skill (or `/growth-engine:linkedin`).
+
 ### If track is b2c
 
 Format mix:
