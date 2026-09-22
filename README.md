@@ -47,7 +47,15 @@ Once a piece of work is saved, a copy also appears in a "My Launchhouse work" fo
 
 ## Where the engines come from
 
-They are in this folder, in `.claude/`. Nothing is installed and nothing is downloaded when you open it. When there is a new version, open GitHub Desktop, pull the folder, then quit and reopen the Claude app. Updating never touches your work in `growth-engine/`.
+They are in this folder, in `.claude/`. Nothing is installed and nothing is downloaded when you open it. When there is a new version, say "update launchhouse" (or `/growth-engine:update`): Claude checks what is new, keeps your own changes, never touches your work folder, and applies only after you say yes. Then quit and reopen the Claude app. Updating never touches your work in `growth-engine/`. GitHub Desktop's own pull is a fallback only, for a copy you made by cloning rather than "Use this template".
+
+## Already have an older copy?
+
+If your copy was made before the updater shipped, "update launchhouse" will not be there yet. Paste this to Claude instead, once:
+
+> Please update my Launchhouse folder: fetch the upstream Launchhouse repository, copy .claude/scripts/update.sh and .claude/scripts/lib.sh from upstream/main into .git/launchhouse/bootstrap/, then follow .claude/skills/launchhouse-update/SKILL.md as it is on upstream/main, running the updater from that copy.
+
+After that, "update launchhouse" works from this folder as normal, from now on.
 
 ## Stuck
 

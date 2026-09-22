@@ -1,0 +1,19 @@
+# suffix_regex	decision	reason
+#
+# Tighten-only, checked against the real .claude/scripts/mcp-guard.sh in a
+# scratch Launchhouse folder (see tests.tsv). Three rows below match what
+# the base guard already denies on the word "purchase" alone (see its own
+# buy/purchase/checkout check); they are kept here anyway, explicit and
+# sourced to this pack, rather than relying on that word coincidence to
+# keep holding as mcp-guard.sh changes. The rest genuinely tighten a call
+# that the base guard only "guides" (no forced prompt in a no-prompt mode)
+# or only "asks" today.
+^apollo_domain_purchase_index$	deny	Launchhouse never spends the founder's money from here, including browsing what Apollo would sell them. If they want a domain, they buy it themselves in Apollo.
+^apollo_email_account_purchase_index$	deny	Launchhouse never spends the founder's money from here, including browsing mailboxes Apollo would sell them. If they want a mailbox, they buy it themselves in Apollo.
+^apollo_email_account_purchase_create$	deny	Launchhouse never buys anything on the founder's account. If they want a mailbox, they buy it in Apollo themselves.
+^apollo_agent_manage_billing$	deny	Launchhouse never spends the founder's money or changes their plan from here. If they want to change plans, seats or credits, they do it themselves in Apollo's own billing settings.
+^apollo_agent_workflow_automation$	deny	Launchhouse builds sequences and automations paused, for the founder to switch on themselves in Apollo having read them. An agent tool that sets up its own automation could enrol, message or start something without that reading ever happening.
+^apollo_website_visitor_domain_tracker_send_install_email$	deny	This emails a real person, such as the founder's own developer, on Apollo's behalf. Launchhouse never sends email from a tool; show the founder the install script and let them send it themselves.
+^apollo_agent_find_prospects$	ask	This agent tool can return enriched prospect data. Apollo's own enrichment and bulk enrichment calls spend credits, and this tool is not documented as free, so treat it like apollo_people_match: check the founder has seen an estimated cost and said yes before it runs.
+^apollo_contacts_bulk_create$	ask	This creates many real people's contact records in the founder's Apollo account in one call. Check the founder has seen who they are, such as the list of 25, and said yes first.
+^apollo_accounts_bulk_create$	ask	This creates many real companies' account records in the founder's Apollo account in one call. Check the founder has said yes to the list first.

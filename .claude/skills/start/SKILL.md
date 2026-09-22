@@ -103,6 +103,7 @@ The folder is saved with git, so every change can be seen and undone, and so it 
    - **State A, followed the guide.** `origin` exists, is not the public original, and either its repo name is not `launchhouse-founder-template` or State D's check just came back private. Run `git push origin`. If the push asks for a login or fails, do not troubleshoot. Say their work is saved on this computer, and that it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**. No lecture, no extra questions, nothing about forks or publishing: a founder in this state already did it right.
    - `origin` is the only remote this folder ever pushes to or pulls from. Never push or pull without naming it.
    - If they clone this folder onto a second computer, one thing does not come across on its own: say "connect my tools" again there. The GoHighLevel connection lives in that computer's own password store, not in the folder.
+5. Run `sh .claude/scripts/update.sh --detect-base < /dev/null`. If it says `exact <sha>`, run `sh .claude/scripts/update.sh --set-base <sha> < /dev/null` silently, so future updates know where this copy began. Otherwise do nothing, and say nothing.
 
 ## 5. Hand on
 

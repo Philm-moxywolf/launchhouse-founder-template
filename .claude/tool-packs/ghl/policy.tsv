@@ -1,0 +1,31 @@
+# suffix_regex	decision	reason
+#
+# No rows below. This pack's whole surface (the account connector's six
+# tools, and the fallback's one-per-job tools) is already classified, tool
+# by tool and, for execute_operation, field by field, by
+# .claude/scripts/ghl-op.sh (sourced into .claude/scripts/mcp-guard.sh).
+# Checked directly against the real hook, not assumed (see tests.tsv):
+# every deny case this pack's jobs could reach (payments, deletes, and any
+# workflow write) already denies; every write this pack's jobs make that
+# touches a real person (a conversation reply, a social post create or
+# edit, a contact touch) already asks, forced even in auto mode; every
+# fallback and account-connector read tool this pack's jobs use is already
+# silent.
+#
+# A custom-value create or update through execute_operation used to land on
+# guide, not ask, because ghl-op.sh's named ask set did not include custom
+# values. That gap is closed in ghl-op.sh itself now: a custom value
+# created or updated asks, the same tier as a contact touch or an
+# opportunity update, and a custom value delete stays deny, same as any
+# other delete. It could not have been closed here instead: policy.tsv can
+# only match a tool's suffix, never its input, and execute_operation is the
+# one suffix behind literally every account-connector operation, reads
+# included, so a row on that suffix would have forced a prompt on
+# list_locations-shaped reads too, the blanket-ask-on-every-call design this
+# project explicitly rejected (IMPLEMENTATION-NOTES.md). The ghl-values
+# skill still shows the founder the whole create-and-update list and waits
+# for one yes covering it, every time, before it writes anything, on top of
+# this hook-level ask, not instead of it.
+#
+# policy.local.tsv is where a founder or maintainer adds their own rows, in
+# this same tighten-only shape, never here.

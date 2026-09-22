@@ -1,0 +1,43 @@
+# source: documented https://support.claude.com/en/articles/12684923-microsoft-365-connector-security-guide checked 2026-09-21
+# All 27 tool names below are Anthropic's own list of what the Microsoft 365
+# connector exposes: outlook_email_search and outlook_calendar_search were
+# already the read tools Launchhouse has actually observed connected on a
+# founder's account. The other 25 are write tools reported added 2026-07-07,
+# off by default until an organization's Microsoft Entra administrator
+# approves the added permission and turns them on in Claude's connector tool
+# permissions ("Always allow" is not supported for the send/forward/
+# send_draft/event tools). Their behaviour here is documented, not observed,
+# and unverified against a real Launchhouse founder's tenant.
+#
+# find_meeting_availability does not start with "outlook_": the registry's
+# suffix_regex for this pack (^outlook_) does not cover it, so it is never
+# routed to this pack's policy.tsv by mcp-guard.sh's pack detection. It
+# still falls under mcp-guard.sh's own core rules (a read, by name), and is
+# listed here because it is part of the connector's documented inventory.
+outlook_email_search
+outlook_calendar_search
+outlook_send_mail
+outlook_forward_mail
+outlook_send_draft
+outlook_trash_thread
+outlook_untrash_thread
+outlook_batch_delete_messages
+outlook_create_draft
+outlook_create_reply_draft
+outlook_create_reply_all_draft
+outlook_update_draft
+outlook_delete_draft
+outlook_create_label
+outlook_update_label
+outlook_delete_label
+outlook_modify_labels
+outlook_modify_thread_labels
+outlook_batch_modify_labels
+outlook_create_event
+outlook_update_event
+outlook_delete_event
+outlook_respond_to_event
+outlook_set_vacation
+outlook_create_filter
+outlook_delete_filter
+find_meeting_availability

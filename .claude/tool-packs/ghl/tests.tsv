@@ -1,0 +1,32 @@
+# tool_name	expected	tool_input_json	note
+#
+# No policy.tsv row exists for this pack (see its own header comment), so
+# nothing here tests a pack policy row. Every case below was run directly
+# against the real .claude/scripts/mcp-guard.sh (execute_operation cases
+# also against lh_ghl_classify in ghl-op.sh) in a scratch Launchhouse
+# folder, permission_mode acceptEdits unless noted, and the value recorded
+# is exactly what the hook returned, not inferred from reading the script.
+#
+# The account connector's six tools, name-classified or GoHighLevel-routed
+mcp__highlevel__list_locations	silent	{}	proves the connection; a plain read
+mcp__highlevel__search_operations	silent	{}	finds an operation by keyword; a plain read
+mcp__highlevel__describe_operation	silent	{}	reads what an operation needs; a plain read
+mcp__highlevel__execute_operation	deny	{"operationId":"payments_get-transaction"}	payments is refused outright even as a read
+mcp__highlevel__execute_operation	deny	{"operationId":"contacts_delete-contact"}	a delete is refused outright
+mcp__highlevel__execute_operation	deny	{"operationId":"workflows_create-workflow"}	Launchhouse never creates, edits or triggers a workflow
+mcp__highlevel__execute_operation	ask	{"operationId":"socialmediaposting_create-post"}	a social post going out is the small named ask set, forced even in auto mode
+mcp__highlevel__execute_operation	silent	{"operationId":"contacts_get-contact","method":"GET"}	a plain GET-method read
+mcp__highlevel__execute_operation	ask	{"operationId":"locations_update-custom-value"}	a custom value create or update is now in ghl-op.sh's own named ask set, same tier as a contact touch or an opportunity update; the ghl-values skill still gets its own yes before this ever runs
+mcp__highlevel__search	silent	{}	a general read; not GoHighLevel-shaped so judged by name alone, still a plain read
+mcp__highlevel__fetch	silent	{}	same as search
+#
+# The fallback, one tool per job (Code only)
+mcp__highlevel__locations_get-location	silent	{}	reads the business back; a plain read
+mcp__highlevel__get-account	silent	{}	reads the Social Planner accounts; a plain read
+mcp__highlevel__create-post	ask	{}	creates a post; forced ask, name carries "post"
+mcp__highlevel__edit-post	ask	{}	edits a post already made; same as create
+mcp__highlevel__get-post	ask	{}	real, checked behaviour: the bare name classifier matches the word "post" in "get-post" itself, so this read is asked, not silent. Stricter than needed, never looser
+mcp__highlevel__get-posts	silent	{}	real, checked behaviour: "posts" (plural) does not word-match "post", so this stays a plain read, unlike the singular get-post above
+mcp__highlevel__get-social-media-statistics	silent	{}	reads how posts performed; a plain read
+mcp__highlevel__conversations_send-a-new-message	ask	{}	sends inside an existing conversation; forced ask every time
+mcp__highlevel__contacts_get-contacts	silent	{}	reads contacts back; a plain read

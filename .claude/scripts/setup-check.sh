@@ -175,14 +175,46 @@ fi
 # reply, and to mention only what the founder's track actually needs.
 if lh_active; then
   if [ "$full" = 1 ] || ! lh_setup_seen connectors-ghl; then
-    printf 'Connectors: at your first reply, use ToolSearch to look for a GoHighLevel tool in your own tool list (one ending execute_operation or list_locations, or the fallback'"'"'s locations_get-location). If none is found, mention it once, in plain words, and offer "connect my tools".\n'
+    printf 'Connectors: at your first reply, use ToolSearch to look for a GoHighLevel tool in your own tool list (one ending execute_operation or list_locations, or the fallback'"'"'s locations_get-location). If none is found, mention it once, in plain words, and offer "connect my tools". When a connector'"'"'s tools match a pack in .claude/tool-packs/registry.tsv, use that pack'"'"'s <id>-expert skill.\n'
     lh_setup_mark connectors-ghl
   fi
   track=$(lh_track)
   if [ "$track" = b2b ] && { [ "$full" = 1 ] || ! lh_setup_seen connectors-b2b; }; then
-    printf 'Connectors: this founder is B2B, so also use ToolSearch for Apollo tools (apollo_) and a mailbox (Gmail or Microsoft 365 mail tools). If one their track needs is missing, mention it once, in plain words, and offer "connect my tools".\n'
+    printf 'Connectors: this founder is B2B, so also use ToolSearch for Apollo tools (apollo_) and a mailbox (Gmail or Microsoft 365 mail tools). If one their track needs is missing, mention it once, in plain words, and offer "connect my tools". When a connector'"'"'s tools match a pack in .claude/tool-packs/registry.tsv, use that pack'"'"'s <id>-expert skill.\n'
     lh_setup_mark connectors-b2b
   fi
+fi
+
+# --------------------------------------------------------------- tool packs --
+# growth-engine/.state/tools.md records what the founder has connected or
+# planned, one row per tool. A tool that is planned, connected or verified
+# but carries no expert pack yet (no .claude/tool-packs/<id>/pack.md) is
+# worth one mention, once per tool, offering to build one.
+tools_md="$root/growth-engine/.state/tools.md"
+if lh_active && [ -f "$tools_md" ]; then
+  awk -F '|' '
+    NF < 3 { next }
+    {
+      id = $2; status = $4
+      gsub(/^[ \t]+|[ \t]+$/, "", id)
+      gsub(/^[ \t]+|[ \t]+$/, "", status)
+      if (id == "" || tolower(id) == "tool") next
+      if (id ~ /^-+$/) next
+      print id "\t" status
+    }
+  ' "$tools_md" | while IFS='	' read -r tid tstatus; do
+    [ -n "$tid" ] || continue
+    case $tstatus in
+      planned|connected|verified) ;;
+      *) continue ;;
+    esac
+    [ -f "$root/.claude/tool-packs/$tid/pack.md" ] && continue
+    key="toolpack-$tid"
+    if [ "$full" = 1 ] || ! lh_setup_seen "$key"; then
+      printf 'Tool packs: %s is %s in growth-engine/.state/tools.md but has no expert pack yet. Mention this once, in plain words, and offer to build one with the tool-pack-builder skill.\n' "$tid" "$tstatus"
+      lh_setup_mark "$key"
+    fi
+  done
 fi
 
 exit 0

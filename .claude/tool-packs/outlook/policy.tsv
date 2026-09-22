@@ -1,0 +1,25 @@
+# suffix_regex	decision	reason
+# Tab separated, decision is only deny or ask. Tighten-only: mcp-guard.sh
+# applies a row here only when it is stricter than its own decision. Every
+# regex below was checked against the real mcp-guard.sh's own default for
+# that suffix (see tests.tsv's notes column) before being added: a suffix
+# whose default is already at or past what Launchhouse wants gets no row.
+# Note: because these tool names are "outlook_<verb>_<noun>", a single
+# underscore, not "outlook__<verb>_<noun>", none of mcp-guard.sh's own
+# exact-suffix rules (which need a literal "__create_event" etc. right
+# after the server id) ever match them; every row below exists because of
+# that, not despite it.
+^outlook_send_mail$	deny	Launchhouse never sends from the founder's mailbox. Claude writes drafts only, and the founder presses Send themselves.
+^outlook_forward_mail$	deny	Launchhouse never forwards from the founder's mailbox. If the founder wants something forwarded, they do it from their own Outlook.
+^outlook_send_draft$	deny	Launchhouse never sends from the founder's mailbox. A drafted reply gets the founder's own Send, in their own Outlook, never this tool.
+^outlook_batch_delete_messages$	deny	Launchhouse never deletes a founder's mail in bulk from here. If they want messages gone, they delete them themselves in Outlook.
+^outlook_batch_modify_labels$	deny	Launchhouse never relabels a founder's mail in bulk from here. If they want this, they do it themselves in Outlook.
+^outlook_set_vacation$	deny	Launchhouse never sets an auto-reply on the founder's mailbox; it would answer real people without them seeing each reply. If they want one, they set it themselves in Outlook.
+^outlook_create_filter$	deny	Launchhouse never sets up mail rules, which can forward or file the founder's mail without them seeing it. If they want one, they make it in their mail app themselves.
+^outlook_trash_thread$	ask	Launchhouse: this moves a founder's mail to Trash. Show them what it will remove and check they said yes.
+^outlook_delete_draft$	ask	Launchhouse: this deletes a drafted email before the founder has sent it. Check they said yes before it goes.
+^outlook_delete_label$	ask	Launchhouse: this deletes a category the founder may still use to find mail. Check they said yes before it goes.
+^outlook_delete_filter$	ask	Launchhouse: this deletes a mail rule from the founder's own mailbox. Check they said yes before it goes.
+^outlook_create_event$	ask	Launchhouse: this changes the founder's calendar. Show them what it will do and check they said yes.
+^outlook_update_event$	ask	Launchhouse: this changes the founder's calendar. Show them what it will do and check they said yes.
+^outlook_respond_to_event$	ask	Launchhouse: this answers a calendar invite for the founder. Show them what it will do and check they said yes.

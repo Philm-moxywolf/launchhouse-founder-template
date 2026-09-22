@@ -96,6 +96,7 @@ check() { # name, then a test
 }
 has() { printf '%s' "$1" | grep -q "$2"; }
 hasnt() { ! printf '%s' "$1" | grep -q "$2"; }
+match_eq() { [ "$1" = "$2" ]; }
 
 # LH-029: folder name casing.
 out=$(hook guard-pre.sh Write file_path "$work/Growth-Engine/drafts/offer.md")
@@ -410,7 +411,7 @@ ghlcdeny "every leaf sitting under body and nothing outside it is also an empty 
 
 # Ask: the small named set — conversations send, social post create/edit/
 # publish (either spelling), an email template created, a contact touched,
-# an opportunity updated.
+# an opportunity updated, a custom value created or updated.
 ghlcask "sendMessage in camelCase, under conversations, asks" mcp__highlevel__execute_operation '{"operation":"conversations.sendMessage"}'
 ghlcask "creating a post asks (hyphenated spelling)" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_create-post"}'
 ghlcask "editing a post asks (hyphenated spelling)" mcp__highlevel__execute_operation '{"operationId":"social-media-posting_edit-post"}'
@@ -424,9 +425,11 @@ ghlcask "a create-post body.summary in the founder's own words still only asks, 
   mcp__highlevel__execute_operation '{"operationId":"social-media-posting_create-post","body":{"summary":"Order your cake today, prices from 20"}}'
 ghlcask "a send-message body/text mentioning refund in the founder's own words still only asks" \
   mcp__highlevel__execute_operation '{"operation":"conversations.sendMessage","body":{"text":"sorry about the refund delay, it is on its way"}}'
+ghlcask "updating a custom value asks, same tier as the other named GHL writes" mcp__highlevel__execute_operation '{"operationId":"locations_update-custom-value"}'
+ghlcask "creating a custom value asks too" mcp__highlevel__execute_operation '{"operationId":"locations_create-custom-value"}'
+ghlcdeny "deleting a custom value is still refused outright, never just asked" mcp__highlevel__execute_operation '{"operationId":"locations_delete-custom-value"}'
 
 # Guide: every other write. Not blocked, not forced to a prompt, just noted.
-ghlcguide "updating a custom value is a write, but not one of the named ask cases" mcp__highlevel__execute_operation '{"operationId":"locations_update-custom-value"}'
 ghlcguide "creating a blog post is a write, but not one of the named ask cases" mcp__highlevel__execute_operation '{"operationId":"blogs_create-blog-post"}'
 ghlcguide "a POST method with a GET-looking name is still a write, and still not the named ask set" mcp__highlevel__execute_operation '{"method":"POST","operation":"get-contact-details"}'
 ghlcask "a GET method with a send-ish name touches a message, so it asks, not just guides" mcp__highlevel__execute_operation '{"method":"GET","operation":"send-message-status"}'
@@ -844,6 +847,263 @@ out=$(hook guard-pre.sh Bash command "cp $ge/drafts/plan.md ~/Desktop/plan.md")
 check "cp of a harmless file to the Desktop is allowed" hasnt "$out" '"deny"'
 out=$(hook guard-pre.sh Bash command "sh .claude/scripts/desktop-copy.sh < /dev/null")
 check "desktop-copy.sh's own on-demand run is never refused by the privacy guard" hasnt "$out" '"deny"'
+
+# -------------------------------------------------------------- tool-packs.sh
+# The pack validator, compiler and per-pack test runner, against the real
+# .claude/tool-packs/. A pack still under construction by another worker
+# shows up here as a real FAIL, same as any other missing piece — that is
+# the point of running it in the suite.
+tp="$here/../scripts/tool-packs.sh"
+check "tool-packs.sh --validate all reports no problems" sh -c '"$1" --validate all >/dev/null 2>&1' _ "$tp"
+check "tool-packs.sh --compile then --check-compiled agree" sh -c '"$1" --compile >/dev/null 2>&1 && "$1" --check-compiled >/dev/null 2>&1' _ "$tp"
+check "tool-packs.sh --test all passes every pack's own tests" sh -c '"$1" --test all >/dev/null 2>&1' _ "$tp"
+
+# ---------------------------------------------------------- prompt-state.sh
+# Connection planning: a verb (connect, set up, integrate, ...) followed
+# later in the same sentence by a tool-packs registry name, or by a generic
+# word for one (tool, app, crm, connector, integration, account).
+mkdir -p "$work/.claude/tool-packs"
+cp "$here/../tool-packs/registry.tsv" "$work/.claude/tool-packs/registry.tsv"
+
+promptcheck() { # description, prompt text, match|nomatch
+  desc=$1; ptext=$2; expect=$3
+  pout=$(printf '{"prompt":"%s","permission_mode":"default"}' "$ptext" |
+    CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/prompt-state.sh" 2>/dev/null)
+  if [ "$expect" = match ]; then
+    check "$desc" has "$pout" 'Connection planning'
+  else
+    check "$desc" hasnt "$pout" 'Connection planning'
+  fi
+}
+
+promptcheck "connect + Apollo names Apollo's own expert pack" "can you connect Apollo for me" match
+promptcheck "set up + Gmail names Gmail's own expert pack" "I want to set up Gmail" match
+promptcheck "integrate + CRM is a generic connection-planning note" "let's integrate a new CRM" match
+promptcheck "a name with no verb near it never fires" "Apollo was a Greek god" nomatch
+promptcheck "a verb with no tool noun near it never fires" "I use my phone a lot" nomatch
+promptcheck "'use' the app in ordinary talk never fires, use is dropped and app is dropped" "I use the app every day" nomatch
+promptcheck "'set up' my account in ordinary talk never fires, account is dropped as a bare generic noun" "I set up my account yesterday" nomatch
+
+# ---------------------------------------------- a pack can never loosen
+# A synthetic pack, in $work only, never the real registry: one policy row
+# for a suffix mcp-guard.sh already denies by name (send_message), and one
+# for a suffix it would otherwise read as a plain, silent read
+# (search_threads). Both ask for less than mcp-guard already gives, so the
+# first must stay deny and the second must still tighten to ask, never fall
+# back to silent just because the pack's own row says ask instead of deny.
+rm -rf "$work/.claude/tool-packs"
+mkdir -p "$work/.claude/tool-packs/loosen"
+printf 'id\tname\tsuffix_regex\ttracks\torigin\n' > "$work/.claude/tool-packs/registry.tsv"
+printf 'loosen\tLoosen Test\t^(send_message|search_threads)$\tboth\ttemplate\n' >> "$work/.claude/tool-packs/registry.tsv"
+{
+  printf '^send_message$\task\tSynthetic: must never loosen what mcp-guard already denies.\n'
+  printf '^search_threads$\task\tSynthetic: a plain read still gets asked when a pack says so.\n'
+} > "$work/.claude/tool-packs/loosen/policy.tsv"
+sh "$work/.claude/scripts/tool-packs.sh" --compile >/dev/null 2>&1
+
+out=$(mg mcp__test__send_message '{}')
+check "a pack's own 'ask' can never loosen a deny mcp-guard already reaches" has "$out" '"deny"'
+out=$(mg mcp__test__search_threads '{}')
+check "a pack's own 'ask' still tightens a plain read past silent" has "$out" '"ask"'
+
+# ------------------------------------------------ specialist approval grants
+# Claude Code's PreToolUse input carries a top-level agent_type (and
+# agent_id) for a subagent call. mcp-guard.sh reads it structurally, the
+# same safe reader tool_name itself uses, and gates every non-silent,
+# non-deny decision for an agent_type ending "-specialist" behind a live
+# grant written by approve.sh. $work is a real git repo by this point (the
+# LH-003 push-to-original cases above already ran "git -C "$work" init"),
+# so lh_bk_dir resolves inside it the same way it does for the founder's
+# own folder.
+
+mgagent() { # tool_name, tool_input-json, agent_type, mode (default acceptEdits)
+  m=${4:-acceptEdits}
+  printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"%s","hook_event_name":"PreToolUse","agent_type":"%s","agent_id":"ag1","tool_name":"%s","tool_input":%s}' \
+    "$m" "$3" "$1" "$2" |
+    CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/mcp-guard.sh" 2>/dev/null
+}
+approve() { CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/approve.sh" "$@" >/dev/null 2>&1; }
+bkdir=$(CLAUDE_PROJECT_DIR="$work" sh -c '. "$1/.claude/scripts/lib.sh" && lh_bk_dir' _ "$work")
+
+# 1. A specialist write with no grant at all is refused, and the reason
+# sends it back to the main conversation's own two-phase protocol.
+out=$(mgagent mcp__286d__create_draft '{}' gmail-specialist)
+check "a gmail-specialist create_draft call with no grant is denied" has "$out" '"deny"'
+check "and the reason points back to PHASE: plan and approve.sh" has "$out" 'PHASE: plan'
+
+# 2. A grant lets exactly that decision through (guide here, not loosened
+# to silent), and is consumed: a second call with nothing left denies again.
+approve --grant gmail create_draft
+out=$(mgagent mcp__286d__create_draft '{}' gmail-specialist)
+check "with a live grant, create_draft is guided, the decision mcp-guard.sh already reached" isguide "$out"
+out=$(mgagent mcp__286d__create_draft '{}' gmail-specialist)
+check "the same suffix called again, with the grant now spent, is denied" has "$out" '"deny"'
+
+# 3. An expired grant (written straight to the approvals file, past its own
+# expiry) is treated the same as no grant at all.
+mkdir -p "$bkdir/approvals"
+printf 'create_draft\t1\t1\n' > "$bkdir/approvals/gmail"
+out=$(mgagent mcp__286d__create_draft '{}' gmail-specialist)
+check "an expired grant denies, the same as an absent one" has "$out" '"deny"'
+rm -f "$bkdir/approvals/gmail"
+
+# 4. A plain read by a specialist is never gated: still silent, grant or no
+# grant. list_drafts, not search_threads: the "a pack can never loosen"
+# fixture just above compiled a synthetic policy that turns search_threads
+# into an "ask" for the rest of this run, on purpose, so it is not a clean
+# read to test against here.
+out=$(mgagent mcp__286d__list_drafts '{}' gmail-specialist)
+check "a specialist's own read is silent, ungated" test -z "$out"
+
+# 5. A grant never loosens a deny: mcp-guard.sh's own name classifier
+# refuses send_message outright, before this gate is ever reached.
+approve --grant gmail send_message
+out=$(mgagent mcp__286d__send_message '{}' gmail-specialist)
+check "a deny tool stays denied for a specialist even with a live grant" has "$out" '"deny"'
+approve --clear gmail
+
+# 6. The main thread (no agent_type at all) is unaffected by any of this.
+out=$(mg mcp__286d__create_draft '{}')
+check "an ordinary main-thread call is guided with no grant needed" isguide "$out"
+
+# 7. A subagent that is not a "-specialist" (agent_type non-empty) is routed
+# to deny on any non-silent, non-deny connector call: it cannot show the
+# founder a live prompt either, and only a *-specialist runs the two-phase
+# plan/execute/grant protocol that makes an unattended call safe. A plain
+# read stays silent; a call the classifier already denies by name stays
+# denied.
+out=$(mgagent mcp__286d__create_draft '{}' general-purpose)
+check "a non-specialist subagent's connector write is denied, not guided" has "$out" '"deny"'
+check "and it points at that tool's own specialist" has "$out" 'specialist'
+out=$(mgagent mcp__286d__list_drafts '{}' general-purpose)
+check "a non-specialist subagent's own read is silent, unaffected" test -z "$out"
+out=$(mgagent mcp__286d__send_message '{}' general-purpose)
+check "a non-specialist subagent's already-denied call stays denied" has "$out" '"deny"'
+
+# 8. Fail closed, not open: a specialist call in a folder with no git repo
+# at all (so lh_bk_dir cannot resolve an approvals folder) is denied, never
+# silently let through the way every other doubt-case in this hook is.
+nogit="${work}-nogit"
+mkdir -p "$nogit/.claude" "$nogit/growth-engine"
+cp -R "$scripts" "$nogit/.claude/"
+: > "$nogit/growth-engine/.launchhouse"
+out=$(printf '{"session_id":"a","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","agent_type":"gmail-specialist","tool_name":"mcp__286d__create_draft","tool_input":{}}' |
+  CLAUDE_PROJECT_DIR="$nogit" sh "$nogit/.claude/scripts/mcp-guard.sh" 2>/dev/null)
+check "a specialist call with no resolvable approvals folder fails closed (deny), not open" has "$out" '"deny"'
+rm -rf "$nogit"
+
+# 9. A 1-count grant consumed by two calls at once: the mkdir-based lock
+# around the read-check-decrement-write means exactly one of them sees the
+# live grant and the other finds it already spent, never both seeing
+# "1 remaining" and both going through.
+approve --grant gmail create_draft
+race1="$work/race1.out"; race2="$work/race2.out"
+mgagent mcp__286d__create_draft '{}' gmail-specialist > "$race1" 2>/dev/null &
+racepid1=$!
+mgagent mcp__286d__create_draft '{}' gmail-specialist > "$race2" 2>/dev/null &
+racepid2=$!
+wait "$racepid1" "$racepid2" 2>/dev/null
+nondeny=0
+has "$(cat "$race1" 2>/dev/null)" '"deny"' || nondeny=$((nondeny + 1))
+has "$(cat "$race2" 2>/dev/null)" '"deny"' || nondeny=$((nondeny + 1))
+check "a 1-count grant hit by two concurrent calls lets exactly one through" match_eq "$nondeny" 1
+rm -f "$race1" "$race2"
+approve --clear gmail
+
+# 10. A lock already held (another writer mid-update) denies rather than
+# read a file that might be half-written or race that writer's own
+# decrement. The lock dir carries a fresh timestamp, so this is the
+# contested-not-stale path, not the abandoned-lock cleanup path.
+approve --grant gmail create_draft
+heldlock="$bkdir/approvals/gmail.lock"
+mkdir -p "$heldlock"
+date +%s > "$heldlock/ts" 2>/dev/null
+out=$(mgagent mcp__286d__create_draft '{}' gmail-specialist)
+check "a lock already held by another writer denies this call" has "$out" '"deny"'
+rm -rf "$heldlock"
+approve --clear gmail
+
+# 11. date +%s failing (or returning something not a plain integer) denies a
+# specialist call outright rather than trust an unreadable clock to judge a
+# grant's expiry. Simulated with a PATH stub ahead of the real date.
+approve --grant gmail create_draft
+baddate="$work-baddate"
+mkdir -p "$baddate"
+printf '#!/bin/sh\nexit 1\n' > "$baddate/date"
+chmod +x "$baddate/date"
+out=$(printf '{"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","agent_type":"gmail-specialist","agent_id":"ag1","tool_name":"mcp__286d__create_draft","tool_input":{}}' |
+  CLAUDE_PROJECT_DIR="$work" PATH="$baddate:$PATH" sh "$work/.claude/scripts/mcp-guard.sh" 2>/dev/null)
+check "a broken date command denies a specialist call rather than trust it" has "$out" '"deny"'
+rm -rf "$baddate"
+approve --clear gmail
+
+# ------------------------------------------ a subagent can never self-grant
+# approve.sh (see above) is the only writer of a specialist's approval
+# grants, at $(git rev-parse --git-dir)/launchhouse/approvals/<pack>. Every
+# subagent holds Bash, Write, Edit and MultiEdit, so without a check in
+# guard-pre.sh (PreToolUse on those tools) it could run approve.sh itself,
+# or write straight into the approvals folder. $work is a real git repo by
+# this point, the same one the specialist-approval cases above used.
+
+gpagent() { # tool_name, tool_input-json, agent_type (empty for the main thread)
+  at=$3
+  if [ -n "$at" ]; then atfield="\"agent_type\":\"$at\","; else atfield=""; fi
+  printf '{%s"session_id":"abc","transcript_path":"/Users/jo/.claude/projects/x.jsonl","cwd":"/Users/jo/launchhouse","permission_mode":"acceptEdits","hook_event_name":"PreToolUse","tool_name":"%s","tool_input":%s}' \
+    "$atfield" "$1" "$2" |
+    CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/guard-pre.sh" 2>/dev/null
+}
+
+out=$(gpagent Bash '{"command":"sh .claude/scripts/approve.sh --grant ghl execute_operation"}' ghl-specialist)
+check "a subagent running approve.sh itself is denied" has "$out" '"deny"'
+
+out=$(gpagent Bash '{"command":"printf '"'"'x'"'"' > .git/launchhouse/approvals/ghl"}' ghl-specialist)
+check "a subagent writing straight into the approvals folder via Bash is denied" has "$out" '"deny"'
+
+out=$(gpagent Write "{\"file_path\":\"$work/.git/launchhouse/approvals/ghl\",\"content\":\"x\"}" ghl-specialist)
+check "a subagent's Write straight into the approvals folder is denied" has "$out" '"deny"'
+
+out=$(gpagent Bash '{"command":"sh .claude/scripts/approve.sh --grant ghl execute_operation"}' "")
+check "the main thread running approve.sh is unaffected (allowed)" test -z "$out"
+
+out=$(gpagent Write "{\"file_path\":\"$work/.git/launchhouse/approvals/ghl\",\"content\":\"x\"}" "")
+check "even the main thread's own Write straight into the approvals folder is denied (approve.sh only)" has "$out" '"deny"'
+
+out=$(gpagent Bash '{"command":"git status"}' ghl-specialist)
+check "a specialist's ordinary Bash command is denied too, not only the approve.sh pattern" has "$out" '"deny"'
+
+out=$(gpagent Bash '{"command":"echo hi"}' ghl-specialist)
+check "a specialist cannot even echo: no shell at all, string match or not" has "$out" '"deny"'
+
+out=$(gpagent Bash '{"command":"git status"}' general-purpose)
+check "a non-specialist subagent's ordinary Bash command is unaffected (allowed)" test -z "$out"
+
+# A specialist never writes a file directly either: it reports back to its
+# caller, which is what writes into growth-engine/. Write, Edit and
+# MultiEdit are all refused outright for a "-specialist" agent_type, the
+# same footing as Bash above, and unaffected for every other caller.
+out=$(gpagent Write "{\"file_path\":\"$work/growth-engine/people/sam-example-com.md\",\"content\":\"x\"}" ghl-specialist)
+check "a specialist's Write is denied outright" has "$out" '"deny"'
+
+out=$(gpagent Edit "{\"file_path\":\"$work/growth-engine/people/sam-example-com.md\",\"old_string\":\"x\",\"new_string\":\"y\"}" gmail-specialist)
+check "a specialist's Edit is denied outright" has "$out" '"deny"'
+
+out=$(gpagent MultiEdit "{\"file_path\":\"$work/growth-engine/people/sam-example-com.md\",\"edits\":[]}" apollo-specialist)
+check "a specialist's MultiEdit is denied outright" has "$out" '"deny"'
+
+out=$(gpagent Write "{\"file_path\":\"$work/growth-engine/people/sam-example-com.md\",\"content\":\"x\"}" general-purpose)
+check "a non-specialist subagent's Write is unaffected (allowed)" test -z "$out"
+
+out=$(gpagent Write "{\"file_path\":\"$work/growth-engine/people/sam-example-com.md\",\"content\":\"x\"}" "")
+check "the main thread's own Write is unaffected too (allowed)" test -z "$out"
+
+# -------------------------------------------------------- the update engine
+# .claude/scripts/update.sh has its own self-contained suite, since it needs
+# throwaway git repos of its own rather than the single fixture $work this
+# file builds. Its PASS/FAIL lines and its own pass/fail are folded in here.
+updateout=$(sh "$here/update-cases.sh" 2>&1)
+updaterc=$?
+printf '%s\n' "$updateout"
+[ "$updaterc" = 0 ] || fail=1
 
 if [ "$fail" = 0 ]; then
   printf '\nAll cases passed.\n'

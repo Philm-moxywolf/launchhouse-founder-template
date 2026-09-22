@@ -52,7 +52,14 @@
       "Bash(git branch --unset-upstream)",
       "Bash(git fetch origin)",
       "Bash(git fetch upstream)",
-      "Bash(git ls-remote:*)"
+      "Bash(git ls-remote:*)",
+      "Bash(sh .claude/scripts/update.sh --status < /dev/null)",
+      "Bash(sh .claude/scripts/update.sh --detect-base < /dev/null)",
+      "Bash(sh .claude/scripts/update.sh --set-base:*)",
+      "Bash(sh .claude/scripts/update.sh --plan < /dev/null)",
+      "Bash(sh .claude/scripts/update.sh --apply:*)",
+      "Bash(sh .claude/scripts/update.sh --undo < /dev/null)",
+      "Bash(sh .claude/scripts/approve.sh:*)"
     ],
     "deny": [
       "Bash(security find-generic-password:*)",

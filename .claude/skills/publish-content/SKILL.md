@@ -9,7 +9,7 @@ Puts approved pieces from `engines/content/content-30.md` into GoHighLevel's Soc
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command.
 
-**Tools.** GoHighLevel's tools come in two shapes. `../../references/connections.md` says which tool does each job named here. Use it for every step below.
+**Tools.** GoHighLevel's tools come in two shapes. `../../references/connections.md` says which tool does each job named here. Use it for every step below. **Every GoHighLevel and Gmail call goes through `ghl-specialist` or `gmail-specialist`.** A read is `PHASE: plan`. A change is: plan → show the founder exactly what it will do → a clear yes → `sh .claude/scripts/approve.sh --grant <ghl|gmail> <tool suffix>[:<count>] ...` for exactly the actions just approved → the specialist again with `PHASE: execute` and `APPROVED ACTIONS:` verbatim → `sh .claude/scripts/approve.sh --clear <ghl|gmail>` → record the result. Where a step below already shows the founder the exact thing and gets a yes, that moment is the approval. A grant `approve.sh` refuses is not a rule to work around: say plainly that it was not granted, and return to the main conversation.
 
 **The promise.** Nothing goes out that the founder has not read, approved, and said yes to publishing, with the account, the time and the words in front of them.
 
@@ -68,24 +68,25 @@ The founder may have edited pieces by hand since they were written. Use the `rul
    - **Scheduled** needs a date and time for each piece. Suggest a spread of no more than one post a day per account, at a time that suits their audience, and let them change it.
 3. **Times.** Take every time the founder gives as their own time, in the timezone from their profile. If the tool asks for UTC, convert it, and check the conversion across any clock change.
 
-## 4. Show exactly what will happen, then wait
+## 4. Plan it, show exactly what will happen, then wait
 
-Show a table, one row per post:
+1. **Plan it.** Call `ghl-specialist` with `PHASE: plan` and the chosen pieces, their accounts, and draft-or-scheduled times. It searches for the right create-post operation, reads what it needs, and returns the exact proposed action for each post.
+2. **Show a table**, one row per post, from the plan's own preview:
 
 | # | First line | Account | Draft or scheduled | When, their time |
 |---|---|---|---|---|
 
-Then say: "Nothing goes out until you say yes. Shall I put these into GoHighLevel?"
-
-**Wait for a clear yes.** A yes covers exactly this table. If they change anything, show the table again.
+3. Then say: "Nothing goes out until you say yes. Shall I put these into GoHighLevel?"
+4. **Wait for a clear yes.** A yes covers exactly this table. If they change anything, plan it again and show the table again.
 
 ## 5. Publish
 
+**Grant it.** `sh .claude/scripts/approve.sh --grant ghl <the exact suffix the plan proposed>:<count>` for exactly the posts just shown and approved.
+
 For each post, one at a time:
 
-1. **Read the tool's own parameters.** Use them as they are. Never guess at a field it does not list. If the tool cannot do what the table promised (a draft, a scheduled time, an account), stop, say what it cannot do, and ask what they would like instead.
-2. **Create the post,** with the piece's words exactly as approved, the chosen accounts, and draft or the scheduled time.
-3. **Read it back.** Read the post with the id it returned, and check the words and the time match.
+1. **Create the post.** Call `ghl-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` verbatim from the plan, with the piece's words exactly as approved, the chosen accounts, and draft or the scheduled time. If the tool cannot do what the table promised (a draft, a scheduled time, an account), stop, say what it cannot do, and ask what they would like instead.
+2. **Read it back.** Call `ghl-specialist` with `PHASE: plan` to read the post with the id it returned, and check the words and the time match.
 4. **Update the ledger row:**
    - post id: the id GoHighLevel returned
    - status: `scheduled` for a scheduled post. A draft stays `approved` with the post id set, because it has not been scheduled yet.
@@ -98,6 +99,8 @@ For each post, one at a time:
 - carry on with the rest only if the founder says so
 
 **Never** delete, move or edit a post the founder did not name. To change a post already in GoHighLevel, show the change and edit the post only after a yes.
+
+**Clear the grant.** `sh .claude/scripts/approve.sh --clear ghl`, once every post in the batch has been created or has failed.
 
 ## 6. Save and report
 
@@ -112,11 +115,11 @@ For each post, one at a time:
 
 When they ask what was published:
 - Read the ledger rows at `scheduled` and `posted`.
-- Check any past their time against the posts GoHighLevel returns.
+- Call `ghl-specialist` with `PHASE: plan` to check any past their time against the posts GoHighLevel returns.
 - A scheduled post that has gone out becomes `posted`.
 
 When they ask how posts did:
-- Read how the posts did from GoHighLevel.
+- Call `ghl-specialist` with `PHASE: plan` to read how the posts did from GoHighLevel.
 - Report what it returns, in plain words. Never invent a figure it did not return, and never compare it to a benchmark nobody gave you.
 - If something clearly worked or clearly did not, offer to note it in the What worked or What did not block of `log/memory.md`, dated, so the next refill uses it.
 
@@ -126,9 +129,12 @@ B2B only. This puts each person's finished first email into the founder's own Gm
 
 1. **Check it fits.**
    - The Brain's track is `b2b`, and `engines/outreach/outreach-sequence.md` records the manual route. On the Apollo route, Apollo sends the sequence through their mailbox once they start it, so there is nothing to draft. Say so.
-   - Gmail is connected: a tool whose name ends in `create_draft`. If not, run `/growth-engine:connect`. On Microsoft 365 there is no draft tool, so say plainly that the 25 go by hand from each person's file.
+   - Gmail is connected: call `gmail-specialist` with `PHASE: plan` and check for a tool whose name ends in `create_draft`. If not, run `/growth-engine:connect`. On Microsoft 365 there is no draft tool, so say plainly that the 25 go by hand from each person's file.
 2. **Gather the emails.** For each person in `people/` at `kind: prospect`, not at `cut`, and not yet sent to, take their email address and the finished touch 1 in their Opener block. Take the subject line from touch 1 in `engines/outreach/outreach-sequence.md`. Skip anyone with no address or no Opener block, and say who.
-3. **Show, then wait.** Show a table, one row per email: first name, company, subject, the first line. Say: "These go into your Gmail drafts, not out. You read each one and press Send yourself. Shall I put them in?" Wait for a clear yes. A yes covers exactly this table.
-4. **Draft them,** one at a time, to that one person, with the subject and the Opener block exactly as written. Never send, reply or forward.
-5. **Record it** in each person's file as a touch line: `- YYYY-MM-DD email drafted: touch 1 in Gmail drafts`. Leave their status as it is: nothing is sent until they press Send. When they say they have sent to someone, record it the way the outreach engine says.
-6. **Tell them** in two lines how many drafts went in and who was skipped. Person files stay out of git, so there is nothing to save.
+3. **Plan it.** Call `gmail-specialist` with `PHASE: plan` and the gathered people, and get back the exact proposed `create_draft` action for each.
+4. **Show, then wait.** Show a table, one row per email: first name, company, subject, the first line. Say: "These go into your Gmail drafts, not out. You read each one and press Send yourself. Shall I put them in?" Wait for a clear yes. A yes covers exactly this table.
+5. **Grant it.** `sh .claude/scripts/approve.sh --grant gmail create_draft:<count>`, for exactly the count just shown and approved.
+6. **Draft them.** Call `gmail-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` verbatim from the plan, one `create_draft` per person, to that one person, with the subject and the Opener block exactly as written. Never send, reply or forward.
+7. **Clear the grant.** `sh .claude/scripts/approve.sh --clear gmail`.
+8. **Record it** in each person's file as a touch line: `- YYYY-MM-DD email drafted: touch 1 in Gmail drafts`. Leave their status as it is: nothing is sent until they press Send. When they say they have sent to someone, record it the way the outreach engine says.
+9. **Tell them** in two lines how many drafts went in and who was skipped. Person files stay out of git, so there is nothing to save.

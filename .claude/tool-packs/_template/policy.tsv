@@ -1,0 +1,4 @@
+# suffix_regex	decision	reason
+# Tab separated, decision is only deny or ask. Tighten-only: mcp-guard.sh
+# applies a row here only when it is stricter than its own decision.
+# ^{{tool_suffix}}$	deny	{{One plain sentence addressed to Claude.}}

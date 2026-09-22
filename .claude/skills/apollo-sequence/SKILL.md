@@ -29,13 +29,15 @@ Takes the founder's outreach engine into their own Apollo account.
 
 **Credits.** Whenever a tool's response includes an `mcp_credits` block, tell the founder the estimated cost before the spend, and the credits used and balance after. Always, unprompted.
 
+**Every Apollo call goes through `apollo-specialist`.** A read (a search, a list, a connection check) is `PHASE: plan`. A change is: plan → show the founder exactly what it will do → a clear yes → `sh .claude/scripts/approve.sh --grant apollo <tool suffix>[:<count>] ...` for exactly the actions just approved → call `apollo-specialist` again with `PHASE: execute` and `APPROVED ACTIONS:` verbatim → `sh .claude/scripts/approve.sh --clear apollo` → record the result. Where a step below already shows the founder the exact thing and gets a yes, that moment is the approval; do not ask twice. A grant `approve.sh` refuses is not a rule to work around: say plainly that it was not granted, and return to the main conversation.
+
 ## 1. Build the list, free
 
 **First, bring in first lines from the app.** If `growth-engine/engines/outreach/outreach-firstlines.csv` has a row whose email has no person file, write one for it, named by the slug of the email, in the prospect shape in `../../references/contract.md`. Set `key` and `email` to the address, with `kind: prospect`, `status: candidate`, `source: import`, `created` today, and `first_name` and `company` from the row. Put the row's `first_line` inside the Opener block. Never change a person file that already exists. **Then skip this step** if `growth-engine/people/` holds 25 or more prospects not at `cut`, and go to step 3. If it holds fewer, count the ones already there towards the 35 and the 25.
 
 If the criteria in `engines/outreach/outreach-sequence.md` look thin, offer to look instead (`../../references/sources.md`) for a CRM or past-customer list before asking the founder to sharpen them from memory.
 
-1. **Search.** Use the tight criteria from `engines/outreach/outreach-sequence.md` with the tool ending `apollo_mixed_people_api_search`.
+1. **Search.** Call `apollo-specialist` with `PHASE: plan`, the tight criteria from `engines/outreach/outreach-sequence.md`, and the tool ending `apollo_mixed_people_api_search`.
    - Search does not spend credits.
    - It returns a catalogue: names with the surname hidden, titles and companies, and whether an email is likely. No email addresses.
 2. **Widen if needed.** If tight returns fewer than 35 good matches, add medium, then broad. Say which you used.
@@ -46,12 +48,15 @@ If the criteria in `engines/outreach/outreach-sequence.md` look thin, offer to l
 
 Enrichment finds each person's email address, and **it spends the founder's Apollo credits**.
 
-1. **Say the cost.** Say how many people, and the credit cost the tool estimates. Count only the new candidates: anyone who already has a person file with an email is never enriched again.
-2. **Ask:** "This uses about <n> of your Apollo credits. Shall I get the addresses for these <n>?"
-3. **Wait for a clear yes.**
-4. **Enrich.** Use the tool ending `apollo_people_bulk_match`, or `apollo_people_match` one at a time.
+1. **Plan it.** Call `apollo-specialist` with `PHASE: plan` and the new candidates only (anyone who already has a person file with an email is never enriched again). It reads the estimated cost and returns exactly one proposed action: either one `apollo_people_bulk_match` call, or `apollo_people_match` one at a time, never both.
+2. **Say the cost.** Say how many people, and the credit cost the plan estimated.
+3. **Ask:** "This uses about <n> of your Apollo credits. Shall I get the addresses for these <n>?"
+4. **Wait for a clear yes.**
+5. **Grant it.** Grant only the tool suffix the plan proposed, never the alternative it did not choose: `sh .claude/scripts/approve.sh --grant apollo apollo_people_bulk_match:1` for the bulk call, or `sh .claude/scripts/approve.sh --grant apollo apollo_people_match:<n>` (the count is the number of people, one call each) if it matches one at a time.
+6. **Enrich.** Call `apollo-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` verbatim from the plan.
    - Never ask for personal emails or phone numbers. Work email only.
-5. **Report the spend:** the credits used and the balance left.
+7. **Clear the grant.** `sh .claude/scripts/approve.sh --clear apollo`.
+8. **Report the spend:** the credits used and the balance left.
 
 For each person with a work email, write a person file in `growth-engine/people/`, named by the slug of their email, in the prospect shape in `../../references/contract.md`:
 - `kind: prospect`
@@ -87,13 +92,13 @@ Use the `rules-reviewer` agent on `engines/outreach/outreach-firstlines.csv` bef
 
 ## 4. Load into Apollo
 
-**Check the mailbox first.** Call the tool ending `apollo_email_accounts_index`. If no mailbox is connected, stop here and tell them to connect the one they will send from in Apollo. Nothing can go into a sequence without it. Everything so far is saved, so they carry on from this step once it is connected.
+**Check the mailbox first.** Call `apollo-specialist` with `PHASE: plan` and the tool ending `apollo_email_accounts_index`. If no mailbox is connected, stop here and tell them to connect the one they will send from in Apollo. Nothing can go into a sequence without it. Everything so far is saved, so they carry on from this step once it is connected.
 
 Before each call, read the tool's own parameters and use them as they are. **Never guess at a field it does not list.** If a tool cannot do what a step needs, stop, tell the founder the one thing to do by hand in Apollo, and carry on from there.
 
 ### The first line field
 
-1. Call the tool ending `apollo_fields_index`, and look for a contact custom field called `first_line`.
+1. Call `apollo-specialist` with `PHASE: plan` and the tool ending `apollo_fields_index`, and look for a contact custom field called `first_line`.
 2. If there is none, ask the founder to create it: in Apollo settings, custom fields, a new contact field named exactly `first_line`, as long text. Wait until they say it is done, then check again.
 3. Say why the name matters: the CSV column, the Apollo field and the sequence variable all read `first_line`, and a mismatch fails silently.
 
@@ -101,14 +106,15 @@ Before each call, read the tool's own parameters and use them as they are. **Nev
 
 Only contacts go into sequences.
 
-1. **Show the plan.** Say: "I will add these 25 as contacts in your Apollo account, each with their first line."
-2. **Wait for a yes.**
-3. **Create.** Use the tool ending `apollo_contacts_bulk_create`, or `apollo_contacts_create` one at a time, with de-duplication on if the tool offers it.
-   - Set `first_line` on each contact.
-   - **If the create tool cannot set a custom field,** set it afterwards on each contact with the tool ending `apollo_contacts_update`.
-   - **If neither can,** tell the founder to import `engines/outreach/outreach-firstlines.csv` in Apollo and map the `first_line` column to the field. Wait until they have.
-4. **Label them.** With the tools ending `apollo_labels_create` and `apollo_labels_add_entity_ids_to_label_names`, add a label `Launchhouse 25`, so the list is easy to find.
-5. **Record the ids.** Write each `apollo_contact_id` into the person file.
+1. **Plan it.** Call `apollo-specialist` with `PHASE: plan` and the 25 people with their first lines. It reads whether the create tool can set the `first_line` custom field and returns exactly the proposed actions: either one `apollo_contacts_bulk_create` call, or `apollo_contacts_create` one at a time (never both), plus `apollo_contacts_update` only if a separate call is actually needed to set `first_line`, plus the label calls.
+2. **Show the plan.** Say: "I will add these 25 as contacts in your Apollo account, each with their first line."
+3. **Wait for a yes.**
+4. **Grant it.** Grant only the tool suffixes and counts the plan actually proposed, never the alternative it did not choose, for example `sh .claude/scripts/approve.sh --grant apollo apollo_contacts_bulk_create:1 apollo_labels_create:1 apollo_labels_add_entity_ids_to_label_names:1` for the bulk call, or `sh .claude/scripts/approve.sh --grant apollo apollo_contacts_create:25 apollo_contacts_update:25 apollo_labels_create:1 apollo_labels_add_entity_ids_to_label_names:1` if it creates one at a time (count = 25, the number of people; grant `apollo_contacts_update` only if the plan says a separate call is needed).
+5. **Create.** Call `apollo-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` verbatim from the plan, with de-duplication on if the tool offers it.
+   - **If neither call can set the custom field,** tell the founder to import `engines/outreach/outreach-firstlines.csv` in Apollo and map the `first_line` column to the field. Wait until they have.
+6. **Label them.** With the tools ending `apollo_labels_create` and `apollo_labels_add_entity_ids_to_label_names`, add a label `Launchhouse 25`, so the list is easy to find.
+7. **Clear the grant.** `sh .claude/scripts/approve.sh --clear apollo`.
+8. **Record the ids.** Write each `apollo_contact_id` into the person file.
 
 ### The sequence
 
@@ -116,20 +122,25 @@ Only contacts go into sequences.
    - **These are the founder's words, in their voice, and they go in as written.** Never shorten, polish or rewrite a touch while loading it. The sequence was written and approved in the outreach engine, whether in this folder or in the app.
    - If a file from the app writes the personal line some other way, such as `[first line]`, change only that marker to `{{first_line}}`, and show the founder the line before and after.
    - If a touch has no opt-out line, or there are fewer than four touches, stop. Send them back to the outreach engine to finish the sequence there, rather than writing touches here.
-2. **Pick the schedule.** Call the tool ending `apollo_emailer_schedules_index`, and choose a weekday business-hours schedule in the founder's timezone. Confirm it with them.
+2. **Pick the schedule.** Call `apollo-specialist` with `PHASE: plan` and the tool ending `apollo_emailer_schedules_index`, and choose a weekday business-hours schedule in the founder's timezone. Confirm it with them.
 3. **Show the plan.** Say: "I will create the sequence <name>, paused, with <n> touches, sending from <mailbox> on <schedule>. Nothing sends until you press start in Apollo."
 4. **Wait for a yes.**
-5. **Create it** with the tool ending `apollo_sequences_create`, **inactive**.
+5. **Grant it.** `sh .claude/scripts/approve.sh --grant apollo apollo_sequences_create:1`.
+6. **Create it.** Call `apollo-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` the tool ending `apollo_sequences_create`, **inactive**.
    - If the tool can set the steps and copy, set them exactly as written.
    - If it cannot, create the sequence, then tell the founder to paste each touch from `engines/outreach/outreach-sequence.md` into the steps in Apollo, in order, with the waits. Offer to show each touch for copying.
-6. **Read it back.** Call the tool ending `apollo_emailer_campaigns_show`, and check it is not active, the steps match, and stop-on-reply is on. If stop-on-reply is off, tell them to turn it on in the sequence settings.
+7. **Clear the grant.** `sh .claude/scripts/approve.sh --clear apollo`.
+8. **Read it back.** Call `apollo-specialist` with `PHASE: plan` and the tool ending `apollo_emailer_campaigns_show`, and check it is not active, the steps match, and stop-on-reply is on. If stop-on-reply is off, tell them to turn it on in the sequence settings.
 
 ### Add the 25
 
-1. **Ask:** "Add the 25 to the paused sequence, sending from <mailbox>?"
-2. **Wait for a yes.**
-3. **Add them.** Use the tool ending `apollo_emailer_campaigns_add_contact_ids`, with the mailbox's id as the sending account.
-4. **Update each person file.** Set `status: enrolled`, and add a touch line `- YYYY-MM-DD email out: added to the paused Apollo sequence`.
+1. **Plan it.** Call `apollo-specialist` with `PHASE: plan` and the 25 contact ids, and get back the exact proposed `apollo_emailer_campaigns_add_contact_ids` call.
+2. **Ask:** "Add the 25 to the paused sequence, sending from <mailbox>?"
+3. **Wait for a yes.**
+4. **Grant it.** `sh .claude/scripts/approve.sh --grant apollo apollo_emailer_campaigns_add_contact_ids:1`.
+5. **Add them.** Call `apollo-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` verbatim from the plan, with the mailbox's id as the sending account.
+6. **Clear the grant.** `sh .claude/scripts/approve.sh --clear apollo`.
+7. **Update each person file.** Set `status: enrolled`, and add a touch line `- YYYY-MM-DD email out: added to the paused Apollo sequence`.
 
 ## 5. Hand it to the founder
 
@@ -151,8 +162,8 @@ Never promise replies. If they ask what to expect, say replies depend on the lis
 ## Afterwards
 
 When the founder asks how it is going:
-- Call the tool ending `apollo_emailer_campaigns_activity_feed` or `apollo_emailer_messages_search`, and report what it returns: sent, bounced, opted out, replied.
+- Call `apollo-specialist` with `PHASE: plan` and the tool ending `apollo_emailer_campaigns_activity_feed` or `apollo_emailer_messages_search`, and report what it returns: sent, bounced, opted out, replied.
 - Never compare against a reply rate nobody gave you.
 - Replied people become `status: replied` in their file.
 
-When someone asks to be left alone, stop them straight away with the tool ending `apollo_emailer_campaigns_remove_or_stop_contact_ids`, after telling the founder, and set their status to `stopped`.
+When someone asks to be left alone, call `apollo-specialist` with `PHASE: plan` and the tool ending `apollo_emailer_campaigns_remove_or_stop_contact_ids`, tell the founder that person will be stopped, wait for a yes, grant it (`sh .claude/scripts/approve.sh --grant apollo apollo_emailer_campaigns_remove_or_stop_contact_ids:1`), call `apollo-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` verbatim from the plan, clear the grant, and set their status to `stopped`.
