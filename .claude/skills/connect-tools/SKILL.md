@@ -97,7 +97,7 @@ If they are still stuck, record `needs a hand` and send them to the Slack channe
 
 ### Prove it
 
-Do not tick a box. Read their own account back to them, which a broken connection cannot fake. For each job below, use the tool that `../../references/connections.md` names for it.
+Do not tick a box. Read their own account back to them, which a broken connection cannot fake. For each job below, call `ghl-specialist` with `PHASE: plan` and the tool that `../../references/connections.md` names for it. A read never needs a grant.
 
 **Location**
 - Read back the business.
@@ -154,6 +154,8 @@ Look for tools whose names end in `apollo_users_api_profile` and `apollo_mixed_p
 
 ### Prove it
 
+Call `apollo-specialist` with `PHASE: plan` for each read below. A read never needs a grant.
+
 **Account**
 - Call the tool ending `apollo_users_api_profile`.
 - Say: "Connected to Apollo as <their email>."
@@ -203,6 +205,8 @@ Look for the connector's tools: for Gmail, tools whose names end in `create_draf
 
 ### Prove it
 
+Call `gmail-specialist` or `outlook-specialist` with `PHASE: plan`, whichever matches. A read never needs a grant.
+
 - Search their sent mail for one message, and read back only the address it was sent from. Never show anyone else's details.
 - Say: "Connected to the mailbox <address>. Is that your work email?"
 - Record `Mailbox connector | done | <date> | <Gmail or Microsoft 365>, read back address: <address>`.
@@ -225,6 +229,13 @@ Look for the connector's tools: for Gmail, tools whose names end in `create_draf
 | **Always allow** | tools that only read |
 
 If their settings do not offer this, say the Launchhouse checks cover it in this folder, and move on.
+
+## 4a. Recording the tool, and its expert pack
+
+Whenever the founder names a tool they plan to connect, add or update its row in `growth-engine/.state/tools.md` (shape in `../../references/contract.md`) as `planned`, before it is even connected. Once a check above proves it, update that same row to `connected` or `verified`, with the evidence the tool actually returned, never what the founder said.
+
+- **If the tool has a pack** (listed in `.claude/tool-packs/registry.tsv`: GoHighLevel, Apollo, Gmail, Microsoft 365, or one a founder built before), use its `<id>-expert` skill for anything about how that tool works, instead of improvising.
+- **If it does not,** once it is connected, offer once, in plain words, to build one with the `tool-pack-builder` skill, so the next conversation does not have to relearn the tool from nothing.
 
 ## 5. Save and hand on
 

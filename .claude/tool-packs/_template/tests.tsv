@@ -1,0 +1,4 @@
+# tool_name	expected	tool_input_json	note
+# Tab separated. expected is one of deny|ask|guide|silent. Every policy.tsv
+# row needs at least one test here. Include read tools expected silent.
+# mcp__abc123__{{tool_suffix}}	deny	{}	{{why}}

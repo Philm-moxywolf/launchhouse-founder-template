@@ -1,0 +1,9 @@
+# Read from the UPSTREAM head by update.sh --plan, never from a founder's
+# own copy. Lists paths that exist in the maintainer's repository but are
+# never meant to reach a founder's copy of Launchhouse, so the update engine
+# leaves them alone in both directions: never proposed as "add", never
+# diffed, never held for review. One glob per line; a line ending in / means
+# everything under that folder. Blank lines and lines starting with # are
+# ignored.
+docs/
+IMPLEMENTATION-NOTES.md

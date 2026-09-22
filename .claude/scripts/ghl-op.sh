@@ -34,7 +34,9 @@
 #   deny  (refuse outright, and the new "no descriptor" case)
 #   ask   (a founder-facing prompt, even in auto mode: the small named set
 #         below — conversations send, social post create/edit/publish, an
-#         email template created, a contact touched, an opportunity updated)
+#         email template created, a contact touched, an opportunity updated,
+#         a custom value created or updated. A custom value delete stays
+#         deny, same as any other delete)
 #   guide (every other write: noted for Claude, no prompt forced)
 #   silent (a clear read: no output at all)
 # It never allows on doubt: an operation this script cannot read, an empty
@@ -206,6 +208,11 @@ lh_ghl_classify() {
     if printf '%s' "$_lhg_flat" | grep -Eq ' template ' && printf '%s' "$_lhg_flat" | grep -Eq ' create '; then _lhg_ask=1; fi
     if printf '%s' "$_lhg_flat" | grep -Eq ' contacts? ' && printf '%s' "$_lhg_flat" | grep -Eq ' (create|update|upsert|add|tag|untag) '; then _lhg_ask=1; fi
     if printf '%s' "$_lhg_flat" | grep -Eq ' opportunit[a-z]* ' && printf '%s' "$_lhg_flat" | grep -Eq ' update '; then _lhg_ask=1; fi
+    # A custom value created or updated: the same named-set tier as the
+    # other founder-facing GHL writes. A delete is already caught above, by
+    # the generic "delete" refuse word, before this write branch is ever
+    # reached.
+    if printf '%s' "$_lhg_flat" | grep -Eq ' custom values? ' && printf '%s' "$_lhg_flat" | grep -Eq ' (create|update|upsert|add|set) '; then _lhg_ask=1; fi
 
     if [ "$_lhg_ask" = 1 ]; then
       lh_ghl_decision=ask

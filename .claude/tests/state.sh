@@ -607,7 +607,7 @@ sed -n '/^| GoHighLevel |/,/^| The mailbox |/p' "$repo/.claude/references/connec
   && grep -q '\*\*Microsoft 365\*\* for Microsoft 365' "$repo/.claude/references/connections.md"
 conn_ok $? "Apollo, Gmail and Microsoft 365 use Claude's own connectors, named exactly"
 
-grep -q 'Microsoft 365 reads mail but cannot write drafts' "$repo/.claude/references/connections.md" \
+grep -q 'Microsoft 365 can now write drafts, once an admin turns that on' "$repo/.claude/references/connections.md" \
   && grep -qF 'Never call a tool that does' "$repo/.claude/references/connections.md" \
   && grep -q 'drafts only, never send' "$repo/.claude/skills/publish-content/SKILL.md"
 conn_ok $? "the mailbox is drafts only, and never sends"

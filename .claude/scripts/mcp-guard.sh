@@ -39,9 +39,60 @@
 # case). And even then, deny and ask only fire when the folder actually
 # carries the marker (lh_active): a folder that merely looks like one
 # nearby never gets blocked or prompted, only guided at most.
+#
+# Tool packs (.claude/tool-packs/) can add their own extra rules on top of
+# everything below, one pack per connected tool. compiled-policy.sh, built
+# by tool-packs.sh --compile, is sourced here if it is present and parses
+# cleanly (checked with sh -n first, since a syntax error inside a sourced
+# script is otherwise fatal to this one too, and this hook fails open on
+# any doubt). A pack can only ever tighten this hook's own decision, never
+# loosen it: see the application further down, just above the wrong-folder
+# downgrade.
 
 . "$(dirname "$0")/lib.sh" 2>/dev/null || exit 0
 . "$(dirname "$0")/ghl-op.sh" 2>/dev/null || exit 0
+lh_compiled_policy="$(dirname "$0")/../tool-packs/compiled-policy.sh"
+if [ -f "$lh_compiled_policy" ] && sh -n "$lh_compiled_policy" 2>/dev/null; then
+  . "$lh_compiled_policy" 2>/dev/null || true
+fi
+# A short, bounded mkdir-based lock guarding a grant file's read-check-
+# decrement-write, so two concurrent specialist calls can never both read
+# "1 remaining" and both proceed: mkdir is atomic, unlike a check-then-write
+# race on the file itself. A lock dir older than 60 seconds is treated as
+# abandoned (a crashed writer) and cleared before retrying, so one dead
+# process can never wedge every future grant. Bounded: the caller denies
+# rather than wait past a handful of short retries, which is the safe
+# answer for an approval gate. approve.sh takes the same lock, on the same
+# path, before it grants or clears, so the two scripts never race each other
+# either.
+lh_mg_lock() {
+  ld=$1
+  n=0
+  while [ "$n" -lt 30 ]; do
+    if mkdir "$ld" 2>/dev/null; then
+      lts=$(date +%s 2>/dev/null) && printf '%s' "$lts" > "$ld/ts" 2>/dev/null
+      return 0
+    fi
+    if [ -f "$ld/ts" ]; then
+      ts=$(cat "$ld/ts" 2>/dev/null)
+      case $ts in ''|*[!0-9]*) ts=0 ;; esac
+      now2=$(date +%s 2>/dev/null) || now2=0
+      case $now2 in ''|*[!0-9]*) now2=0 ;; esac
+      if [ "$now2" -gt 0 ] && [ "$ts" -gt 0 ] && [ $((now2 - ts)) -gt 60 ]; then
+        rm -rf "$ld" 2>/dev/null
+        continue
+      fi
+    fi
+    n=$((n + 1))
+    sleep 0.1 2>/dev/null || :
+  done
+  return 1
+}
+
+lh_mg_unlock() {
+  rm -rf "$1" 2>/dev/null
+}
+
 lh_active && lh_mg_active=1 || lh_mg_active=0
 if [ "$lh_mg_active" != 1 ] && [ -z "$(lh_near)" ]; then exit 0; fi
 
@@ -258,10 +309,175 @@ else
 fi
 fi
 
+# Tool packs: apply the strictest pack policy for this tool's suffix, but
+# only when it is stricter than the decision already reached above (deny >
+# ask > guide > silent). A pack's own compiled rules can only tighten this
+# hook, never loosen it. Skipped for a name this hook could not fully read
+# (tool_nonascii), the same doubt that already forced decision=ask above.
+if [ "$tool_nonascii" != 1 ] && command -v lh_pack_policy >/dev/null 2>&1; then
+  suffix=${tool##*__}
+  lh_pack_policy "$suffix"
+  if [ -n "$lh_pack_decision" ]; then
+    apply=0
+    case $lh_pack_decision in
+      deny) case $decision in deny) ;; *) apply=1 ;; esac ;;
+      ask) case $decision in deny|ask) ;; *) apply=1 ;; esac ;;
+    esac
+    [ "$apply" = 1 ] && { decision=$lh_pack_decision; reason=$lh_pack_reason; }
+  fi
+fi
+
+# Tool packs: point Claude at the pack that covers this connector, or, when
+# none does, offer to build one. Only said when there is something to say
+# about at all (decision is not silent): a plain read never gets a note.
+if [ "$tool_nonascii" != 1 ] && [ "$decision" != silent ] && command -v lh_pack_detect >/dev/null 2>&1; then
+  suffix=${tool##*__}
+  lh_pack_detect "$suffix"
+  if [ -n "$lh_pack_id" ]; then
+    reason="$reason The $lh_pack_name expert pack is at .claude/tool-packs/$lh_pack_id/: read its knowledge.md before acting."
+  else
+    reason="$reason No Launchhouse expert pack covers this connector yet: once in this conversation, offer the founder to build one with the tool-pack-builder skill."
+  fi
+fi
+
 # Only a Launchhouse folder that actually carries the marker gets held up:
 # a folder merely near one (the wrong-folder case) is guided at most.
 if [ "$lh_mg_active" != 1 ]; then
   case $decision in deny|ask) decision=guide ;; esac
+fi
+
+# Specialist approval grants. Claude Code's PreToolUse input carries a
+# top-level agent_type (and agent_id) when the call comes from a subagent
+# (https://code.claude.com/docs/en/hooks). Read structurally, the same safe
+# top-level reader tool_name itself uses above, so a tool_input field a
+# founder's own data happens to name agent_type can never spoof this.
+#
+# A specialist (an agent_type ending in "-specialist") can only run a tool
+# call the main conversation has already granted with approve.sh, once the
+# founder has said yes to the specialist's own PHASE: plan. A specialist
+# never talks to the founder itself, so it cannot be the one asking, or the
+# one deciding a guide note is enough: every non-silent, non-deny decision
+# for a specialist needs a live grant, ask and guide alike. A grant only
+# ever unblocks a call this hook would otherwise hold up waiting on a live
+# prompt the subagent cannot show — it never turns a deny into anything
+# else, and it never turns the found decision into something looser than
+# mcp-guard.sh already reached on its own.
+#
+# Any other subagent (agent_type non-empty, not a "-specialist"): it cannot
+# show the founder a live prompt any more than a specialist can, and it is
+# not built to run the two-phase plan/execute/grant protocol that makes an
+# unattended connector call safe. So a non-silent, non-deny decision for one
+# of these is routed to deny too, sending the change through that tool's own
+# specialist instead — never left at ask or guide, which this subagent has
+# no way to make the founder actually see. Only the main thread (agent_type
+# empty) keeps the decision the classifier above reached on its own.
+if [ "$tool_nonascii" != 1 ]; then
+  agent_type_raw=$(lh_json_get_raw agent_type "$input" 2>/dev/null) || agent_type_raw=""
+  lh_unescape_json_string "$agent_type_raw"
+  agent_type=$lh_unescape_result
+
+  case $agent_type in
+    *-specialist)
+      case $decision in
+        deny|silent) ;;  # unchanged, exactly as mcp-guard.sh already decided
+        *)
+          pack_id=${agent_type%-specialist}
+          approve_reason="This specialist can only make changes the founder approved in chat. Return to the main conversation with PHASE: plan; the main conversation grants the approved actions with approve.sh before PHASE: execute."
+          bk=$(lh_bk_dir 2>/dev/null) || bk=""
+          if [ -z "$bk" ]; then
+            # The approvals folder itself could not even be resolved (no
+            # git dir found): fail closed for a specialist, never fail
+            # open here, unlike every other doubt-case in this hook.
+            decision=deny
+            reason=$approve_reason
+          else
+            approve_file="$bk/approvals/$pack_id"
+            suffix=${tool##*__}
+            now=$(date +%s 2>/dev/null) || now=""
+            case $now in ''|*[!0-9]*) now="" ;; esac
+            if [ -z "$now" ]; then
+              # date +%s failed, or the shell running it returned something
+              # that is not a plain integer: never trust an unreadable
+              # clock to judge an expiry. Deny rather than risk treating an
+              # expired grant as live.
+              decision=deny
+              reason=$approve_reason
+            else
+              lock="$approve_file.lock"
+              if lh_mg_lock "$lock"; then
+                granted_line=""
+                if [ -f "$approve_file" ] 2>/dev/null; then
+                  # A malformed line (remaining or expiry not a plain
+                  # integer, from a hand-edited file or a partial write
+                  # this lock did not catch) is skipped, never treated as
+                  # a live grant.
+                  granted_line=$(awk -F '\t' -v s="$suffix" -v now="$now" '
+                    $1 == s {
+                      rem = $2; expv = $3
+                      if (rem !~ /^[0-9]+$/ || expv !~ /^[0-9]+$/) next
+                      if (rem + 0 > 0 && expv + 0 > now) { print; exit }
+                    }
+                  ' "$approve_file" 2>/dev/null)
+                fi
+                if [ -n "$granted_line" ]; then
+                  # A live grant: decrement it, the only write this hook
+                  # ever makes, and only on this path, under the same lock
+                  # that guarded the read above — so two concurrent calls
+                  # for the same 1-count grant can never both read
+                  # "1 remaining" and both proceed. The decision already
+                  # reached (ask or guide) stays exactly as it is — a grant
+                  # never loosens it to silent, and never converts an ask
+                  # into an allow: the founder's own prompt for that call
+                  # is what mitigates a grant being keyed by tool suffix
+                  # alone (not by input), so an approved "ask" tool still
+                  # shows the founder the real call before it runs.
+                  rem=$(printf '%s' "$granted_line" | awk -F '\t' '{ print $2 - 1 }')
+                  expv=$(printf '%s' "$granted_line" | awk -F '\t' '{ print $3 }')
+                  tmp="$approve_file.tmp.$$"
+                  if awk -F '\t' -v OFS='\t' -v s="$suffix" -v rem="$rem" -v expv="$expv" '
+                    BEGIN { done = 0 }
+                    $1 == s && done == 0 { done = 1; if (rem > 0) print s, rem, expv; next }
+                    { print }
+                  ' "$approve_file" > "$tmp" 2>/dev/null && mv "$tmp" "$approve_file" 2>/dev/null; then
+                    :
+                  else
+                    # The write failed: never leave the grant looking
+                    # spent when it was not actually consumed. Remove the
+                    # half-written temp file and deny this call; the grant
+                    # itself is untouched, so a retry can still use it.
+                    rm -f "$tmp" 2>/dev/null
+                    decision=deny
+                    reason=$approve_reason
+                  fi
+                else
+                  decision=deny
+                  reason=$approve_reason
+                fi
+                lh_mg_unlock "$lock"
+              else
+                # Could not take the lock within the bounded retry: another
+                # call is mid-write. Deny rather than read a file that
+                # might be half-written, or race that call's own decrement.
+                decision=deny
+                reason=$approve_reason
+              fi
+            fi
+          fi
+          ;;
+      esac
+      ;;
+    "")
+      ;;  # the main thread: unaffected
+    *)
+      case $decision in
+        deny|silent) ;;  # a read stays silent; a deny is never loosened
+        *)
+          decision=deny
+          reason="Connector changes from a helper go through that tool's specialist, after the founder's yes."
+          ;;
+      esac
+      ;;
+  esac
 fi
 
 case $decision in

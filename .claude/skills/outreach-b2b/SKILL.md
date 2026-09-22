@@ -229,10 +229,10 @@ When someone replies, set them to `replied` and remind the founder to cancel tha
 
 ### Checking for replies
 
-When they ask who has replied, and their mailbox is connected (Gmail, or Microsoft 365), check it for them. This only reads. Follow the mailbox rules in `../../references/connections.md`.
+When they ask who has replied, and their mailbox is connected (Gmail, or Microsoft 365), check it for them. This only reads, through `gmail-specialist` or `outlook-specialist` with `PHASE: plan`; a read never needs a grant. Follow the mailbox rules in `../../references/connections.md`.
 
 1. Take each person in `people/` at `status: contacted_ok`, with the date of their first `email out` touch line.
-2. Search the mailbox for mail from that person's address since that date. Read only who wrote and when.
+2. Call the matching specialist with `PHASE: plan` to search the mailbox for mail from that person's address since that date. Read only who wrote and when.
 3. For each one who wrote:
    - set their `status` to `replied`
    - add a touch line `- YYYY-MM-DD reply in: found in <Gmail or Microsoft 365>`

@@ -2,6 +2,8 @@
 
 How the founder's tools reach Claude. `connect-tools` sets them up and proves them. Any skill that uses a tool follows this file.
 
+Deep, tool-specific knowledge lives one level down, in each tool's own pack under `.claude/tool-packs/<id>/` (GoHighLevel, Apollo, Gmail, Microsoft 365, and any tool a founder connects later). Use a pack's `<id>-expert` skill for how that tool works and what its jobs look like. Where the two disagree, this file wins: a pack can tighten what is allowed here, never loosen it, so a pack that reads as looser than this file is simply wrong and gets fixed, not followed.
+
 | Tool | Who | How it connects | Its name |
 |---|---|---|---|
 | GoHighLevel | everyone | Claude's own connector, signed in from Settings, then Connectors, then Add custom connector. If sign-in does not work on this computer, this folder's own fallback connection instead, in `.mcp.json`, using a key the founder keeps in their computer's own password store | **HighLevel** |
@@ -15,9 +17,13 @@ Nothing else needs connecting. GitHub is GitHub Desktop's job, not a connection.
 One check, `mcp-guard.sh`, runs before every call to a connected tool, on any connector, not only the three above. It is deterministic by the founder's own Claude permission mode, and it only ever adds a note or a prompt on top. It never removes one, and in the mode most founders run in (auto, with no prompts) it never invents a prompt of its own.
 
 - **Refused outright, in every mode:** spending the founder's money (buying, purchasing, checking out), a tool that sends or connects to a real person in bulk or cold (a broadcast, a batch send, a mailbox send or reply or forward, LinkedIn's send or connect), a mail rule, and GoHighLevel's own refused set below.
-- **Asks the founder first, even in a mode with no other prompts:** a message actually going out, a calendar change, an Apollo credit spend, and a short named set of GoHighLevel writes (a reply, a social post, an email template, a contact, a deal).
+- **Asks the founder first, even in a mode with no other prompts:** a message actually going out, a calendar change, an Apollo credit spend, and a short named set of GoHighLevel writes (a reply, a social post, an email template, a contact, a deal, a custom value created or updated, though deleting one is refused outright like any other delete).
 - **Guided, not blocked:** every other write. Claude is told the rule and, when the founder's mode would show no prompt of its own, told to get a yes in chat first, but the call itself is never held up by this check.
 - **Silent:** a plain read. Nothing is said.
+
+## Specialist agents
+
+A `<id>-specialist` subagent (`ghl-specialist`, `apollo-specialist`, and so on) never talks to the founder itself, so it can never be the one asking for a yes. `mcp-guard.sh` enforces this: any tool call a specialist makes that would otherwise ask or guide is refused unless the main conversation has already granted it with `sh .claude/scripts/approve.sh --grant <pack-id> <tool-suffix>...`, after showing the founder the specialist's own `PHASE: plan` output and getting a clear yes. A deny stays a deny either way; a grant only ever unblocks what mcp-guard.sh would otherwise hold up waiting on a prompt the specialist cannot show. See `.claude/tool-packs/README.md` for the full protocol.
 
 ## GoHighLevel: the connector
 
@@ -82,7 +88,7 @@ This is the fallback, and it is Code only: it never runs in Cowork.
 - That is also how the 25 outreach emails stay within the rule that a first message to someone who has not written is never sent by a tool: the founder sends each one.
 - Show the founder what will be drafted, and to whom, and wait for a yes before writing any draft.
 
-**Microsoft 365 reads mail but cannot write drafts.** Its mail tool is `outlook_email_search`, which only searches. The 25 then go by hand from each person's file, as the manual route already says.
+**Microsoft 365 can now write drafts, once an admin turns that on.** On every account Launchhouse has connected so far, its mail tools were read-only: `outlook_email_search` and `outlook_calendar_search`. Anthropic's own connector security guide now documents a full set of write tools on this connector, including `outlook_create_draft`, `outlook_create_reply_draft` and `outlook_create_reply_all_draft`, but every one of them is off by default. A Microsoft Entra administrator has to approve the added permission, and an organization owner has to turn it on in Claude's connector tool permissions, before any of them exist on a given founder's account; for a solo founder this is usually their own account, so it is their own click, not IT's. Until that has happened, or been confirmed, the 25 go by hand from each person's file, as the manual route already says. `outlook_send_mail`, `outlook_forward_mail` and `outlook_send_draft` are never used from here, whatever an administrator turns on: Launchhouse never sends or forwards from a founder's mailbox by tool.
 
 **Replies are read, never answered.** To check for replies, search the mailbox for mail from each person's address since their email went out: Gmail's `search_threads`, or Microsoft 365's `outlook_email_search`. Read only who wrote and when. The founder answers in their own mail app. The Microsoft 365 check has not yet been tried on a real account: if its search does not return the sender, say so plainly and ask the founder who has replied.
 

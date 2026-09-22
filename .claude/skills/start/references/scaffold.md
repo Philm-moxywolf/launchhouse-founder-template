@@ -145,6 +145,8 @@ A founder on the Launchhouse Atlanta programme, building their business. They ar
 
 This folder carries Launchhouse itself, in `.claude/`: the skills, the agents, the checks that run on every write, the references they read and the routines. Nothing is installed from a marketplace, so there is never a plugin to add or update. If the founder has the old `growth-engine` plugin installed as well, this folder's copy is the one in use: `.claude/settings.json` switches the old `growth-engine` plugin off inside this folder, so there are never two copies.
 
+Updates to Launchhouse itself come through saying "update launchhouse". It keeps everything the founder changed, never touches `growth-engine/`, and only applies once every check has passed and they have said yes.
+
 ## The Founder Brain comes first
 
 `growth-engine/brain/founder-brain.md` is the record of the business: what they sell, who to, what they can prove, and how they write. Read it before writing anything for them.
@@ -182,4 +184,10 @@ These hold everywhere in this folder, including when publishing through GoHighLe
 **Every connected tool, not only these three.** One check runs before any tool from a connector (GoHighLevel, Apollo, the mailbox, or any other the founder has connected) does anything. A small, fixed list of actions is refused outright, always: spending the founder's money, sending or connecting to a real person in bulk or cold, GoHighLevel's own refused list, and a mailbox rule. A short further list (a message actually going out, a calendar change, an Apollo credit spend, and a few named GoHighLevel actions) asks the founder first even when their own Claude setting would not otherwise ask. Everything else that changes or sends something is noted for Claude, in plain words, but never held up on its own: most founders run in a mode with no prompts at all, so their own yes in chat, before Claude ever reaches for the tool, is what has to carry it. A plain read is never even mentioned.
 
 The Launchhouse checks enforce most of this automatically. When a file is held or a tool is stopped, tell the founder in one plain sentence what happened and what to do, never as an error.
+
+## Tool packs
+
+Beyond GoHighLevel, Apollo, Gmail and Microsoft 365, a founder can connect any other tool: a scheduler, a second inbox, a different CRM. Each connected tool can have an expert pack, in `.claude/tool-packs/<id>/`: a sourced knowledge file, a specialist agent and an expert skill, plus tighten-only rules on top of the checks above. When a connection is being planned, or a tool is connected, use its `<id>-expert` skill if it has a pack, or offer to build one with the `tool-pack-builder` skill.
+
+A pack can only ever add to the six rules and the checks above, never loosen them. In Cowork, no hooks run at all, on a pack's tools any more than on GoHighLevel's or Apollo's: the connector's own "Needs approval" setting is what still holds a send or a spend, so set it the same way there.
 ```

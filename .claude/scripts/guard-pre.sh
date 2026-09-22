@@ -20,6 +20,84 @@ input=$(cat) || exit 0
 
 tool=$(lh_json_get tool_name "$input") || tool=""
 
+# Specialist approval grants (see .claude/scripts/approve.sh and the
+# specialist-approval gate in mcp-guard.sh) live at
+# $(git rev-parse --git-dir)/launchhouse/approvals/<pack>, and only
+# approve.sh — run from the main conversation, after the founder says yes in
+# chat — may write there. A subagent holds every tool a specialist needs, so
+# without this check it could self-grant: run approve.sh itself via Bash, or
+# write straight into the approvals folder with Bash, Write, Edit or
+# MultiEdit. This runs first, before any other check in this hook.
+#
+# Claude Code's PreToolUse input carries a top-level agent_type for a
+# subagent call. Read it structurally, the same safe top-level reader
+# tool_name itself uses above, so a tool_input field a founder's own data
+# happens to name agent_type can never spoof this.
+agent_type_raw=$(lh_json_get_raw agent_type "$input" 2>/dev/null) || agent_type_raw=""
+lh_unescape_json_string "$agent_type_raw"
+agent_type=$lh_unescape_result
+
+approvalsmsg="Only the main conversation grants approvals, after the founder says yes in chat. Return to the main conversation."
+lh_approvals_deny_or_guide() {
+  if lh_active; then lh_deny_pre "$approvalsmsg"; else lh_guide_pre "$approvalsmsg"; fi
+}
+
+# A "-specialist" subagent never needs a shell at all — it works through its
+# connector's own tools (and Read). A string match on the command text (the
+# check just below, kept for every other subagent) can be evaded: base64, a
+# shell variable holding the path in pieces, a glob, a second copy of
+# approve.sh under another name. So for a specialist, refuse Bash outright,
+# every command, rather than trying to name every way around a pattern match.
+specmsg="Specialists work through their connector's tools only. Return to the main conversation."
+if [ "$tool" = Bash ]; then
+  case $agent_type in
+    *-specialist)
+      if lh_active; then lh_deny_pre "$specmsg"; else lh_guide_pre "$specmsg"; fi ;;
+  esac
+fi
+
+# A specialist never writes a file either: it works through its connector's
+# own tools and Read only, and reports what it read or would do back to the
+# caller in plain text. The main conversation (or the skill that called the
+# specialist) is what writes a person file, a draft record, or anything else
+# into growth-engine/ — never the specialist itself. Without this, a
+# specialist could write straight past every path and track rule further
+# down in this hook simply by not going through the caller at all.
+wespecmsg="Specialists report back with what they read or would do; the caller writes any file. Return to the main conversation."
+case $tool in
+  Write|Edit|MultiEdit)
+    case $agent_type in
+      *-specialist)
+        if lh_active; then lh_deny_pre "$wespecmsg"; else lh_guide_pre "$wespecmsg"; fi ;;
+    esac ;;
+esac
+
+# Any other subagent (agent_type non-empty, not a "-specialist"): a plain
+# Bash command naming approve.sh or the approvals folder is refused, on any
+# path spelling backslashes are normalised to forward slashes first, so a
+# Windows-style path can never dodge the check.
+if [ -n "$agent_type" ] && [ "$tool" = Bash ]; then
+  kc=$(lh_json_get command "$input") || kc=""
+  kcn=$(printf '%s' "$kc" | tr '\\' '/' | tr 'A-Z' 'a-z')
+  case $kcn in
+    *approve.sh*|*launchhouse/approvals*) lh_approvals_deny_or_guide ;;
+  esac
+fi
+
+# Everyone, main thread included: a grant is only ever written by
+# approve.sh, never directly. This is stricter than the subagent-only check
+# above (it denies outright, it is never demoted to a guide note), because a
+# direct write here is never a legitimate way to grant an approval, from
+# any caller.
+case $tool in
+  Write|Edit|MultiEdit)
+    apv_path=$(lh_json_get file_path "$input") || apv_path=""
+    apv_pathn=$(printf '%s' "$apv_path" | tr '\\' '/' | tr 'A-Z' 'a-z')
+    case $apv_pathn in
+      *launchhouse/approvals*) lh_deny_pre "Not written: approvals are only granted by .claude/scripts/approve.sh, never written directly." ;;
+    esac ;;
+esac
+
 # The GoHighLevel key lives in the computer's own password store, and is never
 # read in the conversation. Only Claude Code's own connection reads it, through
 # ghl-headers.sh, and ghl-values-api.sh sends the values token to GoHighLevel

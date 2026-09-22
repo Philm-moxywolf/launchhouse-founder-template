@@ -1,0 +1,14 @@
+# suffix_regex	decision	reason
+# Tab separated, decision is only deny or ask. Tighten-only: mcp-guard.sh
+# applies a row here only when it is stricter than its own decision.
+# send_message, reply and forward are already refused outright by
+# mcp-guard.sh's own core rules (exact suffix match), so they need no row
+# here; they still get a test in tests.tsv to prove it against the real hook.
+^delete_draft$	ask	Deleting a draft is permanent, not a move to Trash. Check the founder actually wants that draft gone before it disappears.
+^delete_label$	ask	Deleting a label removes it from every message that carries it. Check the founder named this label before it goes.
+^trash_message$	ask	Trashing a prospect's message or the founder's own sent mail could hide it from the next reply search. Check first.
+^trash_thread$	ask	Same as trash_message, for a whole thread.
+^mark_message_spam$	ask	Marking a message as spam can hide a genuine reply from ever being found by search. Check first.
+^mark_thread_spam$	ask	Same as mark_message_spam, for a whole thread.
+^update_label$	ask	Renaming or recoloring a label changes it everywhere it is used in the founder's mailbox. Check first.
+^create_label$	ask	A new label changes the founder's own organizing system. Check they actually want one before adding it.

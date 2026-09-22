@@ -15,6 +15,14 @@
 #    naming the one check that is still there. Nothing in any other mode. If
 #    this hook's own input does not carry permission_mode at all, nothing is
 #    printed either — never a guess at what mode the session is in.
+# 4. Connection planning. A verb (connect, hook up, set up, integrate, link,
+#    sign in to, add, switch to, use) followed, later in the same sentence,
+#    by a tool-packs registry name or a generic word for a tool (tool, app,
+#    crm, connector, integration, account) reads as the founder planning a
+#    connection. Verb-anchored, same idea as lh_sentence_match above but
+#    the noun can sit anywhere after the verb, not only at the sentence's
+#    own start: "can you connect Apollo for me" fires, "Apollo was a Greek
+#    god" never does, because "was" is not one of the verbs.
 
 . "$(dirname "$0")/lib.sh" 2>/dev/null || exit 0
 lh_active || exit 0
@@ -95,8 +103,120 @@ elif [ "$(lh_sentence_match "$low" "$park_phrases")" = yes ]; then
   parked=$(sh "$here/park.sh" pause 2>/dev/null)
 fi
 
+# Connection planning verbs and the generic nouns that count for any tool,
+# not just the four registry packs. A registry name (Apollo, Gmail, ...) is
+# specific enough that it keeps the full verb list, "switch to" included. A
+# bare generic noun (tool, crm, connector, integration) is common enough in
+# ordinary talk ("I use the app every day", "I set up my account yesterday")
+# that it needs a narrower, more deliberate verb set, and the bare nouns
+# "app" and "account" are dropped from it entirely: too generic on their own
+# to mean a tool connection. "use" is dropped from both lists outright — it
+# almost never signals planning a new connection.
+lh_connect_verbs='connect
+hook up
+set up
+integrate
+link
+sign in to
+add
+switch to'
+
+lh_connect_generic_verbs='connect
+hook up
+integrate
+link
+sign in to
+set up
+add'
+
+lh_connect_generic_nouns='tool
+crm
+connector
+integration'
+
+# id\tname\tflattened-name, one per registry.tsv row: the name lower cased
+# and its punctuation flattened the same way the sentence text below is, so
+# "Microsoft 365 (Outlook)" and "microsoft 365 outlook" in a founder's own
+# sentence compare equal.
+lh_registry_nouns=""
+lh_registry="$here/../tool-packs/registry.tsv"
+if [ -f "$lh_registry" ]; then
+  lh_registry_nouns=$(awk -F '\t' 'NR > 1 && $0 !~ /^#/ && NF >= 2 {
+    name = tolower($2)
+    gsub(/[,:;()"]/, " ", name)
+    gsub(/  +/, " ", name)
+    gsub(/^ +| +$/, "", name)
+    if (name != "") print $1 "\t" $2 "\t" name
+  }' "$lh_registry")
+fi
+
+lh_connection_note=""
+if [ -n "$low" ]; then
+  lh_cm=$(printf '%s\n' "$low" | VERBS="$lh_connect_verbs" GVERBS="$lh_connect_generic_verbs" GENERIC="$lh_connect_generic_nouns" REG="$lh_registry_nouns" awk '
+    BEGIN {
+      vn = split(ENVIRON["VERBS"], varr, "\n")
+      gvn = split(ENVIRON["GVERBS"], gvarr, "\n")
+      gn = split(ENVIRON["GENERIC"], garr, "\n")
+      rn = split(ENVIRON["REG"], rarr, "\n")
+    }
+    { buf = buf $0 "\n" }
+    END {
+      gsub(/[.!?]/, "&\n", buf)
+      sn = split(buf, sarr, "\n")
+      for (i = 1; i <= sn; i++) {
+        s = " " sarr[i] " "
+        gsub(/[,:;()"]/, " ", s)
+        gsub(/  +/, " ", s)
+        vpos = 0
+        for (j = 1; j <= vn; j++) {
+          v = varr[j]
+          if (v == "") continue
+          p = index(s, " " v " ")
+          if (p > 0 && (vpos == 0 || p < vpos)) vpos = p
+        }
+        gvpos = 0
+        for (j = 1; j <= gvn; j++) {
+          v = gvarr[j]
+          if (v == "") continue
+          p = index(s, " " v " ")
+          if (p > 0 && (gvpos == 0 || p < gvpos)) gvpos = p
+        }
+        if (vpos > 0) {
+          for (k = 1; k <= rn; k++) {
+            if (rarr[k] == "") continue
+            split(rarr[k], f, "\t")
+            if (f[3] == "") continue
+            p = index(s, " " f[3] " ")
+            if (p > vpos) { print "SPECIFIC\t" f[1] "\t" f[2]; exit }
+          }
+        }
+        if (gvpos > 0) {
+          for (k = 1; k <= gn; k++) {
+            nw = garr[k]
+            if (nw == "") continue
+            p = index(s, " " nw " ")
+            if (p > gvpos) { print "GENERIC"; exit }
+          }
+        }
+        if (vpos == 0 && gvpos == 0) continue
+      }
+      print "NONE"
+    }')
+  case $lh_cm in
+    SPECIFIC*)
+      lh_pack_id_hit=$(printf '%s' "$lh_cm" | awk -F '\t' '{ print $2 }')
+      lh_pack_name_hit=$(printf '%s' "$lh_cm" | awk -F '\t' '{ print $3 }')
+      lh_connection_note="Connection planning: $lh_pack_name_hit has an expert pack; use the $lh_pack_id_hit-expert skill."
+      ;;
+    GENERIC)
+      lh_connection_note="Connection planning: if the tool they mean has no pack in .claude/tool-packs/registry.tsv, offer to build one with the tool-pack-builder skill once it is connected, and record it as planned in growth-engine/.state/tools.md."
+      ;;
+  esac
+fi
+
 sh "$here/refresh.sh" >/dev/null 2>&1
 [ -n "$parked" ] && printf '%s\n' "$parked"
 [ -n "$mode_note" ] && printf '%s\n' "$mode_note"
+[ -n "$lh_connection_note" ] && printf '%s\n' "$lh_connection_note"
 sh "$here/state-block.sh" 2>/dev/null
 exit 0

@@ -36,6 +36,7 @@ The folder holds one folder per kind: the founder's own material in `brain/` and
 | `.state/gate-answers.md` | `.state/gate-answers.md` | both | none | status, gate |
 | `.state/imported.md` | `.state/imported.md` | both | none | import-from-app, once the app's work is in |
 | `.state/index.md` | `.state/index.md` | both | none | rebuilt automatically after every write |
+| `.state/tools.md` | `.state/tools.md` | both | none | connect-tools, any `<id>-expert` skill |
 
 In the rest of this file, and in every skill, a file named on its own, such as `content-30.md`, means the file at its path in this table.
 
@@ -349,6 +350,24 @@ Written once by import-from-app, after the app's work is saved.
 ```
 
 While it exists, a leftover zip, or a leftover downloaded folder whose name starts with `growth-engine ` (such as `growth-engine 2`), is not taken as new app work.
+
+## .state/tools.md
+
+Where each tool the founder has connected or planned stands, one row per tool, rewritten in place when a check runs again. Written and kept by `connect-tools` and by each tool's own `<id>-expert` skill (see `.claude/tool-packs/`, below).
+
+```markdown
+# Tools
+
+| tool | name | status | route | date | evidence |
+|---|---|---|---|---|---|
+| apollo | Apollo | connected | b2b outreach | 2026-09-21 | read back signed in as sam@northfield.io |
+```
+
+**status** is one of: `planned`, `connected`, `verified`, `dropped`. **Evidence** is only what a tool actually returned, or `founder planned it` for `planned`.
+
+## Tool packs
+
+Beyond GoHighLevel, Apollo, Gmail and Microsoft 365, a founder can connect any other tool. `.claude/tool-packs/<id>/` makes Claude an expert on one connected tool: a manifest, a sourced knowledge file, an inventory of the tools that really exist, tighten-only policy rules on top of `mcp-guard.sh`, and deterministic tests, plus a specialist agent, an expert skill and a command shim. `.claude/tool-packs/registry.tsv` indexes every pack; `.claude/tool-packs/README.md` is the full spec. Founders may build their own with the `tool-pack-builder` skill; a founder-built pack lives beside the shipped ones and follows the same rules.
 
 ## drafts/
 

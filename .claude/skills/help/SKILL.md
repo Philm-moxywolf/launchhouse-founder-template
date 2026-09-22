@@ -87,12 +87,13 @@ If they are unsure, tell them to use the Code tab for the engines. Nothing in th
 
 ## Updating Launchhouse
 
-Updates are not automatic. The system is the `.claude` folder in this repository, so an update is a normal update of the folder.
-
-1. In GitHub Desktop, fetch and pull the folder.
-2. Quit and reopen the Claude app so the new files load.
+Updates are not automatic. The system is the `.claude` folder in this repository. Tell the founder to say "update launchhouse" (or `/growth-engine:update`): Claude checks what is new, keeps their own changes, never touches their work folder, and applies only after they say yes. Then quit and reopen the Claude app so the new files load.
 
 Updating never touches the founder's `growth-engine/` folder. Their work lives there, apart from the system. Say this if they hesitate.
+
+GitHub Desktop's own pull is a fallback only, for a copy that was made by cloning rather than "Use this template" (it shares history with the public original). For an ordinary founder copy, "update launchhouse" is the one way to update.
+
+If `.claude/scripts/update.sh` is missing (a copy made before the updater shipped), use the README's "Already have an older copy?" sentence instead: it bootstraps the updater from upstream, one time, then "update launchhouse" works from here on.
 
 If a founder reports behaviour that does not match what they were told in a session, updating the folder is the first thing to try. The same goes for a command they were told about that their app does not offer, such as `/growth-engine:values`: it arrived later, so update the folder, then quit and reopen the app.
 

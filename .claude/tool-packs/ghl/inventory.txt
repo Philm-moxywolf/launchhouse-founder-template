@@ -1,0 +1,25 @@
+# source: documented https://help.gohighlevel.com/support/solutions/articles/155000008360-highlevel-mcp-multi-account-support-for-claude checked 2026-09-21
+# No HighLevel connector was visible via ToolSearch in this build session, so
+# nothing here is observed. The account connector's six tools and the
+# fallback's one-per-job tools are both documented against connections.md
+# (the project's own record of what each shape gives) and GoHighLevel's help
+# and developer docs.
+#
+# The account connector (the main route)
+list_locations
+search_operations
+describe_operation
+execute_operation
+search
+fetch
+#
+# The fallback, one tool per job (Code only), named in connections.md
+locations_get-location
+get-account
+create-post
+edit-post
+get-post
+get-posts
+get-social-media-statistics
+conversations_send-a-new-message
+contacts_get-contacts

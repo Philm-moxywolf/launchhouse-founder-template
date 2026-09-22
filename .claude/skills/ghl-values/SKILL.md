@@ -131,7 +131,7 @@ First add one line to the Decisions block of `growth-engine/log/memory.md`: `- Y
 
 ## Step 7: put them into GoHighLevel
 
-**Try the connector first.** If GoHighLevel is connected as the account connector, use `search_operations` to look for custom values. If it finds a create or update operation, read what it needs with `describe_operation`, then use it the way `../../references/connections.md` sets out: show the founder the whole list before anything is written, and wait for one yes that covers every create and change on it. If `search_operations` finds nothing for custom values, or GoHighLevel is connected only in the fallback shape, move on to putting them in by hand.
+**Try the connector first.** If GoHighLevel is connected as the account connector, call `ghl-specialist` with `PHASE: plan` to use `search_operations` and look for custom values, and read what a matching operation needs with `describe_operation`. Show the founder the whole list before anything is written, the way `../../references/connections.md` sets out, and wait for one yes that covers every create and change on it. That one yes is the approval: grant it (`sh .claude/scripts/approve.sh --grant ghl <the create/update operation suffix>:<count>`), call `ghl-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` the full list verbatim, then clear the grant (`sh .claude/scripts/approve.sh --clear ghl`). If `search_operations` finds nothing for custom values, or GoHighLevel is connected only in the fallback shape, move on to putting them in by hand.
 
 **First, everything back to draft.** Straight after the load, they go to `Automation`, then `Workflows`, select the published ones and set them to draft under `Bulk Actions`, page by page, so nothing fires while they paste.
 
@@ -160,7 +160,7 @@ If they choose it:
 
 ## Step 8: prove it landed
 
-Show them all five:
+On the connector route, read the account back through `ghl-specialist` with `PHASE: plan`; a read never needs a grant. Show them all five:
 
 1. Every value they wrote exists in the account.
 2. None is empty.
