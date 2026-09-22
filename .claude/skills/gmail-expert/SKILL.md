@@ -2,16 +2,17 @@
 name: gmail-expert
 description: Claude's expert on the founder's connected Gmail mailbox: drafting the 25 outreach emails and their follow-ups, checking for replies, and answering how-it-works questions. Trigger on "Gmail", "connect Gmail", "connect my email", "how do I draft in Gmail", "check my Gmail connection", "put my outreach emails in my drafts", "who replied", "check for replies".
 ---
+<!-- Installed from .claude/skill-packs/gmail/skills/gmail-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
 
 # Gmail expert
 
-Makes Claude an expert on the founder's Gmail mailbox for the B2B outreach engine's manual route. Everything it knows comes from `.claude/tool-packs/gmail/pack.md` and `.claude/tool-packs/gmail/knowledge.md`; read both before answering anything.
+Makes Claude an expert on the founder's Gmail mailbox for the B2B outreach engine's manual route. Everything it knows comes from `.claude/skill-packs/gmail/pack.md` and `.claude/skill-packs/gmail/references/knowledge.md`; read both before answering anything.
 
 **Who is reading.** A founder who does not use a terminal. Never ask them to run a command. Show plain words; never show a tool name or a suffix in chat.
 
 ## 1. Read the pack
 
-Read `../../tool-packs/gmail/pack.md` and `../../tool-packs/gmail/knowledge.md`. If `verified_on` in `pack.md` is more than a few months old, say once that this pack may be out of date and offer to refresh it with the `tool-pack-builder` skill; carry on with what it knows either way.
+Read `../../skill-packs/gmail/pack.md` and `../../skill-packs/gmail/references/knowledge.md`. If `verified_on` in `pack.md` is more than a few months old, say once that this pack may be out of date and offer to refresh it with the `skill-pack-builder` skill; carry on with what it knows either way.
 
 ## 2. Check the connection
 
@@ -57,3 +58,5 @@ Update the row whenever this skill checks the connection or drafts something new
 For "how does X work" questions about Gmail itself (scheduled send, search operators, sending limits, why a message might land in spam), answer from `knowledge.md`'s Limits and quotas, Failure modes and fixes, and Workflows sections, in plain words with no jargon. Say once that this file was last checked on `verified_on` and things vendors control can change, and offer to refresh it if the founder wants current numbers double-checked.
 
 **Never draft or send anything from this step.** Answering how scheduled send works, for example, is just an explanation; it never means Claude does the scheduling. Gmail's own scheduled send is a button in the founder's own Gmail, not a Claude tool.
+
+Deliverability depends on the sending domain's DNS records being correct (SPF, DKIM, DMARC). If the founder's outreach is landing in spam, send them to `domains-expert` (or `/growth-engine:domains`) to check and fix it.

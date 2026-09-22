@@ -2,6 +2,7 @@
 name: ghl-expert
 description: Answer a founder's question about GoHighLevel, or route a job that needs it to the right skill, or run one directly through the ghl-specialist agent. Trigger on "GoHighLevel", "HighLevel", "connect GoHighLevel", "how do I ... in GoHighLevel", "check my GoHighLevel", "post to GoHighLevel", "reply in GoHighLevel", "custom values", "my snapshot", or any GoHighLevel question this pack can answer.
 ---
+<!-- Installed from .claude/skill-packs/ghl/skills/ghl-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
 
 # GoHighLevel expert
 
@@ -9,7 +10,7 @@ description: Answer a founder's question about GoHighLevel, or route a job that 
 
 ## 1. Read first
 
-Read `.claude/tool-packs/ghl/pack.md` and `.claude/tool-packs/ghl/knowledge.md` before answering anything or routing anywhere.
+Read `.claude/skill-packs/ghl/pack.md` and `.claude/skill-packs/ghl/references/knowledge.md` before answering anything or routing anywhere.
 
 ## 2. Check the connection
 

@@ -1,0 +1,1 @@
+{"Status":0,"Answer":[{"name":"_dmarc.example.com","type":16,"TTL":300,"data":"\"v=DMARC1; p=none; rua=mailto:dmarc@example.com\""}]}

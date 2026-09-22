@@ -45,6 +45,13 @@ This is the single most common problem.
 
 If this skill is running, the Launchhouse system in this folder is loaded. Say so plainly, because founders often assume something is broken when it is not. Nothing has to be installed: the skills, the checks and the routines are files in the `.claude` folder here.
 
+The skill packs and their commands, for a founder asking what is available:
+- **domains**, `/growth-engine:domains`: domain, DNS, and email-deliverability setup
+- **instagram-setup**, `/growth-engine:instagram`: get Instagram into professional (Business/Creator) shape
+- **linkedin-profile**, `/growth-engine:linkedin`: LinkedIn profile copy for B2B founders
+- **booking-reviews**, `/growth-engine:booking`: booking link and Google review link setup
+- **email-compliance**, `/growth-engine:compliance`: check outreach/automation emails meet the rules
+
 The Launchhouse checks run separately. If this folder has `growth-engine/.launchhouse` and the top of the conversation has no line starting "Launchhouse", they are not running on this computer. In a folder that is not set up yet, no such line is expected: offer `/growth-engine:start` instead. When the checks are not running, run `git --version`. On a Windows PC, if that fails, the computer needs Git for Windows: git-scm.com, Download for Windows, press Next on every screen, then quit and reopen the Claude app. On a Mac, quit and reopen the app.
 
 ### 3. Saving

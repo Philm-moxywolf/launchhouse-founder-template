@@ -1,0 +1,14 @@
+# tool_name	expected	tool_input_json	note
+#
+# Guide pack, optional file, present only because domains-specialist calls
+# Cloudflare DNS write tools. These use synthetic suffixes matching
+# policy.tsv's documented regex (the real Cloudflare connector's exact tool
+# names were not observed live when this pack was built; see policy.tsv's
+# own header and references/knowledge.md's Refreshing section). Every
+# policy.tsv row has at least one test below, plus reads expected silent.
+mcp__abc123__dns_record_create	ask	{}	matches policy.tsv's create/update/edit/patch/write row
+mcp__abc123__dns_record_update	ask	{}	matches policy.tsv's create/update/edit/patch/write row
+mcp__abc123__cloudflare_dns_record_delete	ask	{}	matches policy.tsv's delete row
+mcp__abc123__zone_dns_record_delete	ask	{}	matches policy.tsv's delete row
+mcp__abc123__dns_records_list	silent	{}	a plain read, no write word in the name, not matched by either policy row
+mcp__abc123__zone_list	silent	{}	a plain read

@@ -17,7 +17,7 @@
 #    printed either — never a guess at what mode the session is in.
 # 4. Connection planning. A verb (connect, hook up, set up, integrate, link,
 #    sign in to, add, switch to, use) followed, later in the same sentence,
-#    by a tool-packs registry name or a generic word for a tool (tool, app,
+#    by a skill-packs registry name or a generic word for a tool (tool, app,
 #    crm, connector, integration, account) reads as the founder planning a
 #    connection. Verb-anchored, same idea as lh_sentence_match above but
 #    the noun can sit anywhere after the verb, not only at the sentence's
@@ -139,7 +139,7 @@ integration'
 # "Microsoft 365 (Outlook)" and "microsoft 365 outlook" in a founder's own
 # sentence compare equal.
 lh_registry_nouns=""
-lh_registry="$here/../tool-packs/registry.tsv"
+lh_registry="$here/../skill-packs/registry.tsv"
 if [ -f "$lh_registry" ]; then
   lh_registry_nouns=$(awk -F '\t' 'NR > 1 && $0 !~ /^#/ && NF >= 2 {
     name = tolower($2)
@@ -209,7 +209,7 @@ if [ -n "$low" ]; then
       lh_connection_note="Connection planning: $lh_pack_name_hit has an expert pack; use the $lh_pack_id_hit-expert skill."
       ;;
     GENERIC)
-      lh_connection_note="Connection planning: if the tool they mean has no pack in .claude/tool-packs/registry.tsv, offer to build one with the tool-pack-builder skill once it is connected, and record it as planned in growth-engine/.state/tools.md."
+      lh_connection_note="Connection planning: if the tool they mean has no pack in .claude/skill-packs/registry.tsv, offer to build one with the skill-pack-builder skill once it is connected, and record it as planned in growth-engine/.state/tools.md."
       ;;
   esac
 fi

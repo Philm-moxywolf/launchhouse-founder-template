@@ -19,5 +19,5 @@ growth-engine/.state/nudges.md
 *.zip
 .lh-import/
 .DS_Store
-# Stray scratch files tool-packs.sh used to leave behind before it moved to mktemp.
-.claude/tool-packs/.*.tmp*
+# Stray scratch files skill-packs.sh used to leave behind before it moved to mktemp.
+.claude/skill-packs/.*.tmp*

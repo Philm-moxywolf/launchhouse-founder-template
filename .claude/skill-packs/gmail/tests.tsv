@@ -1,0 +1,43 @@
+# tool_name	expected	tool_input_json	note
+# Tab separated. expected is one of deny|ask|guide|silent. Every policy.tsv
+# row needs at least one test here. Includes read tools expected silent.
+#
+# Confirmed 2026-09-21 by running each case through the real
+# .claude/scripts/mcp-guard.sh, in a temporary folder carrying only
+# growth-engine/.launchhouse, with permission_mode "default", the way
+# .claude/tests/run.sh drives its own hook cases. mcp-guard.sh's own core
+# rules (no compiled-policy.sh needed) already produce every row below
+# except the eight rows this pack's policy.tsv tightens from mcp-guard's
+# own default of guide up to ask; those eight are marked accordingly and
+# will only hold once .claude/scripts/skill-packs.sh --compile has run and
+# mcp-guard.sh sources its output.
+mcp__abc123__send_message	deny	{}	core mcp-guard rule, exact suffix match, confirmed live
+mcp__abc123__reply	deny	{}	core mcp-guard rule, exact suffix match, confirmed live
+mcp__abc123__forward	deny	{}	core mcp-guard rule, exact suffix match, confirmed live
+mcp__abc123__create_draft	guide	{"to":"sam@example.com","subject":"Quick one","body":"Hi Sam"}	confirmed live; mcp-guard's own default, no policy row needed
+mcp__abc123__search_threads	silent	{"query":"from:sam@example.com after:2026/09/14"}	confirmed live; a plain read
+mcp__abc123__get_draft	silent	{"draft_id":"d1"}	confirmed live; a plain read
+mcp__abc123__get_message	silent	{"message_id":"m1"}	confirmed live; a plain read
+mcp__abc123__get_thread	silent	{"thread_id":"t1"}	confirmed live; a plain read
+mcp__abc123__list_drafts	silent	{}	confirmed live; a plain read
+mcp__abc123__list_labels	silent	{}	confirmed live; a plain read
+mcp__abc123__delete_draft	ask	{"draft_id":"d1"}	tightened by policy.tsv from mcp-guard's own default of guide; permanent deletion
+mcp__abc123__delete_label	ask	{"label_id":"l1"}	tightened by policy.tsv from guide; removes the label from every message
+mcp__abc123__trash_message	ask	{"message_id":"m1"}	tightened by policy.tsv from guide; could hide a reply from search
+mcp__abc123__trash_thread	ask	{"thread_id":"t1"}	tightened by policy.tsv from guide; could hide a reply from search
+mcp__abc123__mark_message_spam	ask	{"message_id":"m1"}	tightened by policy.tsv from guide; could hide a genuine reply
+mcp__abc123__mark_thread_spam	ask	{"thread_id":"t1"}	tightened by policy.tsv from guide; could hide a genuine reply
+mcp__abc123__update_label	ask	{"label_id":"l1","name":"Prospects"}	tightened by policy.tsv from guide; changes the label everywhere it is used
+mcp__abc123__create_label	ask	{"name":"Prospects"}	tightened by policy.tsv from guide; changes the founder's own organizing system
+mcp__abc123__apply_sensitive_message_label	guide	{"message_id":"m1","label":"confidential"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__apply_sensitive_thread_label	guide	{"thread_id":"t1","label":"confidential"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__label_message	guide	{"message_id":"m1","label":"Prospects"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__label_thread	guide	{"thread_id":"t1","label":"Prospects"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__unlabel_message	guide	{"message_id":"m1","label":"Prospects"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__unlabel_thread	guide	{"thread_id":"t1","label":"Prospects"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__unmark_message_spam	guide	{"message_id":"m1"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__unmark_thread_spam	guide	{"thread_id":"t1"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__untrash_message	guide	{"message_id":"m1"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__untrash_thread	guide	{"thread_id":"t1"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__update_draft	guide	{"draft_id":"d1","body":"Updated text"}	confirmed live; mcp-guard's own default, no policy row
+mcp__abc123__update_message_labels	guide	{"message_id":"m1","labels":["Prospects"]}	confirmed live; mcp-guard's own default, no policy row

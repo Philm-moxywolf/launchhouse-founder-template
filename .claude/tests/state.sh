@@ -373,6 +373,69 @@ else
   printf 'FAIL  the stamp is stable across repeated runs with no changes\n'; fail=1
 fi
 
+# Bug: domain_dns_evidence must require exactly one row per key (spf, dkim,
+# dmarc) in growth-engine/.state/domain.md. A duplicated spf row (a pass and
+# a fail, as a corrupted or re-run --record write could leave behind) must
+# never read as proven just because one of the two rows says pass -- fail
+# safe, the item stays self-reported (ask), never silently marked done by
+# a DNS evidence line that should not have been trusted.
+domain_md="$work/growth-engine/.state/domain.md"
+cat > "$domain_md" <<'EOF'
+# Domain check
+
+- Domain: example.com
+- Checked: 2026-09-17
+
+| check | state |
+|---|---|
+| spf | pass |
+| spf | fail |
+| dkim | pass |
+| dmarc | pass |
+
+Overall: warn
+EOF
+CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/gate-state.sh" --force
+# Written directly against $state, never through want(): a second want()
+# defined further down in this file (for $unk_state) shadows the first one
+# from this point on, since POSIX shell function definitions are not
+# scoped to any block.
+if grep -q '| domain |.*| ask |' "$state" 2>/dev/null; then
+  printf 'PASS  a duplicated spf row in domain.md is never trusted as DNS evidence\n'
+else
+  printf 'FAIL  a duplicated spf row in domain.md is never trusted as DNS evidence\n'; fail=1
+fi
+if grep -q 'DNS checked' "$state" 2>/dev/null; then
+  printf 'FAIL  a duplicated spf row never produces a DNS checked evidence line\n'; fail=1
+else
+  printf 'PASS  a duplicated spf row never produces a DNS checked evidence line\n'
+fi
+
+# The well-shaped, single-row case (what dns-check.sh --record actually
+# writes) still reads as proven, so the fix does not just fail every read.
+cat > "$domain_md" <<'EOF'
+# Domain check
+
+- Domain: example.com
+- Checked: 2026-09-17
+
+| check | state |
+|---|---|
+| spf | pass |
+| dkim | pass |
+| dmarc | pass |
+
+Overall: pass
+EOF
+CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/gate-state.sh" --force
+if grep -q 'DNS checked 2026-09-17: SPF, DKIM, DMARC pass' "$state" 2>/dev/null; then
+  printf 'PASS  a single clean pass row per key still counts as DNS evidence\n'
+else
+  printf 'FAIL  a single clean pass row per key still counts as DNS evidence\n'; fail=1
+fi
+rm -f "$domain_md"
+CLAUDE_PROJECT_DIR="$work" sh "$work/.claude/scripts/gate-state.sh" --force
+
 # Bug: "park this" and its kin must only fire at the start of a message or of
 # a sentence within it, and never when a "don't", "do not" or "not" opens that
 # same sentence. Checked straight against prompt-state.sh, in a folder of its

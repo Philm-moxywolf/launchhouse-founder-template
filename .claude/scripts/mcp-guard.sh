@@ -40,9 +40,9 @@
 # carries the marker (lh_active): a folder that merely looks like one
 # nearby never gets blocked or prompted, only guided at most.
 #
-# Tool packs (.claude/tool-packs/) can add their own extra rules on top of
+# Skill packs (.claude/skill-packs/) can add their own extra rules on top of
 # everything below, one pack per connected tool. compiled-policy.sh, built
-# by tool-packs.sh --compile, is sourced here if it is present and parses
+# by skill-packs.sh --compile, is sourced here if it is present and parses
 # cleanly (checked with sh -n first, since a syntax error inside a sourced
 # script is otherwise fatal to this one too, and this hook fails open on
 # any doubt). A pack can only ever tighten this hook's own decision, never
@@ -51,7 +51,18 @@
 
 . "$(dirname "$0")/lib.sh" 2>/dev/null || exit 0
 . "$(dirname "$0")/ghl-op.sh" 2>/dev/null || exit 0
-lh_compiled_policy="$(dirname "$0")/../tool-packs/compiled-policy.sh"
+lh_compiled_policy="$(dirname "$0")/../skill-packs/compiled-policy.sh"
+# One-release fallback: a folder updated from before the tool-packs ->
+# skill-packs rename may still only have the old directory. Prefer the new
+# path; fall back to the old one when the new one is either not there yet
+# OR present but broken (fails its own sh -n syntax check) -- a corrupt or
+# half-written compiled-policy.sh at the new path must not silently source
+# nothing when a good one still exists at the old path.
+lh_compiled_policy_legacy="$(dirname "$0")/../tool-packs/compiled-policy.sh"
+if { [ ! -f "$lh_compiled_policy" ] || ! sh -n "$lh_compiled_policy" 2>/dev/null; } \
+   && [ -f "$lh_compiled_policy_legacy" ] && sh -n "$lh_compiled_policy_legacy" 2>/dev/null; then
+  lh_compiled_policy="$lh_compiled_policy_legacy"
+fi
 if [ -f "$lh_compiled_policy" ] && sh -n "$lh_compiled_policy" 2>/dev/null; then
   . "$lh_compiled_policy" 2>/dev/null || true
 fi
@@ -309,7 +320,7 @@ else
 fi
 fi
 
-# Tool packs: apply the strictest pack policy for this tool's suffix, but
+# Skill packs: apply the strictest pack policy for this tool's suffix, but
 # only when it is stricter than the decision already reached above (deny >
 # ask > guide > silent). A pack's own compiled rules can only tighten this
 # hook, never loosen it. Skipped for a name this hook could not fully read
@@ -327,16 +338,16 @@ if [ "$tool_nonascii" != 1 ] && command -v lh_pack_policy >/dev/null 2>&1; then
   fi
 fi
 
-# Tool packs: point Claude at the pack that covers this connector, or, when
+# Skill packs: point Claude at the pack that covers this connector, or, when
 # none does, offer to build one. Only said when there is something to say
 # about at all (decision is not silent): a plain read never gets a note.
 if [ "$tool_nonascii" != 1 ] && [ "$decision" != silent ] && command -v lh_pack_detect >/dev/null 2>&1; then
   suffix=${tool##*__}
   lh_pack_detect "$suffix"
   if [ -n "$lh_pack_id" ]; then
-    reason="$reason The $lh_pack_name expert pack is at .claude/tool-packs/$lh_pack_id/: read its knowledge.md before acting."
+    reason="$reason The $lh_pack_name expert pack is at .claude/skill-packs/$lh_pack_id/: read its references/knowledge.md before acting."
   else
-    reason="$reason No Launchhouse expert pack covers this connector yet: once in this conversation, offer the founder to build one with the tool-pack-builder skill."
+    reason="$reason No Launchhouse expert pack covers this connector yet: once in this conversation, offer the founder to build one with the skill-pack-builder skill."
   fi
 fi
 

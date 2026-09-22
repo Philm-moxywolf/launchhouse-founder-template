@@ -74,6 +74,8 @@ Every pack arrives as drafts. Nothing runs until the founder publishes it, so wh
 | Discovery booking | Email | Booking a call takes too many messages |
 | Proposal chase | Email | Proposals go quiet and nobody follows up |
 
+Discovery booking needs a working booking link before it can go live; use `booking-reviews-expert` (`/growth-engine:booking`) to get one.
+
 ### B2C packs
 
 | Pack | Runs on | Publish this one first when |
@@ -81,6 +83,8 @@ Every pack arrives as drafts. Nothing runs until the founder publishes it, so wh
 | Comment to DM | Instagram | Content gets engagement but no conversation |
 | DM qualify and book | Instagram | DMs arrive but conversion is manual and slow |
 | Review request | Email | Reviews are never asked for |
+
+DM qualify and book needs a working booking link, and Review request needs a working review link, before either can go live; use `booking-reviews-expert` (`/growth-engine:booking`) to get them.
 
 **The list is deliberately small.** If the founder's bottleneck falls outside these six (onboarding, reactivation, abandoned checkout, win-back):
 - name the nearest pack and adapt the message copy to it

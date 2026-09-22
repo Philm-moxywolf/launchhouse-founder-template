@@ -133,6 +133,7 @@ B2B only. This puts each person's finished first email into the founder's own Gm
 2. **Gather the emails.** For each person in `people/` at `kind: prospect`, not at `cut`, and not yet sent to, take their email address and the finished touch 1 in their Opener block. Take the subject line from touch 1 in `engines/outreach/outreach-sequence.md`. Skip anyone with no address or no Opener block, and say who.
 3. **Plan it.** Call `gmail-specialist` with `PHASE: plan` and the gathered people, and get back the exact proposed `create_draft` action for each.
 4. **Show, then wait.** Show a table, one row per email: first name, company, subject, the first line. Say: "These go into your Gmail drafts, not out. You read each one and press Send yourself. Shall I put them in?" Wait for a clear yes. A yes covers exactly this table.
+4a. **Check the copy.** Before any draft is written, use the `email-compliance-reviewer` agent on the gathered touch 1 emails and fix what it flags with the founder before continuing.
 5. **Grant it.** `sh .claude/scripts/approve.sh --grant gmail create_draft:<count>`, for exactly the count just shown and approved.
 6. **Draft them.** Call `gmail-specialist` with `PHASE: execute` and `APPROVED ACTIONS:` verbatim from the plan, one `create_draft` per person, to that one person, with the subject and the Opener block exactly as written. Never send, reply or forward.
 7. **Clear the grant.** `sh .claude/scripts/approve.sh --clear gmail`.

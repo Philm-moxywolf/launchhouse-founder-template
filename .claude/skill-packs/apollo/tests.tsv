@@ -1,0 +1,46 @@
+# tool_name	expected	tool_input_json	note
+#
+# Every case below was confirmed for real: `sh .claude/scripts/skill-packs.sh
+# --compile` then `--test apollo`, which runs this file's own rows through
+# the real .claude/scripts/mcp-guard.sh (compiled-policy.sh sourced in) in a
+# scratch Launchhouse folder, permission_mode bypassPermissions, the same
+# style .claude/tests/run.sh uses for its own fixtures. All rows below
+# passed. Where a row's note says what the base guard (mcp-guard.sh's own
+# name classifier) gives without this pack's policy.tsv row, that was
+# checked separately, by hand, against mcp-guard.sh alone with no compiled
+# policy sourced, so the gap this pack's row closes is shown honestly.
+#
+# --------------------------------------------------------- policy.tsv rows
+mcp__apollo__apollo_domain_purchase_index	deny	{}	confirmed: the base guard already denies this on the word "purchase" alone; this pack's row makes that explicit and sourced rather than relying on the coincidence
+mcp__apollo__apollo_email_account_purchase_index	deny	{}	confirmed: same as above
+mcp__apollo__apollo_email_account_purchase_create	deny	{}	confirmed: same as above
+mcp__apollo__apollo_agent_manage_billing	deny	{}	confirmed: without this pack's row the base guard only gives guide (no forced prompt in a no-prompt mode); this row tightens it to deny
+mcp__apollo__apollo_agent_workflow_automation	deny	{}	confirmed: without this pack's row the base guard only gives guide; this row tightens it to deny
+mcp__apollo__apollo_website_visitor_domain_tracker_send_install_email	deny	{}	confirmed: without this pack's row the base guard already gives ask (the generic "send" word); this row tightens ask to deny
+mcp__apollo__apollo_agent_find_prospects	ask	{}	confirmed: without this pack's row the base guard gives silent (the word "find" reads as a plain read); this row tightens it to ask
+mcp__apollo__apollo_contacts_bulk_create	ask	{}	confirmed: without this pack's row the base guard only gives guide; this row tightens it to ask
+mcp__apollo__apollo_accounts_bulk_create	ask	{}	confirmed: without this pack's row the base guard only gives guide; this row tightens it to ask
+#
+# ---------------------------------------------- existing guard behaviour, confirmed
+mcp__apollo__apollo_emailer_messages_send_now	deny	{}	confirmed, base guard's own named Apollo deny list
+mcp__apollo__apollo_emailer_campaigns_approve	deny	{}	confirmed, base guard's own named Apollo deny list
+mcp__apollo__apollo_emailer_messages_create	deny	{}	confirmed, base guard's own named Apollo deny list
+mcp__apollo__apollo_people_match	ask	{}	confirmed, base guard's own named Apollo ask list: spends credits
+mcp__apollo__apollo_people_bulk_match	ask	{}	confirmed, base guard's own named Apollo ask list: spends credits
+mcp__apollo__apollo_organizations_enrich	ask	{}	confirmed, base guard's own named Apollo ask list: spends credits
+mcp__apollo__apollo_organizations_bulk_enrich	ask	{}	confirmed, base guard's own named Apollo ask list: spends credits
+mcp__apollo__apollo_emailer_campaigns_add_contact_ids	ask	{}	confirmed, base guard's own named Apollo ask list: adds people to a sequence
+mcp__apollo__apollo_sequences_create	deny	{"active":true}	confirmed: the base guard's own Apollo active:true field check
+mcp__apollo__apollo_sequences_create	guide	{"active":false}	confirmed: active:false is exactly how Launchhouse always calls this, so it is never held up beyond the founder's own session mode
+mcp__apollo__apollo_sequences_update	deny	{"active":true}	confirmed: the same active:true check applies to updates, not only creates
+mcp__apollo__apollo_emailer_campaigns_remove_or_stop_contact_ids	ask	{}	confirmed, base guard: stopping someone in a sequence reaches a real person
+mcp__apollo__apollo_email_account_purchase_create	deny	{}	confirmed, base guard's own named Apollo deny list, and this pack's own policy row above
+#
+# --------------------------------------------------------------- plain reads, silent
+mcp__apollo__apollo_contacts_search	silent	{}	confirmed: a plain read, no write or send word in the name
+mcp__apollo__apollo_mixed_people_api_search	silent	{}	confirmed: a plain read; the catalogue search that spends no credits
+mcp__apollo__apollo_fields_index	silent	{}	confirmed: a plain read
+mcp__apollo__apollo_emailer_schedules_index	silent	{}	confirmed: a plain read
+mcp__apollo__apollo_emailer_campaigns_show	silent	{}	confirmed: a plain read
+mcp__apollo__apollo_users_api_profile	guide	{}	confirmed: the base guard's is_read word list does not include "profile", "api" or "users", so this read lands on guide, not silent; connect-tools still uses it to prove the connection, and this is harmless since guide never blocks it
+mcp__apollo__apollo_email_accounts_index	silent	{}	confirmed: a plain read

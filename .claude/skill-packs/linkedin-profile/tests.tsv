@@ -1,0 +1,33 @@
+# tool_name	expected	tool_input_json	note
+#
+# Every case below was confirmed for real: `sh .claude/scripts/skill-packs.sh
+# --compile` then `--test linkedin-profile`, which runs this file's own rows
+# through the real .claude/scripts/mcp-guard.sh (compiled-policy.sh sourced
+# in) in a scratch Launchhouse folder, permission_mode bypassPermissions,
+# the same style .claude/tests/run.sh uses for its own fixtures. All rows
+# below passed.
+#
+# ----------------------------------------- policy.tsv rows, realistic server name
+mcp__MCP_Server_for_LinkedIn__close_session	deny	{}	confirmed: without this pack's row the base guard gives guide (no send/connect/read word in the name); this row tightens it to deny
+mcp__MCP_Server_for_LinkedIn__connect_with_person	deny	{}	confirmed: the base guard already denies this on the word "linkedin" in the tool name alone; this pack's row makes that explicit and sourced, and holds even where the name does not
+mcp__MCP_Server_for_LinkedIn__send_message	deny	{}	confirmed: the base guard already denies any *__send_message by name, on every connector; this pack's row makes that explicit for the LinkedIn case too
+mcp__MCP_Server_for_LinkedIn__get_company_employees	ask	{}	confirmed: without this pack's row the base guard gives silent (a plain get read); this row tightens it to ask
+mcp__MCP_Server_for_LinkedIn__get_company_posts	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__get_company_profile	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__get_conversation	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__get_feed	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__get_inbox	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__get_job_details	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__get_my_profile	ask	{}	confirmed: same as above, even for the founder's own profile
+mcp__MCP_Server_for_LinkedIn__get_person_profile	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__get_sidebar_profiles	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__search_companies	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__search_conversations	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__search_jobs	ask	{}	confirmed: same as above
+mcp__MCP_Server_for_LinkedIn__search_people	ask	{}	confirmed: same as above, and this is the read shape closest to scraping at scale
+#
+# ---------------------------------- proof the deny holds without the word "linkedin"
+# A synthetic, differently-named server: proves this pack's own suffix regex
+# drives the deny, not a coincidence of the tool name containing "linkedin".
+mcp__abc123__close_session	deny	{}	confirmed: no "linkedin" in this tool name at all; without this pack's row the base guard would only give guide, so the deny here comes from this pack's own policy row, not the base guard's linkedin name check
+mcp__abc123__connect_with_person	deny	{}	confirmed: no "linkedin" in this tool name; the base guard's own linkedin-name check would not fire here, so this deny comes from this pack's own policy row

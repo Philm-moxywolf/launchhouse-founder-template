@@ -56,6 +56,8 @@ This is a real route, not a consolation. At 25 messages it meets the promise com
 
 Record the answer in the output file. Nobody chooses twice.
 
+Whichever route they take, sending from their own domain needs SPF, DKIM and DMARC set up correctly, or mail gets filtered. Offer the domain check now: the `domains-expert` skill, or `/growth-engine:domains`.
+
 ### On the cost, and get this the right way round
 
 The free Apollo plan connects in full, so connecting Claude to it costs nothing. The 65 USD/month plan is what carries real sending: credits, sending limits and mailboxes. The programme sets it up in Session 2, with sending.
@@ -89,6 +91,8 @@ Give three variants:
 **Build to 35, then cut to 25.** Some rows will be wrong: the person left, the address bounces, the company is not a fit on a second look. Topping up a list under time pressure on the Saturday is how founders end up messaging people they have not read.
 
 Tell them to verify emails before sending. An unverified list destroys domain reputation faster than bad copy.
+
+A B2B prospect weighing whether to reply will likely check the founder's LinkedIn profile first. If it is thin, offer the `linkedin-profile-expert` skill (or `/growth-engine:linkedin`) to get it in shape.
 
 ## Step 2: sequence
 
@@ -202,6 +206,8 @@ Write `./growth-engine/engines/outreach/outreach-firstlines.csv`:
 - quote any field holding a comma or a quote
 
 **Name it `first_line`, not anything generic,** so the CSV column, the Apollo custom field and the variable in the sequence all read the same. A mismatch here fails silently and takes the most valuable output of this skill with it.
+
+Before saving, use the `email-compliance-reviewer` agent on `outreach-sequence.md` and `outreach-firstlines.csv`, and fix what it flags with the founder before continuing.
 
 ## Step 7: check and save
 
