@@ -8,8 +8,76 @@
 # it, and prints pass or fail for each thing it expects to see. It never touches
 # the founder's own growth-engine folder.
 
+# An older updater leaks LH_UPDATE_RELOCATED and LH_UPDATE_ROOT into the checks
+# it runs and never unsets them; clear both here, before anything else runs, so
+# a nested update.sh call below can never mistake the founder's real folder
+# for its own root.
+unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT
+
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
+
+# "update launchhouse" runs this suite a second time, inside a temp copy of
+# the FOUNDER's own folder. A founder who kept their own edited version of a
+# founder-editable file (a skill, an agent, a reference, an output style, a
+# command, CLAUDE.md, START-HERE.md, README.md) must never be blocked by a
+# check of that file's wording or style: those checks only mean something in
+# the template itself. Decided from git alone, same signal as
+# lh_layout_check below: a tracked .claude/launchhouse-version or a tracked
+# growth-engine/.state/profile.md means this is a founder's copy, never the
+# template. Cached so the git calls run once per test run.
+LH_FOUNDER_COPY_CACHE=""
+lh_founder_copy() {
+  if [ -z "$LH_FOUNDER_COPY_CACHE" ]; then
+    if git -C "$repo" ls-files --error-unmatch .claude/launchhouse-version >/dev/null 2>&1 \
+      || git -C "$repo" ls-files --error-unmatch growth-engine/.state/profile.md >/dev/null 2>&1; then
+      LH_FOUNDER_COPY_CACHE=yes
+    else
+      LH_FOUNDER_COPY_CACHE=no
+    fi
+  fi
+  [ "$LH_FOUNDER_COPY_CACHE" = yes ]
+}
+
+# settings.json is read by CONTENT, never by line shape, so a founder's own
+# editor or a jq re-format (which explodes a short array like
+# ["highlevel"] onto three lines) can never make a content-based assertion
+# below fail on layout alone. Flattened once and cached: every assertion
+# that reads it queries this same cached table.
+LH_SETTINGS_FLAT_CACHE=""
+lh_settings_flat() {
+  if [ -z "$LH_SETTINGS_FLAT_CACHE" ]; then
+    LH_SETTINGS_FLAT_CACHE=$(sh "$repo/.claude/scripts/json-flat.sh" "$repo/.claude/settings.json" 2>/dev/null)
+    [ -n "$LH_SETTINGS_FLAT_CACHE" ] || LH_SETTINGS_FLAT_CACHE="$(printf '\t')"
+  fi
+  printf '%s\n' "$LH_SETTINGS_FLAT_CACHE"
+}
+# True if some leaf's own value is exactly $1 (a whole flattened value,
+# never a substring of one) -- used for a value that must appear
+# somewhere in the tree, at any path.
+lh_settings_has_value() {
+  lh_settings_flat | awk -F '\t' -v want="$1" '$2 == want { found = 1 } END { exit !found }'
+}
+# True if the value at exactly path $1 is $2.
+lh_settings_path_is() {
+  lh_settings_flat | awk -F '\t' -v want_path="$1" -v want_val="$2" '$1 == want_path { if ($2 == want_val) found = 1 } END { exit !found }'
+}
+# True if $1 appears as a substring nowhere in the whole flattened tree --
+# neither in a path (a key name) nor in a leaf value.
+lh_settings_never_has() {
+  ! lh_settings_flat | awk -F '\t' -v needle="$1" 'index($1, needle) || index($2, needle) { found = 1 } END { exit !found }'
+}
+# True if settings.json routes exactly one PreToolUse matcher that is
+# exactly "^mcp__" through a hook whose own command value contains $1 --
+# same shape connector-safety-routing.check.sh judges by, read from the
+# same flattened, layout-indifferent table.
+lh_settings_mcp_matcher_routes_through() {
+  lsm_want=$1
+  lsm_count=$(lh_settings_flat | awk -F '\t' '$1 ~ /^\/hooks\/PreToolUse\/[0-9]+\/matcher$/ && $2 == "^mcp__" { c++ } END { print c + 0 }')
+  [ "$lsm_count" = 1 ] || return 1
+  lsm_idx=$(lh_settings_flat | awk -F '\t' '$1 ~ /^\/hooks\/PreToolUse\/[0-9]+\/matcher$/ && $2 == "^mcp__" { sub(/^\/hooks\/PreToolUse\//, "", $1); sub(/\/matcher$/, "", $1); print $1 }')
+  lh_settings_flat | awk -F '\t' -v idx="$lsm_idx" -v want="$lsm_want" '$1 ~ ("^/hooks/PreToolUse/" idx "/hooks/[0-9]+/command$") && index($2, want) { found = 1 } END { exit !found }'
+}
 work=${TMPDIR:-/tmp}/lh-state-test.$$
 fail=0
 
@@ -489,24 +557,28 @@ rm -rf "$prompt_dir"
 # The founder's voice and first run. These read the files the founder and
 # Claude read, so a later edit cannot quietly undo them.
 ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %s\n' "$2"; fail=1; fi; }
+# Same as ok(), but for a check that is only about a founder-editable file's
+# wording or style: in a founder's own copy it always passes, without ever
+# looking at $1, because that copy's wording is the founder's to keep.
+ok_t() { if lh_founder_copy; then printf 'PASS  %s (template check; not run in a founder'"'"'s copy)\n' "$2"; else ok "$1" "$2"; fi; }
 
 style="$repo/.claude/output-styles/launchhouse-guide.md"
 grep -q '^name: Launchhouse Guide$' "$style" 2>/dev/null && grep -q '^keep-coding-instructions: true$' "$style"
-ok $? "the Launchhouse Guide output style is in place"
+ok_t $? "the Launchhouse Guide output style is in place"
 
 # The start skill writes this copy into a folder with no CLAUDE.md, so it must
 # never drift from the real one.
 awk '/^```markdown$/ { buf = ""; f = 1; next } /^```$/ { if (f) last = buf; f = 0; next } f { buf = buf $0 "\n" } END { printf "%s", last }' \
   "$repo/.claude/skills/start/references/scaffold.md" | cmp -s - "$repo/CLAUDE.md"
-ok $? "the start skill's copy of CLAUDE.md matches the real one"
+ok_t $? "the start skill's copy of CLAUDE.md matches the real one"
 
 dashes=$(printf '\342\200\224|\342\200\223|!')
 grep -Eq "$dashes" "$style" "$repo/CLAUDE.md" "$repo/README.md" "$repo/START-HERE.md"
-[ $? = 1 ]; ok $? "founder-facing text has no em or en dashes and no exclamation points"
+[ $? = 1 ]; ok_t $? "founder-facing text has no em or en dashes and no exclamation points"
 
 start="$repo/.claude/skills/start/SKILL.md"
 grep -q 'git remote rename origin upstream' "$start" && grep -q 'Publish, never Fork' "$start"
-ok $? "the start skill never pushes to the public original, and renames it instead of pushing"
+ok_t $? "the start skill never pushes to the public original, and renames it instead of pushing"
 
 # The four states, decided from git alone, in this exact order, and never by
 # asking the founder what they did.
@@ -514,28 +586,28 @@ grep -q '\*\*State B, cloned the template itself\.\*\*' "$start" \
   && grep -q '\*\*State C, no remote at all\.\*\*' "$start" \
   && grep -q '\*\*State D, `origin` exists and its repo name is `launchhouse-founder-template`\*\*' "$start" \
   && grep -q '\*\*State A, followed the guide\.\*\*' "$start"
-ok $? "the start skill names all four states, in order"
+ok_t $? "the start skill names all four states, in order"
 
 grep -q 'No lecture, no extra questions, nothing about forks or publishing' "$start"
-ok $? "State A behaves with no lecture, exactly as the governing rule requires"
+ok_t $? "State A behaves with no lecture, exactly as the governing rule requires"
 
 grep -q 'launchhouse-founder-template`\*\* (case-insensitively), under an owner that is not Philm-moxywolf' "$start" \
   && grep -q 'Never put this check in a hook: it runs here, in the skill, once, only in this state' "$start" \
   && grep -q 'api.github.com/repos/<owner>/<repo>' "$start"
-ok $? "State D checks the fork-shaped repo name once, read only, in the skill and never a hook"
+ok_t $? "State D checks the fork-shaped repo name once, read only, in the skill and never a hook"
 
 grep -q 'anyone can read their business there right now' "$start" \
   && grep -q 'delete that repository on GitHub and publish again privately, or switch it to private' "$start"
-ok $? "State D tells a founder on a public fork plainly, and names the fix"
+ok_t $? "State D tells a founder on a public fork plainly, and names the fix"
 
 grep -q 'AskUserQuestion' "$start" && grep -q 'Pacific time, like Los Angeles or San Diego' "$start" && ! grep -q 'the Europe/London time' "$start"
-ok $? "the start skill offers choices and names the timezone the everyday way"
+ok_t $? "the start skill offers choices and names the timezone the everyday way"
 
 grep -q 'follow the `founder-brain` skill straight away' "$start"
-ok $? "a fresh start goes straight into the Founder Brain"
+ok_t $? "a fresh start goes straight into the Founder Brain"
 
 grep -q 'set once, in the Founder Brain intake' "$repo/CLAUDE.md" && ! grep -q 'never ask them which track' "$repo/CLAUDE.md"
-ok $? "rule 1 lets the Brain intake ask the track once"
+ok_t $? "rule 1 lets the Brain intake ask the track once"
 
 # LH-004 and LH-008: the Brain asks the track and Model with choices, and
 # confirms the track it took from "who pays you" before asking it afresh.
@@ -543,32 +615,33 @@ brain="$repo/.claude/skills/founder-brain/SKILL.md"
 grep -q 'The track and the Model question have predictable answers, so ask them with clickable choices (the AskUserQuestion tool)' "$brain" &&
   grep -q 'If you cannot show choices, as in Cowork, ask the same questions in plain text' "$brain" &&
   grep -q 'ask one more question, with choices' "$brain"
-ok $? "the Brain asks the track and Model with choices"
+ok_t $? "the Brain asks the track and Model with choices"
 
 grep -q 'Say the track you took from it in one plain sentence and ask them to confirm it' "$brain" &&
   grep -q 'Ask the full question only when Group 1 did not settle it' "$brain"
-ok $? "the Brain confirms the track from who pays them before asking it afresh"
+ok_t $? "the Brain confirms the track from who pays them before asking it afresh"
 
 grep -Eq "$dashes" "$brain"
-[ $? = 1 ]; ok $? "the Brain skill has no em or en dashes and no exclamation points"
+[ $? = 1 ]; ok_t $? "the Brain skill has no em or en dashes and no exclamation points"
 
 # LH-014: a held data or credit claim in the content engine is asked, never rewritten on a guess.
 ce="$repo/.claude/skills/content-engine/SKILL.md"
-if grep -q 'A held `claim.data` or `claim.credit` line: ask the founder whether it is true, never rewrite it on a guess' "$ce"; then
-  printf 'PASS  %s\n' "the content engine asks about a held data or credit claim"
-else
-  printf 'FAIL  %s\n' "the content engine asks about a held data or credit claim"; fail=1
-fi
+grep -q 'A held `claim.data` or `claim.credit` line: ask the founder whether it is true, never rewrite it on a guess' "$ce"
+ok_t $? "the content engine asks about a held data or credit claim"
 
 # The connections and the playbook insert. No server is shipped: connect-tools
 # writes GoHighLevel's when the founder connects, and the key lives in the
 # computer's own password store, never a file. The check that an insert is out
 # of date must spot a source file changed after it was built.
 conn_ok() { if [ "$1" = 0 ]; then printf 'PASS  %s\n' "$2"; else printf 'FAIL  %s\n' "$2"; fail=1; fi; }
+# Same as conn_ok(), but for a check that is only about a founder-editable
+# file's wording or style; see ok_t() above.
+conn_ok_t() { if lh_founder_copy; then printf 'PASS  %s (template check; not run in a founder'"'"'s copy)\n' "$2"; else conn_ok "$1" "$2"; fi; }
 
 [ ! -e "$repo/.mcp.json" ] \
   && ! git -C "$repo" ls-files --error-unmatch .mcp.json >/dev/null 2>&1 \
-  && grep -qF '"enabledMcpjsonServers": ["highlevel"]' "$repo/.claude/settings.json"
+  && lh_settings_path_is /enabledMcpjsonServers/0 highlevel \
+  && ! lh_settings_flat | grep -q '^/enabledMcpjsonServers/1\t'
 conn_ok $? "no server is shipped, and the one connect-tools writes is approved when the app reopens"
 
 # GoHighLevel's address is named only as the v2 connector address: every
@@ -589,54 +662,57 @@ conn_ok $? "only the v2 GoHighLevel address is named anywhere"
   && grep -qF 'Keychain Access on a Mac or Credential Manager on a Windows PC' "$repo/START-HERE.md" \
   && ! grep -qF 'no key to paste' "$repo/START-HERE.md" \
   && grep -qF 'sh .claude/scripts/ghl-headers.sh --connect < /dev/null' "$ct"
-conn_ok $? "START-HERE and connect-tools send the founder the same way to GoHighLevel: say connect my tools, no connector"
-grep -qF 'this fallback is for Code only' "$ct" \
-  && grep -qF "this check works on a Mac or a Windows PC only" "$repo/.claude/scripts/ghl-headers.sh"
-conn_ok $? "in Cowork, connect-tools says GoHighLevel connects from Code and carries on"
+conn_ok_t $? "START-HERE and connect-tools send the founder the same way to GoHighLevel: say connect my tools, no connector"
+grep -qF "this check works on a Mac or a Windows PC only" "$repo/.claude/scripts/ghl-headers.sh"
+conn_ok $? "ghl-headers.sh says the check works on a Mac or a Windows PC only"
+grep -qF 'this fallback is for Code only' "$ct"
+conn_ok_t $? "in Cowork, connect-tools says GoHighLevel connects from Code and carries on"
 
 # One item name, everywhere it is written.
+grep -qF "ghl_conn_item='Launchhouse GoHighLevel'" "$repo/.claude/scripts/ghl-store.sh" \
+  && grep -qF "ghl_values_item='Launchhouse GoHighLevel values'" "$repo/.claude/scripts/ghl-store.sh"
+conn_ok $? "ghl-store.sh names the password store items"
 grep -qF "In **Keychain Item Name**, type \`Launchhouse GoHighLevel\`" "$ct" \
   && grep -qF "In **Internet or network address**, type \`Launchhouse GoHighLevel\`" "$ct" \
   && grep -qF 'The item is named exactly `Launchhouse GoHighLevel`' "$repo/.claude/references/connections.md" \
-  && grep -qF "ghl_conn_item='Launchhouse GoHighLevel'" "$repo/.claude/scripts/ghl-store.sh" \
-  && grep -qF "ghl_values_item='Launchhouse GoHighLevel values'" "$repo/.claude/scripts/ghl-store.sh" \
   && grep -qF 'the name is exactly `Launchhouse GoHighLevel values`' "$repo/.claude/skills/ghl-values/SKILL.md"
-conn_ok $? "connect-tools, ghl-values, the reference and the helper name the same password store items"
+conn_ok_t $? "connect-tools, ghl-values and the reference name the same password store items"
 
 # ghl-values tries the account connector's custom values operation first, and
 # no longer claims GoHighLevel has no custom values tool at all.
 ! grep -qF 'has no custom values tool at all' "$repo/.claude/skills/ghl-values/SKILL.md" \
   && grep -qF 'Try the connector first' "$repo/.claude/skills/ghl-values/SKILL.md"
-conn_ok $? "ghl-values tries the connector before falling back to custom values by hand"
+conn_ok_t $? "ghl-values tries the connector before falling back to custom values by hand"
 
 # Connect-tools mentions the disconnect step and asks the approval question,
 # each with its own exact wording.
 grep -qF 'ghl-headers.sh --disconnect < /dev/null' "$ct"
-conn_ok $? "connect-tools tells them how to remove the fallback connection"
+conn_ok_t $? "connect-tools tells them how to remove the fallback connection"
 
 grep -qF 'Does GoHighLevel ask you before it posts or sends?' "$ct"
-conn_ok $? "connect-tools asks whether GoHighLevel asks before it posts or sends"
+conn_ok_t $? "connect-tools asks whether GoHighLevel asks before it posts or sends"
 
 # Cowork behaviour is documented in each founder-facing file, in that file's
 # own words: none of the Launchhouse checks run there, so the founder's own
 # connector setting is what stops a post or a send going out without asking.
 grep -qF 'it must stay set to Needs approval' "$repo/CLAUDE.md"
-conn_ok $? "CLAUDE.md says the connector setting must stay Needs approval in Cowork"
+conn_ok_t $? "CLAUDE.md says the connector setting must stay Needs approval in Cowork"
 
 grep -qF 'your own connector setting for GoHighLevel, set to ask before it posts or sends' "$repo/START-HERE.md"
-conn_ok $? "START-HERE says the founder's own connector setting keeps Cowork in their hands"
+conn_ok_t $? "START-HERE says the founder's own connector setting keeps Cowork in their hands"
 
 grep -qF 'in Cowork none of this folder' "$repo/.claude/skills/help/SKILL.md"
-conn_ok $? "help says none of this folder's checks run in Cowork"
+conn_ok_t $? "help says none of this folder's checks run in Cowork"
 
 # The store is read with what ships with the computer, and never in the chat.
 grep -q 'security find-generic-password' "$repo/.claude/scripts/ghl-store.sh" \
   && grep -q 'powershell.exe -NoProfile -NonInteractive -EncodedCommand' "$repo/.claude/scripts/ghl-store.sh" \
   && ! grep -qiE 'Install-Module|Import-Module|CredentialManager' "$repo/.claude/scripts/ghl-store.sh" \
-  && grep -qF '"Bash(security find-generic-password:*)"' "$repo/.claude/settings.json" \
-  && grep -qF 'never read the password store yourself' "$ct" \
+  && lh_settings_has_value 'Bash(security find-generic-password:*)'
+conn_ok $? "the key is read only with built-in tools, per ghl-store.sh and settings.json"
+grep -qF 'never read the password store yourself' "$ct" \
   && grep -qF 'Never read the password store yourself, by any command' "$repo/.claude/references/connections.md"
-conn_ok $? "the key is read only with built-in tools, and Claude never reads the store"
+conn_ok_t $? "connect-tools and the reference say Claude never reads the password store itself"
 
 # A Private Integration key does not expire on its own (GoHighLevel's help
 # pages), so no skill may say it stops after 90 days, and the troubleshooting
@@ -645,39 +721,39 @@ conn_ok $? "the key is read only with built-in tools, and Claude never reads the
   && grep -qF 'does not expire on its own' "$ct" \
   && grep -qF 'do not expire on their own' "$repo/.claude/skills/ghl-values/SKILL.md" \
   && grep -qF '| The key stopped working |' "$ct"
-conn_ok $? "connect-tools and ghl-values agree the key does not run out on its own"
+conn_ok_t $? "connect-tools and ghl-values agree the key does not run out on its own"
 
 # LH-004: the last predictable questions are asked with clickable choices.
 grep -qF 'ask with clickable choices (the AskUserQuestion tool): **Yes**, **Not yet**, **Not sure**' "$ct" \
   && grep -qF '**Google (Gmail or Google Workspace)**, **Microsoft 365**, **Something else**' "$repo/.claude/skills/outreach-b2b/SKILL.md" \
   && grep -qF 'Ask each with clickable choices (the AskUserQuestion tool), **Yes** and **No**' "$repo/.claude/skills/apollo-sequence/SKILL.md"
-conn_ok $? "connect-tools, outreach-b2b and apollo-sequence ask their predictable questions with choices"
+conn_ok_t $? "connect-tools, outreach-b2b and apollo-sequence ask their predictable questions with choices"
 
 dashes=$(printf '\342\200\224|\342\200\223|!')
 ! grep -Eq "$dashes" "$ct" "$repo/.claude/references/connections.md" "$repo/.claude/skills/ghl-values/SKILL.md" \
     "$repo/.claude/skills/apollo-sequence/SKILL.md" "$repo/.claude/skills/outreach-b2b/SKILL.md"
-conn_ok $? "the connection skills have no em or en dashes and no exclamation points"
+conn_ok_t $? "the connection skills have no em or en dashes and no exclamation points"
 
 grep -qF '### Checking for replies' "$repo/.claude/skills/outreach-b2b/SKILL.md" \
   && grep -qF 'This only reads' "$repo/.claude/skills/outreach-b2b/SKILL.md" \
   && grep -qF 'set their `status` to `replied`' "$repo/.claude/skills/outreach-b2b/SKILL.md" \
   && grep -qF '`outlook_email_search`' "$repo/.claude/references/connections.md" \
   && grep -qF '`search_threads`' "$repo/.claude/references/connections.md"
-conn_ok $? "replies are checked read only in Gmail or Microsoft 365 and recorded in the person file"
+conn_ok_t $? "replies are checked read only in Gmail or Microsoft 365 and recorded in the person file"
 
 sed -n '/^| GoHighLevel |/,/^| The mailbox |/p' "$repo/.claude/references/connections.md" | grep -q '| \*\*Apollo.io\*\* |' \
   && grep -q '\*\*Gmail\*\* for Google' "$repo/.claude/references/connections.md" \
   && grep -q '\*\*Microsoft 365\*\* for Microsoft 365' "$repo/.claude/references/connections.md"
-conn_ok $? "Apollo, Gmail and Microsoft 365 use Claude's own connectors, named exactly"
+conn_ok_t $? "Apollo, Gmail and Microsoft 365 use Claude's own connectors, named exactly"
 
 grep -q 'Microsoft 365 can now write drafts, once an admin turns that on' "$repo/.claude/references/connections.md" \
   && grep -qF 'Never call a tool that does' "$repo/.claude/references/connections.md" \
   && grep -q 'drafts only, never send' "$repo/.claude/skills/publish-content/SKILL.md"
-conn_ok $? "the mailbox is drafts only, and never sends"
+conn_ok_t $? "the mailbox is drafts only, and never sends"
 
 pb="$repo/.claude/skills/playbook-export/SKILL.md"
 grep -q 'git diff --name-only <version> --' "$pb" && grep -q 'built-from:' "$pb" && grep -q 'playbook-insert.html' "$pb"
-conn_ok $? "the playbook skill stamps the insert and checks it before handing it over"
+conn_ok_t $? "the playbook skill stamps the insert and checks it before handing it over"
 
 pbdir=${TMPDIR:-/tmp}/lh-state-playbook.$$
 mkdir -p "$pbdir/growth-engine/brain" "$pbdir/growth-engine/engines/content" || exit 1
@@ -711,19 +787,22 @@ mkdir -p "$nogit/growth-engine/brain" && printf 'brain\n' > "$nogit/growth-engin
 ( cd "$nogit" && GIT_CEILING_DIRECTORIES="$nogit/.." git diff --name-only none -- growth-engine/brain/founder-brain.md >/dev/null 2>&1 )
 nogit_rc=$?
 rm -rf "$nogit"
-[ "$nogit_rc" != 0 ] && grep -q 'use `none` as the version' "$pb" \
+[ "$nogit_rc" != 0 ]
+conn_ok $? "with no git, the version check itself fails as expected"
+grep -q 'use `none` as the version' "$pb" \
   && grep -q 'look at the date each file on the line was last changed' "$pb" \
   && grep -q 'If they say no, hand it over' "$pb" && ! grep -q 'do not hand it over' "$pb"
-conn_ok $? "with no git the insert is checked by file dates, and a founder who says no to a rebuild still gets it"
+conn_ok_t $? "the playbook skill's own wording: with no git it falls back to file dates, and a founder who says no to a rebuild still gets it"
 
 # LH-028: the folder is standalone. There is no plugin build, and the old
 # growth-engine plugin stays switched off here so a founder never gets two copies.
 [ ! -e "$repo/.claude/build" ] \
-  && grep -q '"growth-engine@launchhouse-v3": false' "$repo/.claude/settings.json" \
-  && grep -q 'switches the old `growth-engine` plugin off' "$repo/CLAUDE.md"
-ok $? "the folder is standalone: no plugin build, and the old plugin is switched off here"
-! grep -q 'extraKnownMarketplaces' "$repo/.claude/settings.json" \
-  && ! grep -q 'Philm-moxywolf' "$repo/.claude/settings.json"
+  && lh_settings_path_is /enabledPlugins/growth-engine@launchhouse-v3 false
+ok $? "the folder is standalone: no plugin build, and the old plugin is switched off in settings"
+grep -q 'switches the old `growth-engine` plugin off' "$repo/CLAUDE.md"
+ok_t $? "CLAUDE.md explains the old plugin is switched off here"
+lh_settings_never_has 'extraKnownMarketplaces' \
+  && lh_settings_never_has 'Philm-moxywolf'
 ok $? "the settings name no marketplace and nothing from the public original"
 
 # LH-022: folders by kind. The contract table is the one list of paths, and
@@ -742,9 +821,136 @@ ok $? "the settings name no marketplace and nothing from the public original"
 ok $? "the contract table and the checks agree on where every file lives"
 
 # A fresh folder, as the template ships it, is already in the new layout.
-tracked=$(git -C "$repo" ls-files growth-engine | sort | tr '\n' ' ')
-[ "$tracked" = "growth-engine/.launchhouse growth-engine/.state/.gitkeep growth-engine/.state/index.md growth-engine/brain/voice-samples/.gitkeep growth-engine/drafts/.gitkeep growth-engine/inbox/uploads/.gitkeep growth-engine/log/ledger.md growth-engine/log/memory.md growth-engine/log/ops-log.md growth-engine/people/README.md " ]
-ok $? "a fresh folder ships in the new layout, folders by kind"
+# Bug 1: a founder's real copy, with saved work, never carries this exact
+# starter list (they have added a Brain, pieces, drafts, and so on), so the
+# exact-list assertion below only applies to the template itself. Which one
+# $repo is is decided from git alone, never from a guess: .claude/launchhouse
+# -version is committed in every founder copy the updater builds (and never
+# in the template), and growth-engine/.state/profile.md is written and
+# committed by the start skill for every founder (and never in the template).
+# A founder copy is instead held to what actually matters at these paths: no
+# real person's details are tracked.
+lh_starter_files="growth-engine/.launchhouse growth-engine/.state/.gitkeep growth-engine/.state/index.md growth-engine/brain/voice-samples/.gitkeep growth-engine/drafts/.gitkeep growth-engine/inbox/uploads/.gitkeep growth-engine/log/ledger.md growth-engine/log/memory.md growth-engine/log/ops-log.md growth-engine/people/README.md"
+
+lh_make_starter_growth_engine() { # dir; lays out exactly $lh_starter_files, nothing else
+  d=$1
+  mkdir -p "$d/growth-engine/.state" "$d/growth-engine/brain/voice-samples" "$d/growth-engine/drafts" \
+    "$d/growth-engine/inbox/uploads" "$d/growth-engine/log" "$d/growth-engine/people" || return 1
+  : > "$d/growth-engine/.launchhouse"
+  : > "$d/growth-engine/.state/.gitkeep"
+  : > "$d/growth-engine/.state/index.md"
+  : > "$d/growth-engine/brain/voice-samples/.gitkeep"
+  : > "$d/growth-engine/drafts/.gitkeep"
+  : > "$d/growth-engine/inbox/uploads/.gitkeep"
+  : > "$d/growth-engine/log/ledger.md"
+  : > "$d/growth-engine/log/memory.md"
+  : > "$d/growth-engine/log/ops-log.md"
+  printf 'people\n' > "$d/growth-engine/people/README.md"
+}
+
+lh_layout_mode=""
+lh_layout_check() { # dir; sets $lh_layout_mode, returns 0 pass / 1 fail
+  d=$1
+  if git -C "$d" ls-files --error-unmatch .claude/launchhouse-version >/dev/null 2>&1 \
+    || git -C "$d" ls-files --error-unmatch growth-engine/.state/profile.md >/dev/null 2>&1; then
+    lh_layout_mode=founder
+    # Nothing tracked at these paths except, optionally, the starter
+    # people/README.md: a founder who deleted that README must never be
+    # blocked from updating over it, same as fix 1 itself.
+    private=$(git -C "$d" ls-files growth-engine/people growth-engine/engines/outreach/outreach-firstlines.csv \
+      growth-engine/engines/audience/dm-openers.md | sort | tr '\n' ' ')
+    [ "$private" = "growth-engine/people/README.md " ] || [ -z "$private" ]
+  else
+    lh_layout_mode=template
+    tracked=$(git -C "$d" ls-files growth-engine | sort | tr '\n' ' ')
+    expected=$(printf '%s\n' $lh_starter_files | sort | tr '\n' ' ')
+    [ "$tracked" = "$expected" ]
+  fi
+}
+
+lh_layout_check "$repo"
+lh_layout_rc=$?
+if [ "$lh_layout_mode" = founder ]; then
+  ok $lh_layout_rc "a founder copy tracks no real person's details under growth-engine/people, outreach first lines, or DM openers"
+else
+  ok $lh_layout_rc "a fresh folder ships in the new layout, folders by kind"
+fi
+
+# Regression (i): a founder-shaped copy (a committed .claude/launchhouse-version,
+# the starter files, plus a Brain, nothing tracked under people/ beyond
+# README.md) must pass the layout check.
+lb_i=${TMPDIR:-/tmp}/lh-layout-founder.$$
+mkdir -p "$lb_i/.claude" "$lb_i/growth-engine/brain" || exit 1
+lh_make_starter_growth_engine "$lb_i"
+printf '# Founder Brain\n' > "$lb_i/growth-engine/brain/founder-brain.md"
+printf 'abc1234\n' > "$lb_i/.claude/launchhouse-version"
+cp "$repo/.gitignore" "$lb_i/.gitignore" 2>/dev/null
+(
+  cd "$lb_i" && git init -q && git config user.name Test && git config user.email test@example.com \
+    && git add -A && git -c commit.gpgsign=false commit -q -m "founder-shaped fixture"
+) >/dev/null 2>&1
+lh_layout_check "$lb_i"
+ok $? "regression: a founder-shaped copy (Brain plus a committed launchhouse-version) passes the layout check"
+rm -rf "$lb_i"
+
+# Regression (i-b): the same founder-shaped copy, but with
+# growth-engine/people/README.md itself deleted and the deletion committed
+# (nothing at all tracked under these paths), must still pass: a founder who
+# removed the starter README is not carrying anyone's real details, and must
+# never be blocked from updating over it.
+lb_ib=${TMPDIR:-/tmp}/lh-layout-founder-noreadme.$$
+mkdir -p "$lb_ib/.claude" "$lb_ib/growth-engine/brain" || exit 1
+lh_make_starter_growth_engine "$lb_ib"
+printf '# Founder Brain\n' > "$lb_ib/growth-engine/brain/founder-brain.md"
+printf 'abc1234\n' > "$lb_ib/.claude/launchhouse-version"
+rm -f "$lb_ib/growth-engine/people/README.md"
+cp "$repo/.gitignore" "$lb_ib/.gitignore" 2>/dev/null
+(
+  cd "$lb_ib" && git init -q && git config user.name Test && git config user.email test@example.com \
+    && git add -A && git -c commit.gpgsign=false commit -q -m "founder-shaped fixture, README deleted"
+) >/dev/null 2>&1
+lh_layout_check "$lb_ib"
+ok $? "regression: a founder-shaped copy with people/README.md not tracked still passes the layout check"
+rm -rf "$lb_ib"
+
+# Regression (ii): a template-shaped copy (no launchhouse-version, no
+# profile.md) carrying one stray tracked file under growth-engine/ must fail
+# the exact-list assertion, exactly as a real drift in the template would.
+lb_ii=${TMPDIR:-/tmp}/lh-layout-template.$$
+mkdir -p "$lb_ii/.claude" || exit 1
+lh_make_starter_growth_engine "$lb_ii"
+printf 'stray\n' > "$lb_ii/growth-engine/stray-file.md"
+cp "$repo/.gitignore" "$lb_ii/.gitignore" 2>/dev/null
+(
+  cd "$lb_ii" && git init -q && git config user.name Test && git config user.email test@example.com \
+    && git add -A && git -c commit.gpgsign=false commit -q -m "template-shaped fixture, with drift"
+) >/dev/null 2>&1
+lh_layout_check "$lb_ii"
+lb_ii_rc=$?
+[ "$lb_ii_rc" != 0 ]
+ok $? "regression: a template-shaped copy with a stray tracked file under growth-engine fails the layout check"
+rm -rf "$lb_ii"
+
+# Regression (iii): a founder-shaped copy exactly like (i), but with
+# growth-engine/people/someone.md force-added to git, must fail: a real
+# person's file must never be trackable, gitignore or not.
+lb_iii=${TMPDIR:-/tmp}/lh-layout-founder-leak.$$
+mkdir -p "$lb_iii/.claude" "$lb_iii/growth-engine/brain" || exit 1
+lh_make_starter_growth_engine "$lb_iii"
+printf '# Founder Brain\n' > "$lb_iii/growth-engine/brain/founder-brain.md"
+printf 'abc1234\n' > "$lb_iii/.claude/launchhouse-version"
+printf 'key: someone@example.com\n' > "$lb_iii/growth-engine/people/someone.md"
+cp "$repo/.gitignore" "$lb_iii/.gitignore" 2>/dev/null
+(
+  cd "$lb_iii" && git init -q && git config user.name Test && git config user.email test@example.com \
+    && git add -A && git add -f growth-engine/people/someone.md \
+    && git -c commit.gpgsign=false commit -q -m "founder-shaped fixture, with a leaked person file"
+) >/dev/null 2>&1
+lh_layout_check "$lb_iii"
+lb_iii_rc=$?
+[ "$lb_iii_rc" != 0 ]
+ok $? "regression: a founder-shaped copy with a force-added person file fails the layout check"
+rm -rf "$lb_iii"
 
 # index.md is rebuilt by the hooks, but it stays in git: the cloud routines
 # read it from the founder's GitHub copy, and it is the only source for the
@@ -911,7 +1117,7 @@ rm -rf "$mv_dir"
 grep -q 'sh .claude/scripts/move-layout.sh < /dev/null' "$repo/.claude/skills/start/SKILL.md" \
   && grep -q 'never by itself at the start of a session' "$repo/.claude/skills/start/SKILL.md" \
   && grep -q 'sh .claude/scripts/move-layout.sh .lh-import/growth-engine < /dev/null' "$repo/.claude/skills/import-from-app/SKILL.md"
-ok $? "the start skill runs the move, and the import puts the app's work in the new layout"
+ok_t $? "the start skill runs the move, and the import puts the app's work in the new layout"
 
 # Gates lock, with a way through. A fresh folder with no Brain at all: the
 # content engine's gate (A) is not met, so its row in the engine table reads
@@ -1011,18 +1217,25 @@ rm -rf "$notrack"
 
 # Fix 5: the five gated skills carry the identical refresh-then-read sentence,
 # byte for byte apart from the engine name, so they can never drift apart
-# again the way they had before this fix.
-shared_sentence='Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md`'
-skill_miss=0
-for f in content-engine outreach-b2b audience-b2c ghl-workflows growth-plan; do
-  sf="$repo/.claude/skills/$f/SKILL.md"
-  grep -qF "$shared_sentence" "$sf" || { printf 'FAIL  %s carries the shared refresh-then-read sentence\n' "$f"; skill_miss=1; fail=1; }
-done
-[ "$skill_miss" = 0 ] && printf 'PASS  all five gated skills carry the identical refresh-then-read sentence\n'
+# again the way they had before this fix. Wording, so template-only: a
+# founder's own edit of one of these five skills is theirs to keep.
+if lh_founder_copy; then
+  printf 'PASS  all five gated skills carry the identical refresh-then-read sentence (template check; not run in a founder'"'"'s copy)\n'
+else
+  shared_sentence='Run `sh .claude/scripts/refresh.sh < /dev/null`, then read `growth-engine/.state/gate-state.md`'
+  skill_miss=0
+  for f in content-engine outreach-b2b audience-b2c ghl-workflows growth-plan; do
+    sf="$repo/.claude/skills/$f/SKILL.md"
+    grep -qF "$shared_sentence" "$sf" || { printf 'FAIL  %s carries the shared refresh-then-read sentence\n' "$f"; skill_miss=1; fail=1; }
+  done
+  [ "$skill_miss" = 0 ] && printf 'PASS  all five gated skills carry the identical refresh-then-read sentence\n'
+fi
 
 # Fix 6: none of the five skills carry the old, unhooked "carry straight on"
-# escape when gate-state.md is simply missing.
-if grep -rqF 'is not there at all, carry straight on' \
+# escape when gate-state.md is simply missing. Wording, so template-only.
+if lh_founder_copy; then
+  printf 'PASS  no gated skill carries straight on when gate-state.md is missing (template check; not run in a founder'"'"'s copy)\n'
+elif grep -rqF 'is not there at all, carry straight on' \
   "$repo/.claude/skills/content-engine/SKILL.md" "$repo/.claude/skills/outreach-b2b/SKILL.md" \
   "$repo/.claude/skills/audience-b2c/SKILL.md" "$repo/.claude/skills/ghl-workflows/SKILL.md" \
   "$repo/.claude/skills/growth-plan/SKILL.md"; then
@@ -1033,7 +1246,7 @@ fi
 
 # The settings allow list lets refresh.sh run without a permission prompt, in
 # exactly the command form the skills above use.
-if grep -qF 'Bash(sh .claude/scripts/refresh.sh < /dev/null)' "$repo/.claude/settings.json"; then
+if lh_settings_has_value 'Bash(sh .claude/scripts/refresh.sh < /dev/null)'; then
   printf 'PASS  refresh.sh is in the settings allow list\n'
 else
   printf 'FAIL  refresh.sh is in the settings allow list\n'; fail=1
@@ -1320,10 +1533,10 @@ ghlop="$repo/.claude/scripts/ghl-op.sh"
 conn_ok $? "ghl-op.sh exists and starts with a plain POSIX shebang"
 ! grep -Eq '\[\[|\barray\b|\blocal\b' "$ghlop"
 conn_ok $? "ghl-op.sh has no bashisms"
-[ "$(grep -c '"matcher": "\^mcp__"' "$repo/.claude/settings.json")" = 1 ] \
-  && grep -A 4 '"matcher": "\^mcp__"' "$repo/.claude/settings.json" | grep -qF 'mcp-guard.sh' \
+lh_settings_mcp_matcher_routes_through 'mcp-guard.sh' \
   && grep -qF 'ghl-op.sh' "$repo/.claude/scripts/mcp-guard.sh" \
-  && ! grep -q 'deny-mcp.sh\|ask-mcp.sh' "$repo/.claude/settings.json"
+  && lh_settings_never_has 'deny-mcp.sh' \
+  && lh_settings_never_has 'ask-mcp.sh' 
 conn_ok $? "settings.json routes every mcp__ call through mcp-guard.sh, which sources ghl-op.sh, with no leftover deny-mcp.sh/ask-mcp.sh routing"
 grep -qF 'ghl=https://services.leadconnectorhq.com/mcp/anthropic/v2' "$repo/.claude/scripts/ghl-headers.sh"
 conn_ok $? "ghl-headers.sh points the fallback connection at the v2 endpoint"
@@ -1525,7 +1738,80 @@ conn_ok $? "a plain SessionStart reports the broken identity through context.sh"
 conn_ok $? "context.sh never calls setup-check.sh on a compact SessionStart"
 rm -rf "$cc_dir"
 grep -qF 'check my setup' "$repo/.claude/skills/help/SKILL.md" 2>/dev/null || grep -qF 'setup-check.sh' "$repo/.claude/skills/help/SKILL.md"
-conn_ok $? "the help skill runs the setup check in full"
+conn_ok_t $? "the help skill runs the setup check in full"
+
+# --------------------------------------------------------------------------
+# Bug 2: an older updater at 76bbaf3 exports LH_UPDATE_RELOCATED and
+# LH_UPDATE_ROOT and never unsets them before it runs the new tree's own
+# checks. run.sh, state.sh (this file) and update-cases.sh each spawn nested
+# update.sh runs of their own (update-cases.sh against throwaway fixture
+# repos), so each of them has to clear both variables, before its first
+# command that runs anything else, or a nested run could inherit them and
+# trust a founder's real folder as its root.
+for lh_uf in run.sh state.sh update-cases.sh; do
+  lh_uf_res=$(awk '
+    NR==1 && /^#!/ { next }
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    /^unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT([[:space:]]|$)/ { print "OK"; exit }
+    { print "BAD"; exit }
+  ' "$repo/.claude/tests/$lh_uf")
+  [ "$lh_uf_res" = OK ]
+  ok $? "the checks clear the updater's own settings before running, so an older updater cannot point them at the founder's folder ($lh_uf)"
+done
+
+# The behavioural half: even with LH_UPDATE_ROOT and LH_UPDATE_RELOCATED set
+# in the environment (standing in for an older updater's leak), the unset
+# above must stop update.sh from ever treating that pointed-at folder as its
+# root. A throwaway "leak target" folder plays the founder's real folder; a
+# separate throwaway git repo, with update.sh copied into it exactly as
+# update-cases.sh does, plays the repo actually being run from. Its own
+# .claude/launchhouse-upstream points at a third, local-only throwaway repo,
+# so ensure_upstream_remote never needs the network.
+lru_target=${TMPDIR:-/tmp}/lh-lru-target.$$
+lru_repo=${TMPDIR:-/tmp}/lh-lru-repo.$$
+lru_upstream=${TMPDIR:-/tmp}/lh-lru-upstream.$$
+mkdir -p "$lru_target" "$lru_repo/.claude/scripts" "$lru_upstream" || exit 1
+(
+  cd "$lru_target" && git init -q && git config user.name Test && git config user.email test@example.com \
+    && git -c commit.gpgsign=false commit -q -m init --allow-empty
+) >/dev/null 2>&1
+(
+  cd "$lru_upstream" && git init -q && git config user.name Test && git config user.email test@example.com \
+    && git -c commit.gpgsign=false commit -q -m init --allow-empty
+) >/dev/null 2>&1
+cp "$repo/.claude/scripts/update.sh" "$repo/.claude/scripts/lib.sh" "$lru_repo/.claude/scripts/" 2>/dev/null
+printf '%s' "$lru_upstream" > "$lru_repo/.claude/launchhouse-upstream"
+(
+  cd "$lru_repo" && git init -q && git config user.name Test && git config user.email test@example.com \
+    && git add -A && git -c commit.gpgsign=false commit -q -m "add the update engine under test"
+) >/dev/null 2>&1
+
+lru_out=$(
+  cd "$lru_repo" && LH_UPDATE_ROOT="$lru_target" LH_UPDATE_RELOCATED=1 sh -c '
+    unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT
+    sh .claude/scripts/update.sh --status
+  ' 2>&1
+)
+
+! git -C "$lru_target" remote get-url upstream >/dev/null 2>&1 \
+  && git -C "$lru_repo" remote get-url upstream >/dev/null 2>&1 \
+  && printf '%s' "$lru_out" | grep -qF "upstream_url=$lru_upstream"
+ok $? "with the unset in place, a leaked LH_UPDATE_ROOT never points update.sh at the folder it names: nothing is created there, and --status names the repo it actually ran from"
+rm -rf "$lru_target" "$lru_repo" "$lru_upstream"
+
+# --------------------------------------------------------------------------
+# Link parity: GoHighLevel's install link is written out in full, by hand, in
+# more than one founder-facing place. Every copy of it, anywhere under
+# START-HERE.md and .claude (excluding .claude/tests/, which holds this file
+# and its fixtures), must be byte for byte the one in connections.md, and
+# connections.md must hold exactly one.
+lh_ghl_link_re='https://marketplace\.leadconnectorhq\.com/v2/oauth/chooselocation[^()[:space:]]*'
+lh_ghl_urls=$(grep -rhoE --exclude-dir=tests "$lh_ghl_link_re" "$repo/.claude" "$repo/START-HERE.md" 2>/dev/null | sort -u)
+lh_ghl_distinct=$(printf '%s\n' "$lh_ghl_urls" | grep -c .)
+lh_ghl_conn_count=$(grep -ohE "$lh_ghl_link_re" "$repo/.claude/references/connections.md" 2>/dev/null | grep -c .)
+[ "$lh_ghl_distinct" = 1 ] && [ "$lh_ghl_conn_count" = 1 ]
+ok $? "every GoHighLevel install link in START-HERE.md and .claude (outside tests) is byte-identical to the one in connections.md, which holds exactly one"
 
 if [ "$fail" = 0 ]; then
   printf '\nAll state checks passed.\n'

@@ -1,6 +1,6 @@
 ---
 name: outlook-expert
-description: Claude's expert on the founder's connected Microsoft 365 mailbox: checking for replies, drafting once the founder's admin has turned write tools on, and answering how-it-works questions. Trigger on "Outlook", "Microsoft 365", "connect Outlook", "connect my email", "how do I check Outlook", "check my Outlook connection", "who replied", "check for replies", "put my outreach emails in my drafts".
+description: 'Claude''s expert on the founder''s connected Microsoft 365 mailbox: checking for replies, drafting once the founder''s admin has turned write tools on, and answering how-it-works questions. Trigger on "Outlook", "Microsoft 365", "connect Outlook", "connect my email", "how do I check Outlook", "check my Outlook connection", "who replied", "check for replies", "put my outreach emails in my drafts".'
 ---
 
 # Microsoft 365 (Outlook) expert

@@ -15,7 +15,7 @@ GoHighLevel is one CRM per business, called a **location** (a sub-account, under
 
 ## Connecting and auth
 
-The sub-account install through GoHighLevel's own link comes first, before the connector is added in Claude; `../../../references/connections.md` holds the link.
+The sub-account install through GoHighLevel's own link comes first, before the connector is added in Claude; `../../../references/connections.md` holds the link. That install page is on LeadConnector's site, which is GoHighLevel's own company, so the founder signs in there with the same email and password they use for GoHighLevel.
 
 The connector is named **HighLevel**, added from Settings, then Connectors, then Add custom connector, at `https://services.leadconnectorhq.com/mcp/anthropic/v2`, and signed in with OAuth: the founder reviews and approves a scope list on GoHighLevel's own consent screen, and only the operations those scopes cover are ever available to `execute_operation`. It works the same way in Claude Code, Cowork, the browser, and on a phone (documented: HighLevel MCP for Claude help page).
 
@@ -125,7 +125,7 @@ The six rules in `CLAUDE.md`, and the guard behaviour, are documented once in `.
 - HighLevel developer docs, Locations, Create/Update/Get Custom Value: <https://marketplace.gohighlevel.com/docs/ghl/locations/create-custom-value/index.html>, <https://marketplace.gohighlevel.com/docs/ghl/locations/update-custom-value/>, <https://marketplace.gohighlevel.com/docs/ghl/locations/get-custom-values/index.html> (checked 2026-09-21)
 - HighLevel developer docs, Private Integrations Token: <https://marketplace.gohighlevel.com/docs/Authorization/PrivateIntegrationsToken/> (checked 2026-09-21)
 - Claude Help, Get started with custom connectors: <https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp> (checked 2026-09-21)
-- The install-link route, via <https://marketplace.leadconnectorhq.com>, reported working by a Launchhouse maintainer's colleague, and its scope list checked against GoHighLevel's own published list (2026-09-22). Reported, not GoHighLevel documentation.
+- The install-link route, via <https://marketplace.leadconnectorhq.com>, confirmed working with a real founder on 2026-09-22, and its scope list checked against GoHighLevel's own published list. Reported by Launchhouse, not GoHighLevel documentation.
 - HighLevel Support, MCP multi-account support for Claude: <https://help.gohighlevel.com/support/solutions/articles/155000008360-highlevel-mcp-multi-account-support-for-claude> (checked 2026-09-22)
 - HighLevel developer docs, LeadConnector MCP server: <https://marketplace.gohighlevel.com/docs/other/mcp/> (checked 2026-09-22)
 

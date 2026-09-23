@@ -1,6 +1,6 @@
 ---
 name: gate
-description: Read the computed gate report and say which items are met, which are not, and which engines are locked, overridden or clear to run. Agent-facing: the report every engine skill reads before it starts. Trigger on "gate A", "gate B", "gate C", "gate report", or when an engine skill needs to check its own gate.
+description: 'Read the computed gate report and say which items are met, which are not, and which engines are locked, overridden or clear to run. Agent-facing: the report every engine skill reads before it starts. Trigger on "gate A", "gate B", "gate C", "gate report", or when an engine skill needs to check its own gate.'
 ---
 
 # Gate report

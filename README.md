@@ -4,6 +4,8 @@ The folder a Launchhouse Atlanta founder works in, with the Claude desktop app. 
 
 You never open a terminal. Everything happens in the Claude app, GitHub Desktop and your web browser.
 
+*An AI agent opening this repository reads [AGENTS.md](AGENTS.md) first.*
+
 ## Get started
 
 1. **Install the apps.** The Claude desktop app and GitHub Desktop, signed in. On a Windows PC, also Git for Windows from git-scm.com: press Next on every screen.

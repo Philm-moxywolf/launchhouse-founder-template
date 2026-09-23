@@ -13,7 +13,7 @@ Read `.claude/skill-packs/ghl/pack.md` and `.claude/skill-packs/ghl/references/k
 
 ## 2. Check the connection
 
-Look at the tools available. The account connector gives six tools (`list_locations`, `search_operations`, `describe_operation`, `execute_operation`, `search`, `fetch`); the fallback gives one tool per job, named in the pack's tool map. If neither is there, send the founder to `connect-tools` (`/growth-engine:connect`, or say "connect my tools") before doing anything else that needs GoHighLevel.
+Look at the tools available. The account connector gives six tools (`list_locations`, `search_operations`, `describe_operation`, `execute_operation`, `search`, `fetch`); the fallback gives one tool per job, named in the pack's tool map. If neither is there, send the founder to `connect-tools` (`/growth-engine:connect`, or say "connect my tools") before doing anything else that needs GoHighLevel. If the founder says they already connected HighLevel but no tools appear, the likely cause is the install step, not the connector itself; `connect-tools` covers it.
 
 ## 3. Route the founder's request
 

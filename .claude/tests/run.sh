@@ -8,6 +8,12 @@
 # read from its first line, which is a comment of the form:
 #   <!-- rule: dm.offered -->
 
+# An older updater leaks LH_UPDATE_RELOCATED and LH_UPDATE_ROOT into the checks
+# it runs and never unsets them; clear both here, before anything else runs, so
+# a nested update.sh call below can never mistake the founder's real folder
+# for its own root.
+unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT
+
 here=$(dirname "$0")
 awkfile="$here/../scripts/rules.awk"
 fail=0
@@ -46,6 +52,32 @@ work=${TMPDIR:-/tmp}/lh-hook-test.$$
 trap 'rm -rf "$work"' EXIT
 scripts=$(cd "$here/../scripts" && pwd)
 settings="$here/../settings.json"
+
+# settings.json is read by CONTENT, never by line shape -- see json-flat.sh's
+# own header. Flattened once and cached: every assertion below that reads
+# settings.json queries this same cached table, never a literal grep on the
+# file's own bytes.
+LH_SETTINGS_FLAT_CACHE=""
+lh_settings_flat() {
+  if [ -z "$LH_SETTINGS_FLAT_CACHE" ]; then
+    LH_SETTINGS_FLAT_CACHE=$(sh "$scripts/json-flat.sh" "$settings" 2>/dev/null)
+    [ -n "$LH_SETTINGS_FLAT_CACHE" ] || LH_SETTINGS_FLAT_CACHE="$(printf '\t')"
+  fi
+  printf '%s\n' "$LH_SETTINGS_FLAT_CACHE"
+}
+lh_settings_has_value() {
+  lh_settings_flat | awk -F '\t' -v want="$1" '$2 == want { found = 1 } END { exit !found }'
+}
+lh_settings_never_has() {
+  ! lh_settings_flat | awk -F '\t' -v needle="$1" 'index($1, needle) || index($2, needle) { found = 1 } END { exit !found }'
+}
+lh_settings_mcp_matcher_routes_through() {
+  lsm_want=$1
+  lsm_count=$(lh_settings_flat | awk -F '\t' '$1 ~ /^\/hooks\/PreToolUse\/[0-9]+\/matcher$/ && $2 == "^mcp__" { c++ } END { print c + 0 }')
+  [ "$lsm_count" = 1 ] || return 1
+  lsm_idx=$(lh_settings_flat | awk -F '\t' '$1 ~ /^\/hooks\/PreToolUse\/[0-9]+\/matcher$/ && $2 == "^mcp__" { sub(/^\/hooks\/PreToolUse\//, "", $1); sub(/\/matcher$/, "", $1); print $1 }')
+  lh_settings_flat | awk -F '\t' -v idx="$lsm_idx" -v want="$lsm_want" '$1 ~ ("^/hooks/PreToolUse/" idx "/hooks/[0-9]+/command$") && index($2, want) { found = 1 } END { exit !found }'
+}
 mkdir -p "$work/.claude" "$work/growth-engine/.state" "$work/growth-engine/drafts" \
   "$work/growth-engine/inbox/uploads" "$work/growth-engine/brain/voice-samples" "$work/src" \
   "$work/growth-engine/engines/audience" "$work/growth-engine/export" || exit 1
@@ -93,6 +125,15 @@ shell() { # command text, then the command itself runs as the rest of the argume
 check() { # name, then a test
   n=$1; shift
   if "$@"; then printf 'PASS  %s\n' "$n"; else printf 'FAIL  %s\n' "$n"; fail=1; fi
+}
+# Set once true (never reset) when a check in the settings-wiring block below
+# (the mcp__ dispatcher wiring) fails, so the founder-readable hint about it
+# can be printed as the very last lines of this whole file's output, after
+# the pass/fail summary, where cmd_apply's tail -60 is sure to keep it.
+settings_wiring_failed=0
+checksw() { # name, then a test -- like check(), but also flags settings_wiring_failed
+  n=$1; shift
+  if "$@"; then printf 'PASS  %s\n' "$n"; else printf 'FAIL  %s\n' "$n"; fail=1; settings_wiring_failed=1; fi
 }
 has() { printf '%s' "$1" | grep -q "$2"; }
 hasnt() { ! printf '%s' "$1" | grep -q "$2"; }
@@ -193,27 +234,31 @@ check "a change past the quoted part of a long old line is held" has "$out" 'HEL
 # (additionalContext only, no permissionDecision key, mode-aware wording),
 # and silent (a clear read, no output at all).
 
-mgmatch=$(sed -n 's/.*"matcher": "\(\^mcp__[^"]*\)".*/\1/p' "$settings")
-check "settings.json carries exactly one mcp__ matcher" test "$mgmatch" = '^mcp__'
-check "and it is the only one" test "$(grep -c '"matcher": "\^mcp__' "$settings")" = 1
-check "it runs mcp-guard.sh" grep -q 'scripts/mcp-guard.sh' "$settings"
-check "deny-mcp.sh is gone" test ! -e "$scripts/deny-mcp.sh"
-check "ask-mcp.sh is gone" test ! -e "$scripts/ask-mcp.sh"
-check "neither is named in settings.json any more" sh -c '! grep -qE "deny-mcp|ask-mcp" "$1"' _ "$settings"
-check "ghl-op.sh is not named in settings.json, it is a sourced library now" sh -c '! grep -q "scripts/ghl-op.sh" "$1"' _ "$settings"
+lh_settings_exactly_one_mcp_matcher() {
+  [ "$(lh_settings_flat | awk -F '\t' '$1 ~ /^\/hooks\/PreToolUse\/[0-9]+\/matcher$/ && $2 == "^mcp__" { c++ } END { print c + 0 }')" = 1 ]
+}
+lh_settings_neither_retired_script_named() {
+  lh_settings_never_has 'deny-mcp.sh' && lh_settings_never_has 'ask-mcp.sh'
+}
+checksw "settings.json carries exactly one mcp__ matcher, and it is the only one" lh_settings_exactly_one_mcp_matcher
+checksw "it runs mcp-guard.sh" lh_settings_mcp_matcher_routes_through 'scripts/mcp-guard.sh'
+checksw "deny-mcp.sh is gone" test ! -e "$scripts/deny-mcp.sh"
+checksw "ask-mcp.sh is gone" test ! -e "$scripts/ask-mcp.sh"
+checksw "neither is named in settings.json any more" lh_settings_neither_retired_script_named
+checksw "ghl-op.sh is not named in settings.json, it is a sourced library now" lh_settings_never_has 'scripts/ghl-op.sh'
 
 # The remote/branch/fetch allowlist that lets the start skill normalize
 # remotes (rename the template to upstream, add or point origin, unset a
 # stray upstream tracking branch) without a permission prompt mid-setup.
-check "settings.json allows git remote get-url" grep -qF '"Bash(git remote get-url:*)"' "$settings"
-check "settings.json allows git remote add" grep -qF '"Bash(git remote add:*)"' "$settings"
-check "settings.json allows git remote remove" grep -qF '"Bash(git remote remove:*)"' "$settings"
-check "settings.json allows git remote rename" grep -qF '"Bash(git remote rename:*)"' "$settings"
-check "settings.json allows git remote set-url" grep -qF '"Bash(git remote set-url:*)"' "$settings"
-check "settings.json allows git branch --unset-upstream" grep -qF '"Bash(git branch --unset-upstream)"' "$settings"
-check "settings.json allows git fetch origin" grep -qF '"Bash(git fetch origin)"' "$settings"
-check "settings.json allows git fetch upstream" grep -qF '"Bash(git fetch upstream)"' "$settings"
-check "settings.json allows git ls-remote" grep -qF '"Bash(git ls-remote:*)"' "$settings"
+check "settings.json allows git remote get-url" lh_settings_has_value 'Bash(git remote get-url:*)'
+check "settings.json allows git remote add" lh_settings_has_value 'Bash(git remote add:*)'
+check "settings.json allows git remote remove" lh_settings_has_value 'Bash(git remote remove:*)'
+check "settings.json allows git remote rename" lh_settings_has_value 'Bash(git remote rename:*)'
+check "settings.json allows git remote set-url" lh_settings_has_value 'Bash(git remote set-url:*)'
+check "settings.json allows git branch --unset-upstream" lh_settings_has_value 'Bash(git branch --unset-upstream)'
+check "settings.json allows git fetch origin" lh_settings_has_value 'Bash(git fetch origin)'
+check "settings.json allows git fetch upstream" lh_settings_has_value 'Bash(git fetch upstream)'
+check "settings.json allows git ls-remote" lh_settings_has_value 'Bash(git ls-remote:*)' 
 
 mg() { # tool_name, tool_input-json, mode (default acceptEdits)
   m=${3:-acceptEdits}
@@ -1296,18 +1341,718 @@ else
   printf 'SKIP  dns-check.sh tests (script not found at %s)\n' "$dns_script"
 fi
 
+# --------------------------------------------------- json-valid.sh fixtures
+# A real JSON parser, never a brace count: settings.json is the file that
+# switches every safety hook on, so this is tested hard before anything
+# else leans on it.
+jvw=${TMPDIR:-/tmp}/lh-json-valid-test.$$
+mkdir -p "$jvw" || exit 1
+jvfile="$scripts/json-valid.sh"
+
+printf '{"a":1,"nested":{"b":[1,2,{"c":"d\\"quoted\\" {not a brace}"}]},"e":true,"f":null,"g":-1.5e10}' > "$jvw/valid.json"
+sh "$jvfile" "$jvw/valid.json" >/dev/null 2>&1
+check "json-valid: a valid document with escapes, exponents and nesting passes" test $? = 0
+
+printf '{}' > "$jvw/empty-obj.json"
+sh "$jvfile" "$jvw/empty-obj.json" >/dev/null 2>&1
+check "json-valid: an empty object passes" test $? = 0
+
+printf '[]' > "$jvw/empty-arr.json"
+sh "$jvfile" "$jvw/empty-arr.json" >/dev/null 2>&1
+check "json-valid: an empty array passes" test $? = 0
+
+printf '{"a":1,}' > "$jvw/trailing-comma.json"
+out=$(sh "$jvfile" "$jvw/trailing-comma.json" 2>&1); rc=$?
+check "json-valid: a trailing comma is refused" test "$rc" != 0
+check "json-valid: and its last line is reason=" has "$out" '^reason='
+
+printf '{"a": "unterminated' > "$jvw/unclosed-string.json"
+sh "$jvfile" "$jvw/unclosed-string.json" >/dev/null 2>&1
+check "json-valid: an unclosed string is refused" test $? != 0
+
+printf '{"a":1 "b":2}' > "$jvw/missing-comma.json"
+sh "$jvfile" "$jvw/missing-comma.json" >/dev/null 2>&1
+check "json-valid: a missing comma between members is refused" test $? != 0
+
+printf '{"a":1}{"b":2}' > "$jvw/duplicate-top.json"
+sh "$jvfile" "$jvw/duplicate-top.json" >/dev/null 2>&1
+check "json-valid: a duplicated top-level value (content after the first) is refused" test $? != 0
+
+printf '{"a":{"b":{"c":[1,2,[3,4,{"d":"e"}]]}}}' > "$jvw/nested.json"
+sh "$jvfile" "$jvw/nested.json" >/dev/null 2>&1
+check "json-valid: deeply nested objects and arrays pass" test $? = 0
+
+printf '{\r\n  "a": 1,\r\n  "b": [1, 2]\r\n}\r\n' > "$jvw/crlf.json"
+sh "$jvfile" "$jvw/crlf.json" >/dev/null 2>&1
+check "json-valid: CRLF line endings are tolerated" test $? = 0
+
+printf '\357\273\277{"a":1}' > "$jvw/bom.json"
+sh "$jvfile" "$jvw/bom.json" >/dev/null 2>&1
+check "json-valid: a leading UTF-8 BOM is tolerated" test $? = 0
+
+printf '{"matcher":"^mcp__","hooks":[{"type":"command","command":"x"}]}' > "$jvw/compact.json"
+sh "$jvfile" "$jvw/compact.json" >/dev/null 2>&1
+check "json-valid: a compact one-line document passes" test $? = 0
+
+sh "$jvfile" "$settings" >/dev/null 2>&1
+check "json-valid: this repo's own settings.json passes" test $? = 0
+
+out=$(sh "$jvfile" "$jvw/does-not-exist.json" 2>&1); rc=$?
+check "json-valid: a missing file is refused, not crashed on" test "$rc" != 0
+check "json-valid: and it still gives a reason=" has "$out" 'reason='
+
+rm -rf "$jvw"
+
+# ------------------------------------------------- updates-lint.sh fixtures
+ulw=${TMPDIR:-/tmp}/lh-updates-lint-test.$$
+rm -rf "$ulw"; mkdir -p "$ulw/.claude/updates/2026-01-01" || exit 1
+cp "$scripts/updates-lint.sh" "$ulw/lint.sh" 2>/dev/null
+: > "$ulw/dummy-file.md"
+
+ulw_note() { # id, body(printed as-is after a leading blank line's worth of headers already written by caller)
+  :
+}
+# Writes a minimal, otherwise-valid note whose frontmatter has been passed
+# through one sed-style substitution, so each case below changes exactly
+# one thing about an otherwise well-formed note.
+ulw_write() { # id, sed-expr (or "" for none)
+  id=$1; expr=$2
+  {
+    printf -- '---\n'
+    printf 'id: %s\n' "$id"
+    printf 'title: A title\n'
+    printf 'purpose: A purpose sentence.\n'
+    printf 'touches:\n  - dummy-file.md\n'
+    printf 'adds: []\n'
+    printf 'requires: []\n'
+    printf 'safety: false\n'
+    printf 'done-when:\n  - "it holds"\n'
+    printf 'check: none\n'
+    printf 'founder-data: false\n'
+    printf -- '---\n\n## What changed and why\ntest fixture only\n\n## What a stock file looks like after\ntest fixture only\n'
+  } > "$ulw/.claude/updates/2026-01-01/$id.md.tmp"
+  if [ -n "$expr" ]; then
+    sed "$expr" "$ulw/.claude/updates/2026-01-01/$id.md.tmp" > "$ulw/.claude/updates/2026-01-01/$id.md"
+    rm -f "$ulw/.claude/updates/2026-01-01/$id.md.tmp"
+  else
+    mv "$ulw/.claude/updates/2026-01-01/$id.md.tmp" "$ulw/.claude/updates/2026-01-01/$id.md"
+  fi
+}
+ulw_clear() { rm -f "$ulw/.claude/updates/2026-01-01"/*.md "$ulw/.claude/updates/2026-01-01"/*.check.sh; }
+ulw_run() { ( cd "$ulw" && sh lint.sh . ) 2>&1; }
+
+ulw_clear
+ulw_write case-good ""
+out=$(ulw_run); rc=$?
+check "updates-lint: a well-formed note passes" test "$rc" = 0
+ulw_clear
+
+ulw_write case-empty-title 's/^title: A title$/title:/'
+out=$(ulw_run)
+check "updates-lint: an empty title fails" has "$out" 'empty frontmatter key'
+ulw_clear
+
+ulw_write case-empty-purpose 's/^purpose: A purpose sentence.$/purpose:/'
+out=$(ulw_run)
+check "updates-lint: an empty purpose fails" has "$out" 'empty frontmatter key'
+ulw_clear
+
+ulw_write case-empty-check 's/^check: none$/check:/'
+out=$(ulw_run)
+check "updates-lint: an empty check field fails" has "$out" 'empty frontmatter key'
+ulw_clear
+
+ulw_write case-no-touches 's/^touches:$/touches: []/; /^  - dummy-file.md$/d'
+out=$(ulw_run)
+check "updates-lint: touches with no items fails" has "$out" 'touches has no items'
+ulw_clear
+
+ulw_write case-no-donewhen 's/^done-when:$/done-when: []/; /^  - "it holds"$/d'
+out=$(ulw_run)
+check "updates-lint: done-when with no items fails" has "$out" 'done-when has no items'
+ulw_clear
+
+ulw_write case-bad-safety 's/^safety: false$/safety: yes/'
+out=$(ulw_run)
+check "updates-lint: safety: yes (not true/false) fails" has "$out" 'safety must be true or false'
+ulw_clear
+
+ulw_write case-bad-founder-data 's/^founder-data: false$/founder-data: nope/'
+out=$(ulw_run)
+check "updates-lint: founder-data: nope (not true/false) fails" has "$out" 'founder-data must be true or false'
+ulw_clear
+
+ulw_write case-id-mismatch ""
+mv "$ulw/.claude/updates/2026-01-01/case-id-mismatch.md" "$ulw/.claude/updates/2026-01-01/renamed.md" 2>/dev/null
+sed -i.bak 's/^id: case-id-mismatch$/id: renamed/' "$ulw/.claude/updates/2026-01-01/renamed.md" 2>/dev/null
+rm -f "$ulw/.claude/updates/2026-01-01/renamed.md.bak"
+mv "$ulw/.claude/updates/2026-01-01/renamed.md" "$ulw/.claude/updates/2026-01-01/case-id-mismatch.md"
+out=$(ulw_run)
+check "updates-lint: an id that does not match the file name fails" has "$out" 'does not match its file name'
+ulw_clear
+
+ulw_write case-touches-ge 's#- dummy-file.md#- growth-engine/brain/founder-brain.md#'
+out=$(ulw_run)
+check "updates-lint: a touches path under growth-engine/ fails" has "$out" 'touches path is under growth-engine/'
+ulw_clear
+
+ulw_write case-touches-missing 's#- dummy-file.md#- this/path/does/not/exist.md#'
+out=$(ulw_run)
+check "updates-lint: a touches path that does not exist in the repo fails" has "$out" 'touches path does not exist in the repo'
+ulw_clear
+
+ulw_write case-safety-no-check 's/^safety: false$/safety: true/'
+out=$(ulw_run)
+check "updates-lint: safety: true with check: none fails" has "$out" 'a safety note must name an existing check file'
+ulw_clear
+
+ulw_write case-safety-missing-check 's/^safety: false$/safety: true/; s/^check: none$/check: no-such-file.check.sh/'
+out=$(ulw_run)
+check "updates-lint: safety: true naming a check file that does not exist fails" has "$out" 'does not exist in'
+ulw_clear
+
+printf '#!/bin/sh\nexit 0\n' > "$ulw/.claude/updates/2026-01-01/case-safety-good.check.sh"
+ulw_write case-safety-good 's/^safety: false$/safety: true/; s/^check: none$/check: case-safety-good.check.sh/'
+out=$(ulw_run); rc=$?
+check "updates-lint: a well-formed safety note (existing check, a done-when) passes" test "$rc" = 0
+ulw_clear
+rm -f "$ulw/.claude/updates/2026-01-01/case-safety-good.check.sh"
+
+# A quoted-empty scalar ("" or '') carries no real content and must be
+# treated the same as the key being blank outright.
+ulw_write case-quoted-empty-purpose 's/^purpose: A purpose sentence.$/purpose: ""/'
+out=$(ulw_run)
+check "updates-lint: a double-quoted empty purpose fails" has "$out" 'empty frontmatter key'
+ulw_clear
+
+ulw_write case-quoted-empty-title "s/^title: A title\$/title: ''/"
+out=$(ulw_run)
+check "updates-lint: a single-quoted empty title fails" has "$out" 'empty frontmatter key'
+ulw_clear
+
+# An explicit empty-array touches/done-when value must still be rejected.
+ulw_write case-touches-empty-array 's/^touches:$/touches: []/; /^  - dummy-file.md$/d'
+out=$(ulw_run)
+check "updates-lint: touches: [] (explicit empty array) fails" has "$out" 'touches has no items'
+ulw_clear
+
+# A list item line that is only whitespace after the dash carries no real
+# item, and must not be counted as one (nor flow into the path-exists
+# check as a blank path, which would always "exist" as the repo root).
+ulw_write case-touches-blank-item 's/^  - dummy-file.md$/  -   /'
+out=$(ulw_run)
+check "updates-lint: a blank-only touches item fails" has "$out" 'touches has no items'
+ulw_clear
+
+ulw_write case-donewhen-empty-array 's/^done-when:$/done-when: []/; /^  - "it holds"$/d'
+out=$(ulw_run)
+check "updates-lint: done-when: [] (explicit empty array) fails" has "$out" 'done-when has no items'
+ulw_clear
+
+ulw_write case-donewhen-blank-item 's/^  - "it holds"$/  -   /'
+out=$(ulw_run)
+check "updates-lint: a blank-only done-when item fails" has "$out" 'done-when has no items'
+ulw_clear
+
+# The linter creates scratch temp files (lh_mktemp, called via command
+# substitution) once per note per touches/done-when check. Every one of
+# them must actually be cleaned up on exit, not silently leaked into
+# TMPDIR forever.
+ulw_write case-tmp-leak-check ""
+lhtmp_check_dir=$(mktemp -d "${TMPDIR:-/tmp}/lh-updates-lint-tmpcheck.XXXXXX")
+( TMPDIR="$lhtmp_check_dir" sh "$ulw/lint.sh" "$ulw" ) >/dev/null 2>&1
+lhtmp_leftover=$(ls -A "$lhtmp_check_dir" 2>/dev/null)
+check "updates-lint: leaves no scratch files behind under TMPDIR" test -z "$lhtmp_leftover"
+rm -rf "$lhtmp_check_dir"
+ulw_clear
+
+rm -rf "$ulw"
+
+# ------------------------------------ connector-safety-routing.check.sh
+csrw=${TMPDIR:-/tmp}/lh-csr-test.$$
+rm -rf "$csrw"; mkdir -p "$csrw/.claude/scripts" "$csrw/.claude/updates/2026-09-23" || exit 1
+cp -R "$scripts"/. "$csrw/.claude/scripts/" 2>/dev/null
+cp "$here/../updates/2026-09-23/connector-safety-routing.check.sh" "$csrw/.claude/updates/2026-09-23/"
+
+csr_run() { # settings-file
+  cp "$1" "$csrw/.claude/settings.json"
+  ( cd "$csrw" && REPO_ROOT="$csrw" sh .claude/updates/2026-09-23/connector-safety-routing.check.sh ) 2>&1
+}
+
+out=$(csr_run "$settings"); rc=$?
+check "connector-safety-routing: this repo's own settings.json passes" test "$rc" = 0
+
+# Strip all whitespace outside strings, for a compact one-line fixture, and
+# re-indent to a few different widths -- content-based judging must not
+# care which of these it is handed.
+awk '
+{ sub(/\r$/, ""); buf = buf $0 "\n" }
+END {
+  n = length(buf); out = ""; instr = 0; esc = 0
+  for (i = 1; i <= n; i++) {
+    c = substr(buf, i, 1)
+    if (instr) {
+      out = out c
+      if (esc) esc = 0
+      else if (c == "\\") esc = 1
+      else if (c == "\"") instr = 0
+      continue
+    }
+    if (c == "\"") { instr = 1; out = out c; continue }
+    if (c == " " || c == "\t" || c == "\n" || c == "\r") continue
+    out = out c
+  }
+  printf "%s", out
+}' "$settings" > "$csrw/compact.json"
+out=$(csr_run "$csrw/compact.json"); rc=$?
+check "connector-safety-routing: a compact one-line settings.json passes" test "$rc" = 0
+
+awk '{
+  line = $0; n = 0
+  while (substr(line, n + 1, 1) == " ") n++
+  half = int(n / 2); indent = ""
+  for (i = 0; i < half; i++) indent = indent " "
+  print indent substr(line, n + 1)
+}' "$settings" > "$csrw/2space.json"
+out=$(csr_run "$csrw/2space.json"); rc=$?
+check "connector-safety-routing: settings.json re-indented to 2 spaces passes" test "$rc" = 0
+
+awk '{
+  line = $0; n = 0
+  while (substr(line, n + 1, 1) == " ") n++
+  extra = n * 2; indent = ""
+  for (i = 0; i < extra; i++) indent = indent " "
+  print indent substr(line, n + 1)
+}' "$settings" > "$csrw/8space.json"
+out=$(csr_run "$csrw/8space.json"); rc=$?
+check "connector-safety-routing: settings.json re-indented wider (8 spaces) passes" test "$rc" = 0
+
+awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }' "$settings" > "$csrw/crlf.json"
+out=$(csr_run "$csrw/crlf.json"); rc=$?
+check "connector-safety-routing: a CRLF settings.json passes" test "$rc" = 0
+
+sed 's/"\^mcp__"/"^mcp__ghl"/' "$settings" > "$csrw/variant-only.json"
+out=$(csr_run "$csrw/variant-only.json"); rc=$?
+check "connector-safety-routing: only a ^mcp__ variant matcher (never the exact one) fails" test "$rc" != 0
+
+sed 's/mcp-guard\.sh/deny-mcp.sh/' "$settings" > "$csrw/names-deny.json"
+out=$(csr_run "$csrw/names-deny.json"); rc=$?
+check "connector-safety-routing: a hook command naming deny-mcp.sh fails" test "$rc" != 0
+
+sed 's/mcp-guard\.sh/ask-mcp.sh/' "$settings" > "$csrw/names-ask.json"
+out=$(csr_run "$csrw/names-ask.json"); rc=$?
+check "connector-safety-routing: a hook command naming ask-mcp.sh fails" test "$rc" != 0
+
+# A minimal, hand-built settings.json with two exact ^mcp__ matchers: valid
+# JSON, but the count must still be exactly one.
+cat > "$csrw/two-matchers.json" <<'JSONEOF'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^mcp__",
+        "hooks": [
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/mcp-guard.sh\"" }
+        ]
+      },
+      {
+        "matcher": "^mcp__",
+        "hooks": [
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/mcp-guard.sh\"" }
+        ]
+      }
+    ]
+  }
+}
+JSONEOF
+out=$(csr_run "$csrw/two-matchers.json"); rc=$?
+check "connector-safety-routing: two exact ^mcp__ matchers fails, expects exactly one" test "$rc" != 0
+
+# The matcher is exact, but its own command never runs mcp-guard.sh.
+cat > "$csrw/wrong-command.json" <<'JSONEOF'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^mcp__",
+        "hooks": [
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/some-other-script.sh\"" }
+        ]
+      }
+    ]
+  }
+}
+JSONEOF
+out=$(csr_run "$csrw/wrong-command.json"); rc=$?
+check "connector-safety-routing: an exact matcher whose own command is not mcp-guard.sh fails" test "$rc" != 0
+
+printf '{ this is not json' > "$csrw/bad.json"
+out=$(csr_run "$csrw/bad.json"); rc=$?
+check "connector-safety-routing: invalid JSON fails (via json-valid.sh)" test "$rc" != 0
+
+# A decoy top-level key literally named "hooks/PreToolUse/0/matcher" (a
+# JSON key whose own string content contains "/") must never be mistaken
+# for the real nested path with the same spelling. Here the real
+# hooks.PreToolUse array has only a non-exact matcher (no ^mcp__ entry at
+# all), so this must fail -- if the flattener let the decoy key's slash
+# be read as a path separator, it would spoof both the matcher check and
+# (via a second decoy key) the mcp-guard.sh command check too.
+cat > "$csrw/spoofed-matcher.json" <<'JSONEOF'
+{
+  "hooks/PreToolUse/0/matcher": "^mcp__",
+  "hooks/PreToolUse/0/hooks/0/command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/mcp-guard.sh\"",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^mcp__ghl",
+        "hooks": [
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/some-other-script.sh\"" }
+        ]
+      }
+    ]
+  }
+}
+JSONEOF
+out=$(csr_run "$csrw/spoofed-matcher.json"); rc=$?
+check "connector-safety-routing: a decoy top-level key spoofing a hook path fails (real PreToolUse lacks the mcp__ entry)" test "$rc" != 0
+
+# Guard against the escaping fix above breaking real nested paths: this
+# repo's own settings.json must still pass after it.
+out=$(csr_run "$settings"); rc=$?
+check "connector-safety-routing: the real settings.json still passes after key-escaping" test "$rc" = 0
+
+rm -rf "$csrw"
+
+# --------------------- settings.json content-only judging: full-suite proof
+# json-flat.sh based assertions, here and in state.sh, must never care how
+# settings.json is laid out on disk. Proven end to end: the real
+# settings.json is re-serialized in a compact one-line form and a
+# jq-style "exploded array" form (jq's default 2-space pretty-print
+# explodes a short inline array like ["highlevel"] onto three lines,
+# which is exactly the shape a literal-line grep on that array could
+# never survive), dropped into a full scratch copy of the repo, and
+# state.sh itself is run against that copy end to end -- not just the one
+# check that already had its own fixtures above.
+lh_toplevel_srf=$(git rev-parse --show-toplevel 2>/dev/null)
+case $lh_toplevel_srf in
+  */launchhouse/update/wt)
+    printf 'PASS  settings.json content-only judging: full-suite proof (run in the template before release; skipped inside a founder'"'"'s update)\n'
+    ;;
+  *)
+  srfw=${TMPDIR:-/tmp}/lh-settings-reformat.$$
+  rm -rf "$srfw"; mkdir -p "$srfw/repo" || exit 1
+  repo_root=$(cd "$here/../.." && pwd)
+  # The whole working tree (not just .claude and growth-engine): state.sh's
+  # own fixtures read other top-level files too (.gitignore, for one), and a
+  # partial copy would abort state.sh on an unrelated missing file rather
+  # than prove anything about settings.json.
+  ( cd "$repo_root" && tar -cf - --exclude=.git --exclude=./.claude/worktrees . ) | ( cd "$srfw/repo" && tar -xf - ) || exit 1
+  ( cd "$srfw/repo" && git init -q && git config user.name t && git config user.email t@e \
+      && git add -A && git -c commit.gpgsign=false commit -q -m t ) >/dev/null 2>&1
+
+  # Compact one-line (same whitespace-outside-strings stripper as the
+  # connector-safety-routing fixture above).
+  awk '
+  { sub(/\r$/, ""); buf = buf $0 "\n" }
+  END {
+    n = length(buf); out = ""; instr = 0; esc = 0
+    for (i = 1; i <= n; i++) {
+      c = substr(buf, i, 1)
+      if (instr) {
+        out = out c
+        if (esc) esc = 0
+        else if (c == "\\") esc = 1
+        else if (c == "\"") instr = 0
+        continue
+      }
+      if (c == "\"") { instr = 1; out = out c; continue }
+      if (c == " " || c == "\t" || c == "\n" || c == "\r") continue
+      out = out c
+    }
+    printf "%s", out
+  }' "$settings" > "$srfw/compact.json"
+
+  # jq-style exploded array: the one short inline array in this file,
+  # enabledMcpjsonServers, split across three lines the way jq's or any
+  # ordinary pretty-printer's default array layout would.
+  awk '
+  {
+    if (match($0, /^[ 	]*/)) indent = substr($0, RSTART, RLENGTH); else indent = ""
+    if ($0 ~ /"enabledMcpjsonServers": \[[^]]*\],?/) {
+      trail = ($0 ~ /,$/) ? "," : ""
+      print indent "\"enabledMcpjsonServers\": ["
+      print indent "  \"highlevel\""
+      print indent "]" trail
+    } else {
+      print
+    }
+  }' "$settings" > "$srfw/jq-2space-exploded.json"
+
+  for srf_name in compact jq-2space-exploded; do
+    cp "$srfw/$srf_name.json" "$srfw/repo/.claude/settings.json"
+    srf_out=$( cd "$srfw/repo" && sh .claude/tests/state.sh 2>&1 )
+    srf_rc=$?
+    srf_fails=$(printf '%s\n' "$srf_out" | grep -c '^FAIL')
+    check "state.sh passes in full against a repo whose settings.json is re-serialized ($srf_name)" \
+      test "$srf_rc" = 0 -a "$srf_fails" = 0
+  done
+  ( cd "$srfw/repo" && git checkout -q -- .claude/settings.json ) >/dev/null 2>&1
+
+  # And the same two forms, missing the highlevel entry or the ^mcp__ guard
+  # wiring, must still FAIL state.sh -- content-based judging closes the
+  # layout hole without opening a "always pass" one.
+  sed -E 's/"enabledMcpjsonServers"[[:space:]]*:[[:space:]]*\["highlevel"\]/"enabledMcpjsonServers": []/' "$settings" > "$srfw/no-highlevel.json"
+  cp "$srfw/no-highlevel.json" "$srfw/repo/.claude/settings.json"
+  srf_out=$( cd "$srfw/repo" && sh .claude/tests/state.sh 2>&1 )
+  check "state.sh still fails when the highlevel entry is missing, even reformatted" \
+    test "$(printf '%s\n' "$srf_out" | grep -c '^FAIL')" -gt 0
+
+  sed 's/mcp-guard\.sh/deny-mcp.sh/' "$srfw/jq-2space-exploded.json" > "$srfw/jq-2space-no-guard.json"
+  cp "$srfw/jq-2space-no-guard.json" "$srfw/repo/.claude/settings.json"
+  srf_out=$( cd "$srfw/repo" && sh .claude/tests/state.sh 2>&1 )
+  check "state.sh still fails when the guard wiring is swapped for a retired script, even reformatted" \
+    test "$(printf '%s\n' "$srf_out" | grep -c '^FAIL')" -gt 0
+
+  rm -rf "$srfw"
+    ;;
+esac
+
+# --------------------------------------------- updates-checks.sh fixtures
+# Exercises .claude/tests/updates-checks.sh (the purpose-based-update check
+# runner) against tiny throwaway repos under $TMPDIR, never this repo's own
+# tree. A stub linter (a script that just exits 0) stands in for
+# .claude/scripts/updates-lint.sh so these fixtures do not depend on the
+# real linter existing.
+ucw=${TMPDIR:-/tmp}/lh-updates-checks-test.$$
+trap 'rm -rf "$work" "$ucw"' EXIT
+rm -rf "$ucw"
+mkdir -p "$ucw" || exit 1
+
+# Writes a note at .claude/updates/<release>/<id>.md in the throwaway repo.
+# safety is "true" or "false"; check is a check-file name or "none".
+ucw_note() {
+  rel=$1; id=$2; saf=$3; chk=$4
+  d="$ucw/repo/.claude/updates/$rel"
+  mkdir -p "$d" || exit 1
+  {
+    printf -- '---\n'
+    printf 'id: %s\n' "$id"
+    printf 'title: %s\n' "$id"
+    printf 'purpose: >\n  test purpose, fixture only\n'
+    printf 'touches:\n  - foo.txt\n'
+    printf 'adds: []\n'
+    printf 'requires: []\n'
+    printf 'safety: %s\n' "$saf"
+    printf 'done-when:\n  - "it holds"\n'
+    printf 'check: %s\n' "$chk"
+    printf 'founder-data: false\n'
+    printf -- '---\n\n## What changed and why\ntest fixture only\n'
+  } > "$d/$id.md"
+}
+# Clears the throwaway repo back to just a stub linter (exit 0), no notes.
+ucw_reset() {
+  rm -rf "$ucw/repo"
+  mkdir -p "$ucw/repo/.claude/scripts" || exit 1
+  printf '#!/bin/sh\nexit 0\n' > "$ucw/repo/.claude/scripts/updates-lint.sh"
+}
+runuc() { sh "$here/updates-checks.sh" "$ucw/repo" 2>&1; }
+
+# No .claude/updates directory at all: an older founder tree.
+ucw_reset
+out=$(runuc); rc=$?
+check "updates-checks: no updates directory at all prints notes=none" test "$out" = 'notes=none'
+check "updates-checks: and exits 0" test "$rc" = 0
+
+# .claude/updates/ exists but holds no notes (only a README): same as none.
+mkdir -p "$ucw/repo/.claude/updates/2026-01-01" || exit 1
+printf 'Not a note, just documentation.\n' > "$ucw/repo/.claude/updates/2026-01-01/README.md"
+out=$(runuc); rc=$?
+check "updates-checks: a release folder with only a README still prints notes=none" test "$out" = 'notes=none'
+check "updates-checks: and exits 0" test "$rc" = 0
+
+# A safety note whose check exits 0 -> PASS, run exits 0.
+ucw_reset
+ucw_note 2026-01-01 safety-pass true safety-pass.check.sh
+printf '#!/bin/sh\nexit 0\n' > "$ucw/repo/.claude/updates/2026-01-01/safety-pass.check.sh"
+out=$(runuc); rc=$?
+check "updates-checks: a safety note whose check exits 0 is PASS" has "$out" 'PASS  safety-pass'
+check "updates-checks: and the run exits 0" test "$rc" = 0
+
+# A safety note with check: none -> FAIL, fail closed.
+ucw_reset
+ucw_note 2026-01-01 safety-nocheck true none
+out=$(runuc); rc=$?
+check "updates-checks: a safety note with check: none is FAIL" has "$out" 'FAIL  safety-nocheck'
+check "updates-checks: and the run exits non-zero" test "$rc" != 0
+
+# A safety note whose check file is named but never written -> FAIL.
+ucw_reset
+ucw_note 2026-01-01 safety-missing true safety-missing.check.sh
+out=$(runuc); rc=$?
+check "updates-checks: a safety note whose check file is missing is FAIL" has "$out" 'FAIL  safety-missing'
+check "updates-checks: and the run exits non-zero" test "$rc" != 0
+
+# A safety note whose check has a shell syntax error -> FAIL, not a crash.
+ucw_reset
+ucw_note 2026-01-01 safety-syntax true safety-syntax.check.sh
+printf 'if [ 1 = 1\n' > "$ucw/repo/.claude/updates/2026-01-01/safety-syntax.check.sh"
+out=$(runuc); rc=$?
+check "updates-checks: a safety note whose check has a syntax error is FAIL" has "$out" 'FAIL  safety-syntax'
+check "updates-checks: and the run exits non-zero" test "$rc" != 0
+
+# A non-safety note with check: none -> PASS (only safety notes fail closed).
+ucw_reset
+ucw_note 2026-01-01 plain-nocheck false none
+out=$(runuc); rc=$?
+check "updates-checks: a non-safety note with check: none is PASS" has "$out" 'PASS  plain-nocheck'
+check "updates-checks: and the run exits 0" test "$rc" = 0
+
+# A failing check's hint= line survives as the very last line of output,
+# so a founder-facing tail -60 always keeps it.
+ucw_reset
+ucw_note 2026-01-01 with-hint true with-hint.check.sh
+printf '#!/bin/sh\necho FAIL something\necho "hint=Do the thing yourself."\nexit 1\n' > "$ucw/repo/.claude/updates/2026-01-01/with-hint.check.sh"
+out=$(runuc)
+lastline=$(printf '%s\n' "$out" | tail -1)
+check "updates-checks: a failing check's hint= line is the very last line of output" test "$lastline" = 'hint=Do the thing yourself.'
+
+# Notes exist but the linter script itself is missing -> FAIL, fail closed.
+rm -rf "$ucw/repo"
+mkdir -p "$ucw/repo/.claude/updates/2026-01-01" || exit 1
+ucw_note 2026-01-01 plain-nolinter false none
+out=$(runuc); rc=$?
+check "updates-checks: notes with no updates-lint.sh at all is FAIL" has "$out" 'FAIL  updates-lint'
+check "updates-checks: and the run exits non-zero" test "$rc" != 0
+
+rm -rf "$ucw"
+
+# ---------------------------------- updates-checks.sh: founder WARN vs FAIL
+# A non-safety note's own check is advisory once there is a founder's own
+# copy to be advisory about: the same failing check prints WARN and leaves
+# the run green in a founder copy, but still FAILs the run in the template
+# repo, where the check is the only proof the shipped note actually works.
+# lh_layout_check's own founder test needs a real git repo to read, so
+# these throwaway repos are git-initialized, unlike the ones above.
+wcw=${TMPDIR:-/tmp}/lh-updates-checks-warn-test.$$
+rm -rf "$wcw"
+
+wcw_build() { # dir, founder(yes|no), safety(true|false)
+  d=$1; f=$2; saf=$3
+  rm -rf "$d"
+  mkdir -p "$d/.claude/scripts" "$d/.claude/updates/2026-01-01" "$d/growth-engine/.state" || exit 1
+  printf '#!/bin/sh\nexit 0\n' > "$d/.claude/scripts/updates-lint.sh"
+  {
+    printf -- '---\n'
+    printf 'id: plain-fails\ntitle: A title\npurpose: A purpose sentence.\n'
+    printf 'touches:\n  - foo.txt\n'
+    printf 'adds: []\nrequires: []\n'
+    printf 'safety: %s\n' "$saf"
+    printf 'done-when:\n  - "it holds"\n'
+    printf 'check: plain-fails.check.sh\nfounder-data: false\n'
+    printf -- '---\n\n## What changed and why\ntest fixture only\n'
+  } > "$d/.claude/updates/2026-01-01/plain-fails.md"
+  printf '#!/bin/sh\nexit 1\n' > "$d/.claude/updates/2026-01-01/plain-fails.check.sh"
+  : > "$d/foo.txt"
+  ( cd "$d" && git init -q && git -c user.email=t@e -c user.name=t -c commit.gpgsign=false commit -q --allow-empty -m init ) || exit 1
+  if [ "$f" = yes ]; then
+    : > "$d/.claude/launchhouse-version"
+    ( cd "$d" && git add .claude/launchhouse-version && git -c user.email=t@e -c user.name=t -c commit.gpgsign=false commit -q -m founder ) || exit 1
+  fi
+}
+
+wcw_build "$wcw/founder" yes false
+out=$(sh "$here/updates-checks.sh" "$wcw/founder" 2>&1); rc=$?
+check "updates-checks: founder copy, failing non-safety check prints WARN" has "$out" 'WARN  plain-fails'
+check "updates-checks: founder copy, the run still exits 0" test "$rc" = 0
+check "updates-checks: founder copy, never a FAIL line for that note" hasnt "$out" 'FAIL  plain-fails'
+
+wcw_build "$wcw/template" no false
+out=$(sh "$here/updates-checks.sh" "$wcw/template" 2>&1); rc=$?
+check "updates-checks: template repo, the same failing non-safety check FAILs" has "$out" 'FAIL  plain-fails'
+check "updates-checks: template repo, the run exits non-zero" test "$rc" != 0
+
+wcw_build "$wcw/founder-profile" no false
+: > "$wcw/founder-profile/growth-engine/.state/profile.md"
+( cd "$wcw/founder-profile" && git add growth-engine/.state/profile.md && git -c user.email=t@e -c user.name=t -c commit.gpgsign=false commit -q -m profile )
+out=$(sh "$here/updates-checks.sh" "$wcw/founder-profile" 2>&1); rc=$?
+check "updates-checks: founder copy via a tracked profile.md, WARN not FAIL" has "$out" 'WARN  plain-fails'
+check "updates-checks: founder copy via a tracked profile.md, run exits 0" test "$rc" = 0
+
+wcw_build "$wcw/founder-safety" yes true
+out=$(sh "$here/updates-checks.sh" "$wcw/founder-safety" 2>&1); rc=$?
+check "updates-checks: founder copy, a failing SAFETY check still FAILs, never just WARNs" has "$out" 'FAIL  plain-fails'
+check "updates-checks: founder copy, the run still exits non-zero for a safety fail" test "$rc" != 0
+
+# The one place this script fails CLOSED rather than open: its own scratch
+# file (the note list it feeds the while loop from) lives under
+# ${TMPDIR:-/tmp}, never inside .claude/, and a TMPDIR that cannot be
+# written to must refuse to run rather than silently see zero notes.
+out=$(TMPDIR=/lh-does-not-exist-anywhere sh "$here/updates-checks.sh" "$wcw/template" 2>&1); rc=$?
+check "updates-checks: a scratch file that cannot be created fails closed" has "$out" 'could not create a scratch file'
+check "updates-checks: and the run exits non-zero" test "$rc" != 0
+
+rm -rf "$wcw"
+
 # -------------------------------------------------------- the update engine
 # .claude/scripts/update.sh has its own self-contained suite, since it needs
 # throwaway git repos of its own rather than the single fixture $work this
 # file builds. Its PASS/FAIL lines and its own pass/fail are folded in here.
-updateout=$(sh "$here/update-cases.sh" 2>&1)
-updaterc=$?
-printf '%s\n' "$updateout"
-[ "$updaterc" = 0 ] || fail=1
+#
+# Skipped when this run.sh is itself running INSIDE an update's own apply
+# worktree (both the old engine, at the public template's 29e42a2, and
+# this one put that worktree at the same fixed path,
+# <gitdir>/launchhouse/update/wt -- see update.sh's own state_dir() and
+# wt="$state/wt"): update-cases.sh is the UPDATER's own self-test, built
+# and run against throwaway fixture repos of its own, and it is what the
+# template itself runs before a release ships, not something a founder's
+# own apply needs to run again against fixtures that have nothing to do
+# with their folder. It is roughly half of this whole file's own running
+# time, and an apply's own checks already run the rest of this suite
+# (including update-cases.sh's real-repo behaviour, exercised indirectly
+# by every other case here) against the founder's actual updated tree.
+# Detected structurally, from git itself, never from an env var a founder
+# or an older updater could leave set by accident: `git rev-parse
+# --show-toplevel` inside an apply worktree IS that worktree's own root,
+# so it ends in exactly this path.
+lh_toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
+case $lh_toplevel in
+  */launchhouse/update/wt)
+    printf 'PASS  updater self-tests (run in the template before release; skipped inside a founder'"'"'s update)\n'
+    ;;
+  *)
+    updateout=$(sh "$here/update-cases.sh" 2>&1)
+    updaterc=$?
+    printf '%s\n' "$updateout"
+    [ "$updaterc" = 0 ] || fail=1
+    ;;
+esac
+
+# -------------------------------------------------- purpose-based updates
+# Runs near the end on purpose: updates-checks.sh prints any failing note's
+# hint= line last, and this keeps those lines inside the tail -60 of this
+# whole file's output that cmd_apply shows a founder on an abort.
+updatescheckout=$(sh "$here/updates-checks.sh" 2>&1)
+updatescheckrc=$?
+printf '%s\n' "$updatescheckout"
+[ "$updatescheckrc" = 0 ] || fail=1
+
+# ----------------------------------------------------------- agents-doc.sh
+# Another worker is landing this file separately; once it exists, its own
+# checks run here too. Until then this is a no-op.
+if [ -f "$here/agents-doc.sh" ]; then sh "$here/agents-doc.sh" || fail=1; fi
 
 if [ "$fail" = 0 ]; then
   printf '\nAll cases passed.\n'
 else
   printf '\nSome cases failed.\n'
 fi
+
+# The settings-wiring hint is printed last of all, after the pass/fail
+# summary line above -- a founder only ever sees the tail -60 of this
+# file's output, and this is the one line that tells them exactly what to
+# do about a customised settings.json that still names a retired script.
+if [ "$settings_wiring_failed" = 1 ]; then
+  printf 'hint=Your settings file still points at safety scripts that no longer exist. Choose "take the update" for .claude/settings.json; your own copy is kept safe and your changes are brought back on the next update.\n'
+fi
+
 exit $fail
