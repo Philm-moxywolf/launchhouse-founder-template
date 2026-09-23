@@ -145,7 +145,7 @@ A founder on the Launchhouse Atlanta programme, building their business. They ar
 
 This folder carries Launchhouse itself, in `.claude/`: the skills, the agents, the checks that run on every write, the references they read and the routines. Nothing is installed from a marketplace, so there is never a plugin to add or update. If the founder has the old `growth-engine` plugin installed as well, this folder's copy is the one in use: `.claude/settings.json` switches the old `growth-engine` plugin off inside this folder, so there are never two copies.
 
-Updates to Launchhouse itself come through saying "update launchhouse". It keeps everything the founder changed, never touches `growth-engine/`, and only applies once every check has passed and they have said yes.
+Updates to Launchhouse itself come through saying "update launchhouse". It keeps everything the founder changed, never touches `growth-engine/`, and only applies once every check has passed and they have said yes. An update always uses the newest updater and instructions from the verified Launchhouse original, never this folder's own older copy; the steps any agent follows for that are in `AGENTS.md` at the repo root.
 
 ## The Founder Brain comes first
 

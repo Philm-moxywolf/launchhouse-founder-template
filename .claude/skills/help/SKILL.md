@@ -135,7 +135,7 @@ It is a backstop, not a guarantee. They still read their own work before it goes
 
 **"My Desktop folder is out of date."** It shows the last save. Unsaved changes, or changes made only in Cowork, appear there after the next save in Claude.
 
-**"It's connected but no tools appear."** Disconnect and connect again, from inside a chat: open Settings, then Connectors, disconnect **HighLevel**, then connect it again the way `/growth-engine:connect` sets out. Starting a new conversation afterwards often clears it on its own.
+**"It's connected but no tools appear."** This is almost always the install step, not the connector itself. Give them the install link (`/growth-engine:connect`'s GoHighLevel steps have it), have them sign in on LeadConnector's site with their GoHighLevel email and password, pick the sub-account, and approve. Then, in Claude, press **Connect** on **HighLevel** again and start a new conversation in this folder. They do not need to remove and re-add the connector first. If that still does not bring the tools back, disconnect and connect again, from inside a chat: open Settings, then Connectors, disconnect **HighLevel**, then connect it again the way `/growth-engine:connect` sets out.
 
 **"Windows won't keep the connection."** Some Windows setups lose the connector's sign-in between sessions. Use the fallback instead: it is Code only, and `/growth-engine:connect` walks through it under "If signing in does not work on this computer."
 

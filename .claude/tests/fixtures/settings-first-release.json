@@ -1,0 +1,149 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git show:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git remote -v)",
+      "Bash(git pull --no-rebase)",
+      "Bash(git fetch)",
+      "Bash(git branch -r)",
+      "Bash(git restore:*)",
+      "Bash(git mv:*)",
+      "Bash(sh .claude/scripts/move-layout.sh < /dev/null)",
+      "Bash(sh .claude/scripts/move-layout.sh .lh-import/growth-engine < /dev/null)",
+      "Bash(sh .claude/scripts/refresh.sh < /dev/null)",
+      "Bash(git merge --abort)",
+      "Bash(git init)",
+      "Bash(git config user.name:*)",
+      "Bash(git config user.email:*)",
+      "Bash(date:*)",
+      "Bash(readlink /etc/localtime)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(unzip:*)",
+      "Bash(tar -xf:*)",
+      "Bash(textutil:*)",
+      "Bash(sips:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout origin/:*)",
+      "Bash(cp:*)",
+      "Bash(rm -rf .lh-import)",
+      "Bash(rm -rf growth-engine/growth-engine)",
+      "Bash(rm -rf growth-engine/.state/snapshots)",
+      "Bash(rm growth-engine/drafts/:*)",
+      "Bash(rm growth-engine/README-your-files.md)",
+      "Bash(rm growth-engine/.state/HOME)",
+      "Bash(rm growth-engine/.gitignore)",
+      "Bash(powershell -NoProfile -Command Expand-Archive:*)",
+      "Bash(rm growth-engine/.state/log.bytes)",
+      "Bash(rm growth-engine/.state/memory.lock)"
+    ],
+    "deny": [
+      "Bash(security find-generic-password:*)",
+      "Bash(security find-internet-password:*)",
+      "Bash(security dump-keychain:*)"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "outputStyle": "Launchhouse Guide",
+  "enabledMcpjsonServers": ["highlevel"],
+  "enabledPlugins": {
+    "growth-engine@launchhouse-v3": false
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/context.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/context.sh\" --compact"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/guard-pre.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*(apollo_emailer_messages_send_now|apollo_emailer_messages_create|apollo_emailer_campaigns_approve|apollo_sequences_create|apollo_sequences_update|apollo_email_account_purchase_create|__send_message|__reply|__forward|__send_inbox_draft|__create_filter)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/deny-mcp.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*(apollo_.*|conversations_send-a-new-message|social-media-posting_create-post|social-media-posting_edit-post|socialmediaposting_create-post|socialmediaposting_edit-post|emails_create-template|contacts_create-contact|contacts_upsert-contact|contacts_update-contact|contacts_add-tags|opportunities_update-opportunity|blogs_create-blog-post|blogs_update-blog-post|__execute_operation|__create_draft|__update_draft)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/ask-mcp.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/guard-post.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/refresh.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/prompt-state.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/turn-end.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

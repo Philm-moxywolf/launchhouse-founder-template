@@ -41,7 +41,7 @@ Look at the tools available to you. The account connector gives six general tool
 
 **If there are none,** walk them through connecting it. This is the main route, and it is a sign-in, not a key. The install step comes first, or the sign-in window in Claude finishes and no tools ever appear.
 
-1. Give them the install link (the full URL lives in `../../references/connections.md`; paste it into the chat for them to click, never ask them to type it). They sign in, pick their business's sub-account and not the agency, and approve. Then they come back to Claude.
+1. Give them the install link (the full URL lives in `../../references/connections.md`; paste it into the chat for them to click, never ask them to type it). Say plainly that the page is on LeadConnector's site, which is GoHighLevel's own company, so they sign in there with the same email and password they use for GoHighLevel. They pick their business's sub-account and not the agency, and approve. Then they come back to Claude.
 2. In the Claude app, open **Settings**, then **Connectors**.
 3. Choose **Add custom connector**.
 4. Name it `HighLevel`.
@@ -53,6 +53,8 @@ Look at the tools available to you. The account connector gives six general tool
 10. Start a new conversation in this folder, then say "check my connections".
 
 **If the sign-in still does nothing:** open the install link again, check the sub-account picked is the business's own, then press Connect again. If it still does nothing, record `needs a hand` and send them to the Slack channel. If the link opens an error page instead of a sub-account chooser, the link itself has changed: record `needs a hand` and send them to the Slack channel rather than trying another link.
+
+**If the connector is already added and no tools appear,** the install step was most likely skipped or not finished. They do not need to remove and re-add the connector. Give them the install link, have them sign in, pick the sub-account and approve, then in Claude press **Connect** on **HighLevel** again, then start a new conversation in this folder and say "check my connections".
 
 **The free Claude plan connects one custom connector.** That is all GoHighLevel needs, so never tell a founder on the free plan they must upgrade to connect it. A paid plan allows more than one, if they connect other custom connectors later.
 

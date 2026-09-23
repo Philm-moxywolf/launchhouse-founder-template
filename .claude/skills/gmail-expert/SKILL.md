@@ -1,6 +1,6 @@
 ---
 name: gmail-expert
-description: Claude's expert on the founder's connected Gmail mailbox: drafting the 25 outreach emails and their follow-ups, checking for replies, and answering how-it-works questions. Trigger on "Gmail", "connect Gmail", "connect my email", "how do I draft in Gmail", "check my Gmail connection", "put my outreach emails in my drafts", "who replied", "check for replies".
+description: 'Claude''s expert on the founder''s connected Gmail mailbox: drafting the 25 outreach emails and their follow-ups, checking for replies, and answering how-it-works questions. Trigger on "Gmail", "connect Gmail", "connect my email", "how do I draft in Gmail", "check my Gmail connection", "put my outreach emails in my drafts", "who replied", "check for replies".'
 ---
 <!-- Installed from .claude/skill-packs/gmail/skills/gmail-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
 
