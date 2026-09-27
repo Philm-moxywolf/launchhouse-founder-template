@@ -853,13 +853,20 @@ grep -q 'use `none` as the version' "$pb" \
   && grep -q 'If they say no, hand it over' "$pb" && ! grep -q 'do not hand it over' "$pb"
 conn_ok_t $? "the playbook skill's own wording: with no git it falls back to file dates, and a founder who says no to a rebuild still gets it"
 
-# LH-028: the folder is standalone. There is no plugin build, and no one
-# ever installed the old growth-engine plugin. A founder's own unrelated
-# enabledPlugins entry is theirs to keep -- only the old plugin's own id
-# (growth-engine@launchhouse-<anything>) is a fail.
-[ ! -e "$repo/.claude/build" ] \
-  && lh_settings_never_has 'growth-engine@launchhouse-'
-ok $? "the folder is standalone: no plugin build, and settings.json names no old growth-engine plugin"
+# LH-028: the folder is standalone. There is no plugin build. This is real
+# in the tree either way, so it gates everywhere, including a founder's copy.
+[ ! -e "$repo/.claude/build" ]
+ok $? "the folder is standalone: no plugin build"
+
+# The other half of LH-028 -- that settings.json names no old growth-engine
+# plugin id -- is about the TEMPLATE's own settings.json content, never a
+# founder's. A founder who kept an older updater's harmless switch-off line
+# (enabledPlugins: {"growth-engine@launchhouse-<anything>": false}) in their
+# own settings.json is not carrying the plugin, only a leftover line that
+# turns it off; that line is theirs to keep, so this half is template-only.
+# A founder's own unrelated enabledPlugins entry was always theirs to keep.
+lh_settings_never_has 'growth-engine@launchhouse-'
+ok_t $? "settings.json names no old growth-engine plugin"
 ! grep -qi 'growth-engine.*plugin\|old.*plugin\|plugin.*switch' "$repo/CLAUDE.md"
 ok_t $? "CLAUDE.md does not mention an old growth-engine plugin to switch off"
 lh_settings_never_has 'extraKnownMarketplaces' \

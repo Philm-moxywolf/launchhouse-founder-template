@@ -60,6 +60,7 @@ Run `sh .claude/scripts/update.sh --detect-base < /dev/null`.
 Run `sh .claude/scripts/update.sh --plan < /dev/null` with the Bash tool's maximum timeout (600000 ms, ten minutes), never the default: the checks this runs can take longer than a default timeout allows on a slower computer. If it is cut off anyway, run the exact same `--plan` command again; the engine clears any leftover from the cut-off run itself, so a retry is always safe.
 
 - If it reports zero changes, say: "You are up to date." Stop here.
+- If it reports one or more classes, but every one of them is `generated` or `keep` — nothing an update would actually change for the founder: `generated` is only ever rebuilt in place from the registry, and `keep` is a local-only edit of theirs that already stands as it is — say the same: "You are up to date." Stop here too, before step 4 and before ever running `--apply`.
 - Otherwise it has written `<gitdir>/launchhouse/update/plan.tsv`, diffs, and merged files. Do not read these to the founder yet.
 
 **Which way this update goes.** Check whether `<gitdir>/launchhouse/update/notes.tsv` and `<gitdir>/launchhouse/update/adapt.tsv` both exist.
@@ -175,12 +176,15 @@ Never use words like "worktree", "checks failed", "abort", "revert", or "commit"
 1. Do steps 1, 2, 4, 5 and 6 above, exactly the same.
 2. In place of step 3 above, say plainly what they now have from the notes that did land, then name each held improvement by its note's own title (read from `<gitdir>/launchhouse/update/notes.tsv`; the plain reason in `<gitdir>/launchhouse/update/held.tsv` is for your own understanding, not to read aloud). For each one, say in plain words: it will be offered again on their next update, and nothing is wrong with their folder in the meantime.
 
-**`result=aborted` — Stopped.**
-1. Say, in one sentence, that nothing changed in their folder (this is always true here: a founder-protecting check stopped the update before anything was touched, and `unchanged=yes` confirms it — the engine only ever aborts before touching anything, so `unchanged` is never `no` at this point).
-2. Say what happened, in one plain sentence, using only `reason=` — never the `failed=` check name(s) and never `log=`. Two reasons need their own handling, not just "try again":
-   - **`reason=folder changed since the plan; plan again`**: something in the folder moved since step 3's plan was taken (their own save, another update attempt, anything). Say so in one plain sentence, then go back to step 3 and plan again.
-   - **`reason=no checks to run`**: this copy has no checks of its own to prove the update is safe before it lands. Tell the founder plainly: there is nothing here to test the update against, so applying it is a little more trust than usual. Ask them, with AskUserQuestion, whether to go ahead anyway (recommended: no, wait and ask a mentor first) or apply without that safety net. Only on a clear yes, re-run step 9 with `--allow-no-checks` added after the decisions file path.
-3. For any other reason: say they can try again later, or ask in the Launchhouse Slack channel — nothing more to say than that the update stopped.
+**`result=aborted` — Stopped**, with one exception below that is not a stop at all.
+
+- **`reason=nothing to apply (every row was held or already matched)`**: this is not a stop. Every path already matches what would have landed, so there was nothing left for `--apply` to do. Say the same as step 3: "You are up to date." Nothing more — do not say "stopped" and do not send them to Slack over this.
+- Otherwise, this is a real stop:
+  1. Say, in one sentence, that nothing changed in their folder (this is always true here: a founder-protecting check stopped the update before anything was touched, and `unchanged=yes` confirms it — the engine only ever aborts before touching anything, so `unchanged` is never `no` at this point).
+  2. Say what happened, in one plain sentence, using only `reason=` — never the `failed=` check name(s) and never `log=`. Two reasons need their own handling, not just "try again":
+     - **`reason=folder changed since the plan; plan again`**: something in the folder moved since step 3's plan was taken (their own save, another update attempt, anything). Say so in one plain sentence, then go back to step 3 and plan again.
+     - **`reason=no checks to run`**: this copy has no checks of its own to prove the update is safe before it lands. Tell the founder plainly: there is nothing here to test the update against, so applying it is a little more trust than usual. Ask them, with AskUserQuestion, whether to go ahead anyway (recommended: no, wait and ask a mentor first) or apply without that safety net. Only on a clear yes, re-run step 9 with `--allow-no-checks` added after the decisions file path.
+  3. For any other reason: say they can try again later, or ask in the Launchhouse Slack channel — nothing more to say than that the update stopped.
 
 **`result=reverted`** behaves the same as Stopped for the founder: say, in one sentence, that nothing changed and their files are back as they were before the update. Tell them they can try again later or ask in the Slack channel; do not ask them to relay `reason`, `pre_update_tag`, or anything else technical.
 

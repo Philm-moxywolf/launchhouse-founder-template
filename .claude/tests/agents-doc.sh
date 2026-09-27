@@ -86,6 +86,29 @@ ok $? "SKILL.md names the held=<note id> outcome from --apply"
 grep -qi 'held back' "$skill" 2>/dev/null
 ok $? "SKILL.md tells Claude to say plainly when an improvement was held back"
 
+# A plan whose only classes are `generated` and `keep` changes nothing for
+# the founder either -- `generated` is only ever rebuilt in place, and
+# `keep` is a local-only edit of theirs that already stands as it is -- so
+# SKILL.md must say that is "up to date" too, not send Claude on to step 4
+# or `--apply` over rows that were never going to change anything.
+grep -qi 'generated.*keep\|keep.*generated' "$skill" 2>/dev/null && grep -qi 'up to date' "$skill" 2>/dev/null
+ok $? "SKILL.md treats a plan whose only classes are generated and keep as up to date, without running --apply"
+
+# --apply's own `reason=nothing to apply (every row was held or already
+# matched)` is a normal, harmless outcome -- everything the founder would
+# have gotten already matches what stands -- and must be reported as up to
+# date, never folded into the generic "the update stopped" wording used for
+# a real abort.
+grep -qF 'nothing to apply' "$skill" 2>/dev/null
+ok $? "SKILL.md names --apply's reason=nothing to apply outcome"
+
+nta_para=$(awk -v RS='' '/nothing to apply/' "$skill" 2>/dev/null)
+printf '%s' "$nta_para" | grep -qi 'up to date'
+ok $? "SKILL.md reports reason=nothing to apply as up to date"
+
+printf '%s' "$nta_para" | grep -qi 'not a stop'
+ok $? "SKILL.md says reason=nothing to apply is not a stop"
+
 # Nothing here may ever tell Claude to hand the founder technical text to
 # relay elsewhere (a check name, a log, a file path, a raw reason string) --
 # that is exactly the kind of thing that turns "the update stopped" into a
