@@ -1145,6 +1145,20 @@ cmd_restore_settings_plan() {
       rupdate_hash=$(norm_hash "$ruc" "$rsp")
       rlive_hash=$(norm_hash HEAD "$rsp")
       if [ -n "$rupdate_hash" ] && [ "$rupdate_hash" = "$rlive_hash" ]; then
+        # Only a tag where that update took settings.json wholesale is a
+        # candidate to restore from. When $ruc's own apply recorded (see
+        # cmd_apply) that this path was "adapted" instead, the founder's
+        # customisation was already folded into the merged body rather
+        # than dropped -- restoring the pre-update copy from $rt would
+        # hand back a stale customisation and silently drop whatever else
+        # that merge also kept, so this tag is skipped rather than
+        # offered. No record at all (a tag from before this apply-time
+        # bookkeeping existed) keeps the older, permissive behaviour:
+        # treated as taken.
+        rs_mode=$(awk -F '\t' -v t="$rt" -v p="$rsp" '$1 == t && $2 == p { m = $3 } END { print m }' "$state/settings-resolutions" 2>/dev/null)
+        if [ "$rs_mode" = adapted ]; then
+          continue
+        fi
         found_tag=$rt
         found_update_commit=$ruc
         found_base=$rbase
@@ -1647,14 +1661,31 @@ cmd_apply() {
   # no "adapted" branch for a non-held class), which could look to a caller
   # like the decision was honoured when nothing happened at all. Refused
   # outright here, before anything is touched.
+  # Every value decisions.tsv actually names for a row must be one this
+  # apply understands -- hold, keep-mine, take-theirs, apply, adapted (the
+  # same set the per-row loop below switches on). Anything else (a typo
+  # like "take" or "add" for "take-theirs"/"apply") fell through every case
+  # arm in that loop with no default branch, so the row was silently
+  # skipped rather than acted on -- indistinguishable, from the founder's
+  # side, from a decision that was honoured. Refused outright here, before
+  # anything is touched, rather than left to surface later as a confusing
+  # "unchanged" apply or an unrelated safety abort.
+  unknown=""
   missing=""
   bad_adapted=""
   bad_class_adapted=""
   while IFS='	' read -r path class proposed detail; do
     [ -n "$path" ] || continue
+    d=$(decision_for "$path" "$decisions")
+    if [ -n "$d" ]; then
+      case $d in
+        hold|keep-mine|take-theirs|apply|adapted) : ;;
+        *) unknown="$unknown$path	$d
+" ;;
+      esac
+    fi
     case $class in
       conflict|add-conflict|deleted-upstream-kept|settings)
-        d=$(decision_for "$path" "$decisions")
         [ -n "$d" ] || missing="$missing$path
 "
         if [ "$d" = adapted ] && [ ! -f "$state/merged/$path" ]; then
@@ -1663,7 +1694,6 @@ cmd_apply() {
         fi
         ;;
       *)
-        d=$(decision_for "$path" "$decisions")
         if [ "$d" = adapted ]; then
           bad_class_adapted="$bad_class_adapted$path
 "
@@ -1671,6 +1701,16 @@ cmd_apply() {
         ;;
     esac
   done < "$state/plan.tsv"
+  if [ -n "$unknown" ]; then
+    echo "result=aborted"
+    echo "failed=unknown-decision"
+    printf '%s' "$unknown" | while IFS='	' read -r ud_path ud_value; do
+      [ -n "$ud_path" ] || continue
+      echo "reason=$ud_path has an unrecognised decision \"$ud_value\" (must be hold, keep-mine, take-theirs, apply, or adapted)"
+    done
+    echo "unchanged=yes"
+    exit 1
+  fi
   if [ -n "$missing" ]; then
     echo "result=aborted"
     echo "reason=missing an explicit decision for:"
@@ -2074,6 +2114,23 @@ cmd_apply() {
         esac
         ;;
     esac
+
+    # settings.json's own resolution this apply, keyed by this apply's
+    # pre-update tag: "taken" when the row's decision left upstream's copy
+    # wholesale (apply or take-theirs, both of which call apply_take for a
+    # settings-class row), "adapted" when it kept a merged body that folds
+    # the founder's customisation in (apply_merged, via decision "adapted").
+    # cmd_restore_settings_plan reads this back so it only ever offers a
+    # restore for a tag where settings.json was taken wholesale -- an
+    # adapted resolution already carries the founder's customisation
+    # forward, so offering to restore it from before that point would hand
+    # back a stale copy and silently drop whatever upstream also added.
+    if [ "$class" = settings ]; then
+      case $d in
+        take-theirs|apply) printf '%s\t%s\ttaken\n' "$tag" "$path" >> "$state/settings-resolutions" ;;
+        adapted) printf '%s\t%s\tadapted\n' "$tag" "$path" >> "$state/settings-resolutions" ;;
+      esac
+    fi
   done < "$state/plan.tsv"
 
   # Rows classed "generated" (compiled-policy.sh, and any skill or agent

@@ -4160,6 +4160,146 @@ check "rehold fixture round 3: the resolved note comes off held.tsv" \
 
 rm -rf "$lrhwork"
 
+# ------------------------------------------- unknown decision value refused
+# A decisions.tsv row naming a decision --apply does not recognise (a typo
+# like "take" for "take-theirs", or "add" for "apply") used to fall through
+# every case arm in the per-row apply loop with no default branch: silently
+# skipped, indistinguishable from a decision that was honoured. The
+# explicit-decision gate now refuses the whole apply outright, before
+# anything is touched, the moment any row names a value outside hold,
+# keep-mine, take-theirs, apply, adapted.
+
+ludwork=${TMPDIR:-/tmp}/lh-update-unknown-decision-test.$$
+trap 'rm -rf "$ludwork"' EXIT
+ludup="$ludwork/upstream"
+ludfounder="$ludwork/founder"
+mkdir -p "$ludup" "$ludfounder" || exit 1
+
+( cd "$ludup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$ludup/.claude"
+printf '%s\n' "$ludup" > "$ludup/.claude/launchhouse-upstream"
+printf 'take v1\n' > "$ludup/.claude/take-me.md"
+( cd "$ludup" && git add -A && git commit -q -m commit1 )
+ludbase=$( cd "$ludup" && git rev-parse HEAD )
+
+printf 'take v2\n' > "$ludup/.claude/take-me.md"
+( cd "$ludup" && git add -A && git commit -q -m commit2 )
+
+( cd "$ludup" && git archive "$ludbase" ) | ( cd "$ludfounder" && tar -x )
+(
+  cd "$ludfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$ludup"
+)
+mkdir -p "$ludfounder/.claude/scripts"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$ludfounder/.claude/scripts/"
+chmod +x "$ludfounder/.claude/scripts/update.sh"
+( cd "$ludfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lud() { ( cd "$ludfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lud --detect-base >/dev/null
+lud --set-base "$ludbase" >/dev/null
+( cd "$ludfounder" && git add -A && git commit -q -m "record the base version" )
+lud --plan >/dev/null
+
+cat > "$ludwork/decisions-bad.tsv" <<EOF
+.claude/take-me.md	take
+EOF
+
+ludpre_head=$( cd "$ludfounder" && git rev-parse HEAD )
+ludpre_status=$( cd "$ludfounder" && git status --porcelain )
+ludpretags=$( cd "$ludfounder" && git tag -l 'launchhouse-pre-update-*' | wc -l | tr -d ' ' )
+
+ludout=$( ( cd "$ludfounder" && sh .claude/scripts/update.sh --apply "$ludwork/decisions-bad.tsv" < /dev/null ) 2>&1 )
+check "an unrecognised decision aborts" has "$ludout" 'result=aborted'
+check "and names the reason as unknown-decision" has "$ludout" 'failed=unknown-decision'
+check "and names the path and the bad value" has "$ludout" '.claude/take-me.md has an unrecognised decision "take"'
+check "and reports the repo unchanged" has "$ludout" 'unchanged=yes'
+
+ludpost_head=$( cd "$ludfounder" && git rev-parse HEAD )
+ludpost_status=$( cd "$ludfounder" && git status --porcelain )
+check "an unrecognised decision never moves HEAD" match_eq "$ludpost_head" "$ludpre_head"
+check "an unrecognised decision never leaves the working tree dirty" match_eq "$ludpost_status" "$ludpre_status"
+ludposttags=$( cd "$ludfounder" && git tag -l 'launchhouse-pre-update-*' | wc -l | tr -d ' ' )
+check "an unrecognised decision leaves no pre-update tag behind" match_eq "$ludposttags" "$ludpretags"
+check "and take-me.md is untouched" match_eq "$(cat "$ludfounder/.claude/take-me.md" 2>/dev/null)" "take v1"
+
+rm -rf "$ludwork"
+
+# --------------------------------------- restore offer after an adaptation
+# --restore-settings-plan must never offer a restore for a pre-update tag
+# where that update ADAPTED settings.json (folded the founder's own
+# customisation into a merged body) rather than taking it wholesale: the
+# founder's customisation is already carried forward, so "restoring" it
+# from before that point would hand back a stale copy and drop whatever
+# else the merge also kept.
+
+luawork=${TMPDIR:-/tmp}/lh-update-restore-adapted-test.$$
+trap 'rm -rf "$luawork"' EXIT
+luaup="$luawork/upstream"
+luafounder="$luawork/founder"
+mkdir -p "$luaup" "$luafounder" || exit 1
+
+( cd "$luaup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$luaup/.claude"
+printf '%s\n' "$luaup" > "$luaup/.claude/launchhouse-upstream"
+printf '{"v":"1"}\n' > "$luaup/.claude/settings.json"
+( cd "$luaup" && git add -A && git commit -q -m commit1 )
+luabase=$( cd "$luaup" && git rev-parse HEAD )
+
+printf '{"v":"2-upstream"}\n' > "$luaup/.claude/settings.json"
+( cd "$luaup" && git add -A && git commit -q -m commit2 )
+
+( cd "$luaup" && git archive "$luabase" ) | ( cd "$luafounder" && tar -x )
+(
+  cd "$luafounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$luaup"
+)
+mkdir -p "$luafounder/.claude/scripts" "$luafounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$luafounder/.claude/scripts/"
+chmod +x "$luafounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$luafounder/.claude/tests/run.sh"
+chmod +x "$luafounder/.claude/tests/run.sh"
+install_json_valid_stub "$luafounder"
+( cd "$luafounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+printf '{"v":"1","founder":"adapted-tweak"}\n' > "$luafounder/.claude/settings.json"
+( cd "$luafounder" && git add -A && git commit -q -m "founder customises settings.json" )
+
+lua() { ( cd "$luafounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lua --detect-base >/dev/null
+lua --set-base "$luabase" >/dev/null
+( cd "$luafounder" && git add -A && git commit -q -m "record the base version" )
+lua --plan >/dev/null
+
+lua_body="$luawork/adapted-body.txt"
+printf '{"v":"2-upstream","founder":"adapted-tweak"}\n' > "$lua_body"
+luasaveout=$(lua --adapt-save .claude/settings.json "$lua_body" -)
+check "adapted-restore fixture: adapt-save accepts the merged settings.json body" \
+  has "$luasaveout" 'saved=.claude/settings.json'
+
+cat > "$luawork/decisions-adapted.tsv" <<EOF
+.claude/settings.json	adapted
+EOF
+luabridgeout=$( ( cd "$luafounder" && sh .claude/scripts/update.sh --apply "$luawork/decisions-adapted.tsv" < /dev/null ) 2>&1 )
+check "adapted-restore fixture: the bridge update (adapted settings.json) applies" has "$luabridgeout" 'result=applied'
+check "adapted-restore fixture: settings.json carries both sides" \
+  has "$(cat "$luafounder/.claude/settings.json" 2>/dev/null)" '"founder":"adapted-tweak"'
+
+luatag=$( cd "$luafounder" && git tag -l 'launchhouse-pre-update-*' | head -1 )
+check "adapted-restore fixture: a pre-update tag was left behind" test -n "$luatag"
+
+luaresolutions="$luafounder/.git/launchhouse/update/settings-resolutions"
+check "adapted-restore fixture: the apply recorded settings.json as adapted for this tag" \
+  has "$(cat "$luaresolutions" 2>/dev/null)" "$luatag	.claude/settings.json	adapted"
+
+luarestoreout=$(lua --restore-settings-plan)
+check "restore-settings-plan never offers a restore after an adapted settings update" \
+  has "$luarestoreout" 'restore=none'
+
+rm -rf "$luawork"
+
 if [ "$fail" = 0 ]; then
   printf '\nAll update cases passed.\n'
 else
