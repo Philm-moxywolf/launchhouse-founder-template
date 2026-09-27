@@ -191,32 +191,42 @@ cat > "$luwork/decisions.tsv" <<EOF
 .claude/gone-upstream-kept.md	hold
 EOF
 
-# --- a failing check chain aborts cleanly and leaves the repo untouched.
-# Run this BEFORE the real apply below: --apply always tags HEAD first, and
-# --undo always picks the newest such tag, so a failed attempt's tag must
-# never end up newer than the one the successful apply leaves behind. The
-# founder's own check stub is swapped to a failing one for this case, then
-# swapped back before the real apply. Each stub swap is its own commit, so
-# the plan is re-taken right after it (the plan now records the HEAD it was
-# taken against, and --apply refuses a plan taken against an earlier HEAD).
-printf '#!/bin/sh\nexit 1\n' > "$lufounder/.claude/tests/run.sh"
-( cd "$lufounder" && git add -A && git commit -q -m "founder breaks the check stub, for the failing-checks case" )
+# --- a failing GATING check (updates-checks.sh; only a founder-safety
+# check can now stop an apply, never the maintainer suite -- see the
+# checks=none-shaped fixture and the maintainer-suite-only fixture further
+# down for that) aborts cleanly and leaves the repo untouched. Run this
+# BEFORE the real apply below: --apply always tags HEAD first, and --undo
+# always picks the newest such tag, so a failed attempt's tag must never
+# end up newer than the one the successful apply leaves behind. The
+# founder's own updates-checks.sh stub is swapped to a failing one for this
+# case, then swapped back before the real apply. Each stub swap is its own
+# commit, so the plan is re-taken right after it (the plan now records the
+# HEAD it was taken against, and --apply refuses a plan taken against an
+# earlier HEAD).
+printf '#!/bin/sh\nexit 1\n' > "$lufounder/.claude/tests/updates-checks.sh"
+( cd "$lufounder" && git add -A && git commit -q -m "founder breaks the safety-check stub, for the failing-checks case" )
 lu --plan >/dev/null
 pre_head=$( cd "$lufounder" && git rev-parse HEAD )
 pre_status=$( cd "$lufounder" && git status --porcelain )
 pretags=$( cd "$lufounder" && git tag -l 'launchhouse-pre-update-*' | wc -l | tr -d ' ' )
 failout=$( ( cd "$lufounder" && sh .claude/scripts/update.sh --apply "$luwork/decisions.tsv" < /dev/null ) 2>&1 )
-check "a failing check chain reports aborted" has "$failout" 'result=aborted'
-check "a failing check chain says the repo is unchanged" has "$failout" 'unchanged=yes'
+check "a failing gating check reports aborted" has "$failout" 'result=aborted'
+check "and names the failed check" has "$failout" 'failed=updates-checks.sh'
+failed_line=$(printf '%s\n' "$failout" | grep -n '^failed=updates-checks.sh$' | head -1 | cut -d: -f1)
+reason_line=$(printf '%s\n' "$failout" | grep -n '^reason=' | head -1 | cut -d: -f1)
+check "and names it BEFORE the reason" \
+  sh -c '[ -n "$1" ] && [ -n "$2" ] && [ "$1" -lt "$2" ]' _ "$failed_line" "$reason_line"
+check "and points at the full log" has "$failout" 'log='
+check "a failing gating check says the repo is unchanged" has "$failout" 'unchanged=yes'
 post_head=$( cd "$lufounder" && git rev-parse HEAD )
 post_status=$( cd "$lufounder" && git status --porcelain )
-check "a failing check chain never moves HEAD" match_eq "$post_head" "$pre_head"
-check "a failing check chain never leaves the working tree dirty" match_eq "$post_status" "$pre_status"
+check "a failing gating check never moves HEAD" match_eq "$post_head" "$pre_head"
+check "a failing gating check never leaves the working tree dirty" match_eq "$post_status" "$pre_status"
 posttags=$( cd "$lufounder" && git tag -l 'launchhouse-pre-update-*' | wc -l | tr -d ' ' )
 check "a failed apply leaves no pre-update tag behind" match_eq "$posttags" "$pretags"
 
-printf '#!/bin/sh\nexit 0\n' > "$lufounder/.claude/tests/run.sh"
-( cd "$lufounder" && git add -A && git commit -q -m "founder fixes the check stub" )
+rm -f "$lufounder/.claude/tests/updates-checks.sh"
+( cd "$lufounder" && git add -A && git commit -q -m "founder removes the broken safety-check stub" )
 lu --plan >/dev/null
 
 applyout=$( ( cd "$lufounder" && sh .claude/scripts/update.sh --apply "$luwork/decisions.tsv" < /dev/null ) 2>&1 )
@@ -827,11 +837,14 @@ check "and never silently regenerated" \
   hasnt "$(lugirow .claude/agents/demo-specialist.md)" '	generated	'
 
 # Holding the conflict (keeping the founder's own file exactly as it is) is
-# a valid resolution on its own, already proven at the plan level above:
-# skill-packs.sh --validate all (which apply's own checks run) correctly
-# refuses to call that state clean, since the founder's file now collides
-# with a name the pack claims -- proving the conflict is real, not a false
-# positive, is the other half of what this fixture is for.
+# a valid resolution on its own, already proven at the plan level above.
+# skill-packs.sh --validate all is part of the maintainer suite now (never
+# gating -- only a founder-safety check can stop an apply), so it no longer
+# aborts over this collision; the update still lands, the collision message
+# is recorded in the full checks log for a maintainer to read, and --install
+# never overwrites the founder's held file regardless -- proving the
+# founder's own file survives a real collision either way, not just that a
+# validator refuses to bless the tree.
 cat > "$lugiwork/decisions-hold.tsv" <<EOF
 .claude/skill-packs/registry.tsv	apply
 .claude/skill-packs/demo/pack.md	apply
@@ -845,10 +858,11 @@ cat > "$lugiwork/decisions-hold.tsv" <<EOF
 .claude/agents/demo-specialist.md	hold
 EOF
 lugiholdout=$( ( cd "$lugifounder" && sh .claude/scripts/update.sh --apply "$lugiwork/decisions-hold.tsv" --allow-no-checks < /dev/null ) 2>&1 )
-check "holding the conflict is refused by the pack validator's own collision check, proving the held state is a real collision" \
-  has "$lugiholdout" 'collides with an installed copy this pack does not own'
-check "holding the conflict never moves HEAD" \
-  match_eq "$( cd "$lugifounder" && git rev-parse HEAD )" "$( cd "$lugifounder" && git log --format=%H -1 )"
+check "holding the conflict still lands -- the collision is a maintainer-suite finding now, never a stopper" \
+  has "$lugiholdout" 'result=applied'
+lugiholdlog="$lugifounder/.git/launchhouse/update/last-checks.log"
+check "the pack validator's own collision check still ran, and its finding is in the full log" \
+  has "$(cat "$lugiholdlog" 2>/dev/null)" 'collides with an installed copy this pack does not own'
 check "and the founder's own agent is untouched" \
   has "$(cat "$lugifounder/.claude/agents/demo-specialist.md" 2>/dev/null)" "The founder's own words, never a pack's."
 
@@ -1938,11 +1952,15 @@ cat > "$lhhkwork/decisions-c.tsv" <<EOF
 .claude/take-me.md	apply
 .claude/settings.json	apply
 EOF
+# A hook naming a script that does not exist anywhere is now caught by
+# run_checks_in's own pre-landing gate (check 3) -- before it ever lands,
+# never after: aborted, not reverted.
 lhhkout_c=$( ( cd "$lhhkfounder" && sh .claude/scripts/update.sh --apply "$lhhkwork/decisions-c.tsv" < /dev/null ) 2>&1 )
-check "post-landing smoke: a hook naming a script that does not exist reports reverted" has "$lhhkout_c" 'result=reverted'
-check "and the automatic undo brings take-me.md back to its pre-this-update value" \
+check "a hook naming a script that does not exist aborts before landing" has "$lhhkout_c" 'result=aborted'
+check "and names hook-script as the failed check" has "$lhhkout_c" 'failed=hook-script'
+check "take-me.md was never touched -- it stays at its pre-this-update value" \
   has "$(cat "$lhhkfounder/.claude/take-me.md" 2>/dev/null)" 'take v3'
-check "and settings.json is back to running hook-noisy.sh" \
+check "and settings.json is still running hook-noisy.sh -- nothing landed" \
   has "$(cat "$lhhkfounder/.claude/settings.json" 2>/dev/null)" 'hook-noisy.sh'
 check "post-landing smoke: growth-engine/.state/index.md is still byte-identical after the revert" \
   match_eq "$(cksum_of "$lhhkfounder/growth-engine/.state/index.md")" "$ge_index_before"
@@ -1974,13 +1992,16 @@ check "post-landing smoke: the hook's own marker file (proof it would leave if e
 
 rm -rf "$lhhkwork"
 
-# --------------------------------------------- post-landing smoke: settings.json JSON validity
-# Once json-valid.sh actually exists on a founder's copy, post_landing_smoke
-# also proves settings.json itself is still valid JSON once the update has
-# actually landed -- a corrupting change here reverts, the same as any
-# other post-landing failure. Asserted for real only once the real
-# validator has landed on this branch (worker R's own interface); until
-# then this is a SKIP, not a FAIL, exactly like the adapt-save JSON case.
+# --------------------------------------------- settings.json JSON validity
+# Once json-valid.sh actually exists on a founder's copy, run_checks_in's
+# own pre-landing gate (check 2) proves settings.json itself is still valid
+# JSON before an update ever lands -- a corrupting change here now aborts,
+# never reverts (the founder-safety-gate fixtures above cover the same
+# check when settings.json is the ONLY thing changing; this one proves it
+# holds when other, harmless rows land alongside it too). Asserted for real
+# only once the real validator has landed on this branch (worker R's own
+# interface); until then this is a SKIP, not a FAIL, exactly like the
+# adapt-save JSON case.
 
 if [ -f "$scripts/json-valid.sh" ]; then
   lhsjwork=${TMPDIR:-/tmp}/lh-update-postsmoke-json-test.$$
@@ -2022,8 +2043,8 @@ if [ -f "$scripts/json-valid.sh" ]; then
 .claude/settings.json	apply
 EOF
   lhsjout=$( ( cd "$lhsjfounder" && sh .claude/scripts/update.sh --apply "$lhsjwork/decisions.tsv" --allow-no-checks < /dev/null ) 2>&1 )
-  check "post-landing smoke: settings.json landing as invalid JSON reverts" has "$lhsjout" 'result=reverted'
-  check "and names the reason" has "$lhsjout" 'settings.json is not valid JSON'
+  check "settings.json landing as invalid JSON aborts before landing" has "$lhsjout" 'result=aborted'
+  check "and names settings.json as the failed check" has "$lhsjout" 'failed=settings.json'
 
   rm -rf "$lhsjwork"
 else
@@ -2374,10 +2395,19 @@ check "and take-me.md was never touched" \
 
 rm -rf "$lhaawork"
 
-# --- updates-checks.sh: a failing (non-corrupting) check still reverts
-# cleanly.
+# --- updates-checks.sh: a failing safety check is now caught BEFORE
+# landing (run_checks_in's own gating check 1, added alongside the
+# founder-safety gate), never after. This is a deliberate improvement over
+# the old land-then-revert shape: failing closed earlier means the founder
+# never sees a landed-then-reverted update for something a pre-landing
+# check can catch on its own. The main flow above already exercises the
+# founder's OWN updates-checks.sh breaking; this fixture instead proves the
+# same thing when upstream itself SHIPS a new, broken updates-checks.sh as
+# part of the update (decisions.tsv taking it): the apply must never let a
+# broken safety-check script land in the first place, whatever introduced
+# it.
 
-lhucwork=${TMPDIR:-/tmp}/lh-update-checks-revert-test.$$
+lhucwork=${TMPDIR:-/tmp}/lh-update-checks-preland-test.$$
 trap 'rm -rf "$lhucwork"' EXIT
 lhucup="$lhucwork/upstream"
 lhucfounder="$lhucwork/founder"
@@ -2418,19 +2448,30 @@ cat > "$lhucwork/decisions.tsv" <<EOF
 .claude/take-me.md	apply
 .claude/tests/updates-checks.sh	apply
 EOF
+lhuc_pre_head=$( cd "$lhucfounder" && git rev-parse HEAD )
 lhucout=$( ( cd "$lhucfounder" && sh .claude/scripts/update.sh --apply "$lhucwork/decisions.tsv" < /dev/null ) 2>&1 )
-check "post-landing smoke: a failing (non-corrupting) updates-checks.sh reports reverted" has "$lhucout" 'result=reverted'
-check "and names the reason" has "$lhucout" "reason=the update notes' own checks failed once the update actually landed"
-check "the automatic undo brings take-me.md back to its pre-this-update value" \
+check "a broken updates-checks.sh shipped by the update itself never lands: aborted, not reverted" \
+  has "$lhucout" 'result=aborted'
+check "and names it as the failed check" has "$lhucout" 'failed=updates-checks.sh'
+check "take-me.md was never touched -- the apply aborted before committing anything real" \
   has "$(cat "$lhucfounder/.claude/take-me.md" 2>/dev/null)" 'take v1'
-check "and the failing updates-checks.sh itself was also reverted away" \
+check "and the broken updates-checks.sh itself never lands either" \
   test ! -f "$lhucfounder/.claude/tests/updates-checks.sh"
+check "HEAD never moved" match_eq "$( cd "$lhucfounder" && git rev-parse HEAD )" "$lhuc_pre_head"
 
 rm -rf "$lhucwork"
 
-# --- updates-checks.sh: a failing check that ALSO corrupts a tracked live
-# file makes the automatic undo's own is_clean guard refuse -- proving
-# result=reverted-failed without any test-only switch in update.sh.
+# --- reverted-failed: the automatic undo's own is_clean guard can still
+# refuse post-landing, for a reason NO pre-landing gating check can ever
+# see -- a checkout producing bytes that do not match what the update
+# commit recorded (post_landing_smoke's check 4), whose corrupting side
+# effect lands somewhere outside .claude/ (so the pre-undo reset, which
+# only ever resets .claude/, cannot quietly fix it for the undo). Modelled
+# on the checkout-time smudge-filter fixture above (check 3's own "recovers
+# cleanly" case), except this filter's one-shot side effect corrupts a
+# TRACKED file under growth-engine/ -- which the pre-undo reset never
+# touches -- so the automatic undo's is_clean() guard genuinely refuses,
+# proving result=reverted-failed without any test-only switch in update.sh.
 
 lhrfwork=${TMPDIR:-/tmp}/lh-update-reverted-failed-test.$$
 trap 'rm -rf "$lhrfwork"' EXIT
@@ -2446,13 +2487,7 @@ printf 'take v1\n' > "$lhrfup/.claude/take-me.md"
 lhrfbase=$( cd "$lhrfup" && git rev-parse HEAD )
 
 printf 'take v2\n' > "$lhrfup/.claude/take-me.md"
-mkdir -p "$lhrfup/.claude/tests"
-cat > "$lhrfup/.claude/tests/updates-checks.sh" <<'SCRIPT'
-#!/bin/sh
-printf '\ncorrupted by updates-checks.sh\n' >> .claude/tests/run.sh
-exit 1
-SCRIPT
-( cd "$lhrfup" && git add -A && git commit -q -m "commit2: ship a failing AND corrupting updates-checks.sh" )
+( cd "$lhrfup" && git add -A && git commit -q -m commit2 )
 
 ( cd "$lhrfup" && git archive "$lhrfbase" ) | ( cd "$lhrffounder" && tar -x )
 (
@@ -2460,12 +2495,34 @@ SCRIPT
   git add -A && git commit -q -m "Initial import from template" &&
   git remote add upstream "$lhrfup"
 )
-mkdir -p "$lhrffounder/.claude/scripts" "$lhrffounder/.claude/tests"
+mkdir -p "$lhrffounder/.claude/scripts" "$lhrffounder/growth-engine"
 cp "$scripts/update.sh" "$scripts/lib.sh" "$lhrffounder/.claude/scripts/"
 chmod +x "$lhrffounder/.claude/scripts/update.sh"
-printf '#!/bin/sh\nexit 0\n' > "$lhrffounder/.claude/tests/run.sh"
-chmod +x "$lhrffounder/.claude/tests/run.sh"
-( cd "$lhrffounder" && git add -A && git commit -q -m "add the update engine under test" )
+printf 'the founder'"'"'s own business, never touched\n' > "$lhrffounder/growth-engine/founder-work.md"
+( cd "$lhrffounder" && git add -A && git commit -q -m "add the update engine under test, and a growth-engine file" )
+
+# A broken content filter on take-me.md, keyed to the new upstream content
+# ("take v2") and a one-shot marker file, exactly like the checkout-
+# recovers fixture above -- except this filter ALSO corrupts a tracked file
+# OUTSIDE .claude/ the first time it fires, which the pre-undo reset (only
+# ever `git checkout -- .claude/`) can never repair.
+lhrfmarker="$lhrfwork/.smudge-v2-fired"
+cat > "$lhrfwork/smudge-filter.sh" <<EOF
+#!/bin/sh
+in=\$(cat)
+if [ "\$in" = "take v2" ] && [ ! -f "$lhrfmarker" ]; then
+  : > "$lhrfmarker"
+  printf 'corrupted by a checkout-time filter, outside .claude/\n' >> "$lhrffounder/growth-engine/founder-work.md"
+  printf '%s\n' "\$in"
+  printf 'appended-by-checkout-once\n'
+else
+  printf '%s\n' "\$in"
+fi
+EOF
+chmod +x "$lhrfwork/smudge-filter.sh"
+( cd "$lhrffounder" && git config filter.lh-test-broken.smudge "sh \"$lhrfwork/smudge-filter.sh\"" )
+( cd "$lhrffounder" && git config filter.lh-test-broken.clean "cat" )
+printf '.claude/take-me.md filter=lh-test-broken\n' >> "$lhrffounder/.git/info/attributes"
 
 lhrf() { ( cd "$lhrffounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
 lhrf --detect-base >/dev/null
@@ -2475,9 +2532,8 @@ lhrf --plan >/dev/null
 
 cat > "$lhrfwork/decisions.tsv" <<EOF
 .claude/take-me.md	apply
-.claude/tests/updates-checks.sh	apply
 EOF
-lhrfout=$( ( cd "$lhrffounder" && sh .claude/scripts/update.sh --apply "$lhrfwork/decisions.tsv" < /dev/null ) 2>&1 )
+lhrfout=$( ( cd "$lhrffounder" && sh .claude/scripts/update.sh --apply "$lhrfwork/decisions.tsv" --allow-no-checks < /dev/null ) 2>&1 )
 check "post-landing smoke: an undo the guard itself refuses reports reverted-failed" has "$lhrfout" 'result=reverted-failed'
 check "and names a reason" has "$lhrfout" 'reason='
 lhrf_tag=$(printf '%s\n' "$lhrfout" | grep '^pre_update_tag=' | sed 's/^pre_update_tag=//')
@@ -2487,8 +2543,8 @@ check "and that tag actually exists" test -n "$lhrf_tag_commit"
 lhrf_post_head=$( cd "$lhrffounder" && git rev-parse HEAD )
 check "the update commit is still landed -- the undo itself was refused, nothing reverted" \
   sh -c '[ "$1" != "$2" ]' _ "$lhrf_post_head" "$lhrf_tag_commit"
-check "and run.sh still carries the corruption -- nothing further was changed after the refusal" \
-  has "$(cat "$lhrffounder/.claude/tests/run.sh" 2>/dev/null)" 'corrupted by updates-checks.sh'
+check "and growth-engine/founder-work.md still carries the corruption -- nothing further was changed after the refusal" \
+  has "$(cat "$lhrffounder/growth-engine/founder-work.md" 2>/dev/null)" 'corrupted by a checkout-time filter'
 
 rm -rf "$lhrfwork"
 
@@ -2595,6 +2651,14 @@ cp "$scripts/update.sh" "$scripts/lib.sh" "$lheefounder/.claude/scripts/"
 chmod +x "$lheefounder/.claude/scripts/update.sh"
 printf '#!/bin/sh\nexit 0\n' > "$lheefounder/.claude/tests/run.sh"
 chmod +x "$lheefounder/.claude/tests/run.sh"
+# The plan carries a safety: true note (settings-fix) -- the founder-safety
+# gate now refuses outright (fail closed) unless updates-checks.sh actually
+# exists to run it, same as it already requires settings.json and
+# json-valid.sh to exist. A real founder copy always ships this file; this
+# fixture's stub always passes, since what is under test here is the
+# adapted-body path, not updates-checks.sh itself.
+printf '#!/bin/sh\nexit 0\n' > "$lheefounder/.claude/tests/updates-checks.sh"
+chmod +x "$lheefounder/.claude/tests/updates-checks.sh"
 install_json_valid_stub "$lheefounder"
 ( cd "$lheefounder" && git add -A && git commit -q -m "add the update engine under test" )
 
@@ -2899,6 +2963,1202 @@ check "and names the reason plainly" \
 rm -f "$shstate/apply.lock"
 
 rm -rf "$shwork"
+
+# -------------------------------------------------- file modes survive apply
+# apply_take/apply_merged used to write every path through `git show blob >
+# file`, which always lands at plain 644 -- so a brand new upstream script
+# shipped executable landed non-executable in the founder's own copy, and
+# failed "Permission denied" the moment anything (a hook, another script)
+# tried to run it directly. set_path_mode fixes this: the mode a new path's
+# blob is recorded with, upstream, is reproduced on the founder's own disk
+# and in the commit that lands.
+
+lfmwork=${TMPDIR:-/tmp}/lh-update-filemode-test.$$
+trap 'rm -rf "$lfmwork"' EXIT
+lfmup="$lfmwork/upstream"
+lfmfounder="$lfmwork/founder"
+mkdir -p "$lfmup" "$lfmfounder" || exit 1
+
+( cd "$lfmup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lfmup/.claude"
+printf '%s\n' "$lfmup" > "$lfmup/.claude/launchhouse-upstream"
+printf 'take v1\n' > "$lfmup/.claude/take-me.md"
+( cd "$lfmup" && git add -A && git commit -q -m commit1 )
+lfmbase=$( cd "$lfmup" && git rev-parse HEAD )
+
+mkdir -p "$lfmup/.claude/scripts"
+printf '#!/bin/sh\necho ran\n' > "$lfmup/.claude/scripts/newscript.sh"
+chmod 755 "$lfmup/.claude/scripts/newscript.sh"
+( cd "$lfmup" && git add -A && git commit -q -m "commit2: ship a new executable script" )
+
+( cd "$lfmup" && git archive "$lfmbase" ) | ( cd "$lfmfounder" && tar -x )
+(
+  cd "$lfmfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lfmup"
+)
+mkdir -p "$lfmfounder/.claude/scripts" "$lfmfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lfmfounder/.claude/scripts/"
+chmod +x "$lfmfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lfmfounder/.claude/tests/run.sh"
+chmod +x "$lfmfounder/.claude/tests/run.sh"
+( cd "$lfmfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lfm() { ( cd "$lfmfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lfm --detect-base >/dev/null
+lfm --set-base "$lfmbase" >/dev/null
+( cd "$lfmfounder" && git add -A && git commit -q -m "record the base version" )
+lfm --plan >/dev/null
+
+cat > "$lfmwork/decisions.tsv" <<EOF
+.claude/scripts/newscript.sh	apply
+EOF
+lfmout=$( ( cd "$lfmfounder" && sh .claude/scripts/update.sh --apply "$lfmwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "a new executable script applies" has "$lfmout" 'result=applied'
+lfm_mode=$( cd "$lfmfounder" && git ls-files -s -- .claude/scripts/newscript.sh | awk '{print $1}' )
+check "and lands 100755 in the index, not 644" match_eq "$lfm_mode" "100755"
+check "and is actually executable on disk" test -x "$lfmfounder/.claude/scripts/newscript.sh"
+lfm_run=$( cd "$lfmfounder" && ./.claude/scripts/newscript.sh )
+check "and runs directly, exec-style, without needing sh in front of it" match_eq "$lfm_run" "ran"
+
+rm -rf "$lfmwork"
+
+# ------------------------------- file modes survive apply, core.filemode=false
+# Git for Windows' own default. A plain `chmod 755` followed by `git add`
+# never changes the INDEX mode when core.filemode is false -- git does not
+# even look at the working tree's executable bit while deciding the index
+# mode in that case, so set_path_mode's chmod alone (proven above, with
+# git's default core.filemode=true) is not enough here: `git ls-files -s`
+# would still read 100644 for a script that is genuinely 755 on disk.
+# set_path_mode's caller must also call `git update-index --chmod`, which
+# sets the index bit directly, independent of core.filemode.
+
+lfcwork=${TMPDIR:-/tmp}/lh-update-filemode-cfg-test.$$
+trap 'rm -rf "$lfcwork"' EXIT
+lfcup="$lfcwork/upstream"
+lfcfounder="$lfcwork/founder"
+mkdir -p "$lfcup" "$lfcfounder" || exit 1
+
+( cd "$lfcup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lfcup/.claude"
+printf '%s\n' "$lfcup" > "$lfcup/.claude/launchhouse-upstream"
+printf 'take v1\n' > "$lfcup/.claude/take-me.md"
+( cd "$lfcup" && git add -A && git commit -q -m commit1 )
+lfcbase=$( cd "$lfcup" && git rev-parse HEAD )
+
+mkdir -p "$lfcup/.claude/scripts"
+printf '#!/bin/sh\necho ran\n' > "$lfcup/.claude/scripts/newscript.sh"
+chmod 755 "$lfcup/.claude/scripts/newscript.sh"
+( cd "$lfcup" && git add -A && git commit -q -m "commit2: ship a new executable script" )
+
+( cd "$lfcup" && git archive "$lfcbase" ) | ( cd "$lfcfounder" && tar -x )
+(
+  cd "$lfcfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lfcup"
+)
+mkdir -p "$lfcfounder/.claude/scripts" "$lfcfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lfcfounder/.claude/scripts/"
+chmod +x "$lfcfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lfcfounder/.claude/tests/run.sh"
+chmod +x "$lfcfounder/.claude/tests/run.sh"
+( cd "$lfcfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+# The founder's own repo, on Windows via Git for Windows, has this off by
+# default -- set it explicitly rather than assume whatever this test
+# machine's own global config happens to be.
+( cd "$lfcfounder" && git config core.filemode false )
+
+lfc() { ( cd "$lfcfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lfc --detect-base >/dev/null
+lfc --set-base "$lfcbase" >/dev/null
+( cd "$lfcfounder" && git add -A && git commit -q -m "record the base version" )
+lfc --plan >/dev/null
+
+cat > "$lfcwork/decisions.tsv" <<EOF
+.claude/scripts/newscript.sh	apply
+EOF
+lfcout=$( ( cd "$lfcfounder" && sh .claude/scripts/update.sh --apply "$lfcwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "core.filemode=false: a new executable script still applies" has "$lfcout" 'result=applied'
+lfc_mode=$( cd "$lfcfounder" && git ls-files -s -- .claude/scripts/newscript.sh | awk '{print $1}' )
+check "core.filemode=false: the index still records 100755, not 644" match_eq "$lfc_mode" "100755"
+check "core.filemode=false: and the file is still executable on disk" test -x "$lfcfounder/.claude/scripts/newscript.sh"
+
+rm -rf "$lfcwork"
+
+# ------------------------------------------ founder-safety gate: settings.json
+# A plain "take" row (upstream changed settings.json, the founder never
+# touched it -- so it never goes through --adapt-save's own json-valid.sh
+# check, which only ever runs for a HELD/adapted decision) must still never
+# be allowed to land broken JSON: run_checks_in's own gating check 2 is
+# what catches this one.
+
+lsgwork=${TMPDIR:-/tmp}/lh-update-settingsgate-test.$$
+trap 'rm -rf "$lsgwork"' EXIT
+lsgup="$lsgwork/upstream"
+lsgfounder="$lsgwork/founder"
+mkdir -p "$lsgup" "$lsgfounder" || exit 1
+
+( cd "$lsgup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lsgup/.claude"
+printf '%s\n' "$lsgup" > "$lsgup/.claude/launchhouse-upstream"
+printf '{ "ok": true }\n' > "$lsgup/.claude/settings.json"
+printf 'take v1\n' > "$lsgup/.claude/take-me.md"
+( cd "$lsgup" && git add -A && git commit -q -m commit1 )
+lsgbase=$( cd "$lsgup" && git rev-parse HEAD )
+
+printf '{ "ok": broken,\n' > "$lsgup/.claude/settings.json"
+( cd "$lsgup" && git add -A && git commit -q -m "commit2: settings.json ships broken" )
+
+( cd "$lsgup" && git archive "$lsgbase" ) | ( cd "$lsgfounder" && tar -x )
+(
+  cd "$lsgfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lsgup"
+)
+mkdir -p "$lsgfounder/.claude/scripts" "$lsgfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lsgfounder/.claude/scripts/"
+chmod +x "$lsgfounder/.claude/scripts/update.sh"
+install_json_valid_stub "$lsgfounder"
+printf '#!/bin/sh\nexit 0\n' > "$lsgfounder/.claude/tests/run.sh"
+chmod +x "$lsgfounder/.claude/tests/run.sh"
+( cd "$lsgfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lsg() { ( cd "$lsgfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lsg --detect-base >/dev/null
+lsg --set-base "$lsgbase" >/dev/null
+( cd "$lsgfounder" && git add -A && git commit -q -m "record the base version" )
+lsg --plan >/dev/null
+
+cat > "$lsgwork/decisions.tsv" <<EOF
+.claude/take-me.md	apply
+.claude/settings.json	apply
+EOF
+lsg_pre_head=$( cd "$lsgfounder" && git rev-parse HEAD )
+lsgout=$( ( cd "$lsgfounder" && sh .claude/scripts/update.sh --apply "$lsgwork/decisions.tsv" < /dev/null ) 2>&1 )
+if [ -f "$scripts/json-valid.sh" ]; then
+  check "a plain take of broken settings.json aborts before landing" has "$lsgout" 'result=aborted'
+  check "and names settings.json as the failed check" has "$lsgout" 'failed=settings.json'
+  check "HEAD never moved" match_eq "$( cd "$lsgfounder" && git rev-parse HEAD )" "$lsg_pre_head"
+  check "and settings.json still reads the founder's last-good copy" \
+    has "$(cat "$lsgfounder/.claude/settings.json" 2>/dev/null)" '"ok": true'
+else
+  printf 'SKIP  founder-safety gate: settings.json (validator not present on this branch)\n'
+fi
+
+rm -rf "$lsgwork"
+
+# ------------------------------------------ founder-safety gate: hook script
+# A settings.json that lands (via a plain "take", same reasoning as above)
+# naming a hook command whose script does not exist anywhere in the
+# updated tree must never be allowed to land either -- gating check 3.
+
+lhgwork=${TMPDIR:-/tmp}/lh-update-hookgate-test.$$
+trap 'rm -rf "$lhgwork"' EXIT
+lhgup="$lhgwork/upstream"
+lhgfounder="$lhgwork/founder"
+mkdir -p "$lhgup" "$lhgfounder" || exit 1
+
+( cd "$lhgup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lhgup/.claude"
+printf '%s\n' "$lhgup" > "$lhgup/.claude/launchhouse-upstream"
+printf '{ "hooks": {} }\n' > "$lhgup/.claude/settings.json"
+printf 'take v1\n' > "$lhgup/.claude/take-me.md"
+( cd "$lhgup" && git add -A && git commit -q -m commit1 )
+lhgbase=$( cd "$lhgup" && git rev-parse HEAD )
+
+cat > "$lhgup/.claude/settings.json" <<'EOF'
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/scripts/ghost-hook.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+( cd "$lhgup" && git add -A && git commit -q -m "commit2: settings.json names a hook script that does not exist" )
+
+( cd "$lhgup" && git archive "$lhgbase" ) | ( cd "$lhgfounder" && tar -x )
+(
+  cd "$lhgfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lhgup"
+)
+mkdir -p "$lhgfounder/.claude/scripts" "$lhgfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lhgfounder/.claude/scripts/"
+chmod +x "$lhgfounder/.claude/scripts/update.sh"
+install_json_valid_stub "$lhgfounder"
+printf '#!/bin/sh\nexit 0\n' > "$lhgfounder/.claude/tests/run.sh"
+chmod +x "$lhgfounder/.claude/tests/run.sh"
+( cd "$lhgfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lhg() { ( cd "$lhgfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lhg --detect-base >/dev/null
+lhg --set-base "$lhgbase" >/dev/null
+( cd "$lhgfounder" && git add -A && git commit -q -m "record the base version" )
+lhg --plan >/dev/null
+
+cat > "$lhgwork/decisions.tsv" <<EOF
+.claude/take-me.md	apply
+.claude/settings.json	apply
+EOF
+lhg_pre_head=$( cd "$lhgfounder" && git rev-parse HEAD )
+lhgout=$( ( cd "$lhgfounder" && sh .claude/scripts/update.sh --apply "$lhgwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "settings.json naming a missing hook script aborts before landing" has "$lhgout" 'result=aborted'
+check "and names hook-script as the failed check" has "$lhgout" 'failed=hook-script'
+check "HEAD never moved" match_eq "$( cd "$lhgfounder" && git rev-parse HEAD )" "$lhg_pre_head"
+
+rm -rf "$lhgwork"
+
+# --------------------------- founder-safety gate: missing safety machinery
+# run_checks_in used to FAIL OPEN whenever the machinery a safety note's own
+# gate depends on was simply absent: no .claude/tests/updates-checks.sh, no
+# .claude/settings.json, no json-valid.sh anywhere all silently skipped
+# their own check instead of refusing. A plan carrying a safety: true note
+# must never treat "nothing to check with" as "nothing to check" -- each
+# piece missing is its own named, fail-closed gate failure. Three progressive
+# applies against the same plan (nothing upstream or local changes between
+# them, so no need to --plan again): first with all three missing, then with
+# two of the three fixed, then with all three fixed and landing clean.
+
+lsmwork=${TMPDIR:-/tmp}/lh-update-safetymachinery-test.$$
+trap 'rm -rf "$lsmwork"' EXIT
+lsmup="$lsmwork/upstream"
+lsmfounder="$lsmwork/founder"
+mkdir -p "$lsmup" "$lsmfounder" || exit 1
+
+( cd "$lsmup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lsmup/.claude"
+printf '%s\n' "$lsmup" > "$lsmup/.claude/launchhouse-upstream"
+printf 'take v1\n' > "$lsmup/.claude/take-me.md"
+( cd "$lsmup" && git add -A && git commit -q -m commit1 )
+lsmbase=$( cd "$lsmup" && git rev-parse HEAD )
+
+printf 'take v2\n' > "$lsmup/.claude/take-me.md"
+mkdir -p "$lsmup/.claude/updates/2026-06-01"
+cat > "$lsmup/.claude/updates/2026-06-01/safety-gate-note.md" <<'EOF'
+---
+id: safety-gate-note
+title: A safety note, to prove the safety gate fails closed without its own machinery
+purpose: >
+  Test purpose text for the safety-gate-machinery fixture.
+touches:
+  - .claude/take-me.md
+adds: []
+requires: []
+safety: true
+done-when:
+  - "a sentence"
+check: none
+founder-data: false
+---
+
+## What changed and why
+
+Test note.
+EOF
+( cd "$lsmup" && git add -A && git commit -q -m "commit2: take-me.md v2, plus a safety note" )
+
+# --- the founder's copy: NO updates-checks.sh, NO settings.json, NO
+# json-valid.sh anywhere -- exactly the founder folder run_checks_in used to
+# wave a safety note through for.
+( cd "$lsmup" && git archive "$lsmbase" ) | ( cd "$lsmfounder" && tar -x )
+(
+  cd "$lsmfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lsmup"
+)
+mkdir -p "$lsmfounder/.claude/scripts" "$lsmfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lsmfounder/.claude/scripts/"
+chmod +x "$lsmfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lsmfounder/.claude/tests/run.sh"
+chmod +x "$lsmfounder/.claude/tests/run.sh"
+( cd "$lsmfounder" && git add -A && git commit -q -m "add the update engine under test, no safety machinery at all" )
+
+lsm() { ( cd "$lsmfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lsm --detect-base >/dev/null
+lsm --set-base "$lsmbase" >/dev/null
+( cd "$lsmfounder" && git add -A && git commit -q -m "record the base version" )
+lsm --plan >/dev/null
+
+cat > "$lsmwork/decisions.tsv" <<EOF
+.claude/take-me.md	apply
+.claude/updates/2026-06-01/safety-gate-note.md	apply
+EOF
+
+lsm_pre_head=$( cd "$lsmfounder" && git rev-parse HEAD )
+lsmout1=$( ( cd "$lsmfounder" && sh .claude/scripts/update.sh --apply "$lsmwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "safety machinery missing entirely: aborted, not applied" has "$lsmout1" 'result=aborted'
+check "and names safety-checks-missing" has "$lsmout1" 'failed=safety-checks-missing'
+check "and names settings-missing" has "$lsmout1" 'failed=settings-missing'
+check "and names validator-missing" has "$lsmout1" 'failed=validator-missing'
+check "HEAD never moved (attempt 1)" match_eq "$( cd "$lsmfounder" && git rev-parse HEAD )" "$lsm_pre_head"
+
+# --- fix two of the three: updates-checks.sh and json-valid.sh now exist,
+# settings.json still does not.
+printf '#!/bin/sh\nexit 0\n' > "$lsmfounder/.claude/tests/updates-checks.sh"
+chmod +x "$lsmfounder/.claude/tests/updates-checks.sh"
+install_json_valid_stub "$lsmfounder"
+( cd "$lsmfounder" && git add -A && git commit -q -m "founder gains updates-checks.sh and json-valid.sh, still no settings.json" )
+lsm --plan >/dev/null
+
+lsmout2=$( ( cd "$lsmfounder" && sh .claude/scripts/update.sh --apply "$lsmwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "only settings.json still missing: aborted" has "$lsmout2" 'result=aborted'
+check "and names only settings-missing" has "$lsmout2" 'failed=settings-missing'
+check "and no longer names safety-checks-missing" hasnt "$lsmout2" 'failed=safety-checks-missing'
+check "and no longer names validator-missing" hasnt "$lsmout2" 'failed=validator-missing'
+
+# --- fix the last one: settings.json now exists too.
+printf '{ "ok": true }\n' > "$lsmfounder/.claude/settings.json"
+( cd "$lsmfounder" && git add -A && git commit -q -m "founder adds settings.json too, safety machinery now complete" )
+lsm --plan >/dev/null
+
+lsmout3=$( ( cd "$lsmfounder" && sh .claude/scripts/update.sh --apply "$lsmwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "all three present: the update applies cleanly" has "$lsmout3" 'result=applied'
+
+rm -rf "$lsmwork"
+
+# ---------------------------------------------- HOLD BACK a failing note
+# A non-safety note's own check failing must never abort the whole apply:
+# its touched paths are reset back to the founder's own HEAD content,
+# everything else still lands, and the note is recorded in held.tsv so it
+# is offered again automatically on a later --plan (it never actually
+# became part of the founder's base, whatever upstream commit that base
+# now points at).
+
+lhbwork=${TMPDIR:-/tmp}/lh-update-holdback-test.$$
+trap 'rm -rf "$lhbwork"' EXIT
+lhbup="$lhbwork/upstream"
+lhbfounder="$lhbwork/founder"
+mkdir -p "$lhbup" "$lhbfounder" || exit 1
+
+( cd "$lhbup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lhbup/.claude"
+printf '%s\n' "$lhbup" > "$lhbup/.claude/launchhouse-upstream"
+printf 'take v1\n' > "$lhbup/.claude/take-me.md"
+printf 'keep v1\n' > "$lhbup/.claude/keep-me.md"
+( cd "$lhbup" && git add -A && git commit -q -m commit1 )
+lhbbase=$( cd "$lhbup" && git rev-parse HEAD )
+
+printf 'take v2\n' > "$lhbup/.claude/take-me.md"
+mkdir -p "$lhbup/.claude/updates/2026-05-01"
+cat > "$lhbup/.claude/updates/2026-05-01/flaky-note.md" <<'EOF'
+---
+id: flaky-note
+title: An improvement whose own check never passes here
+purpose: >
+  Prove a failing non-safety note is held back instead of aborting
+  everything else.
+touches:
+  - .claude/take-me.md
+adds: []
+requires: []
+safety: false
+done-when:
+  - "never, on purpose"
+check: flaky-note.check.sh
+founder-data: false
+---
+
+## What changed and why
+
+Flaky note, held back on this founder's copy.
+EOF
+printf '#!/bin/sh\nexit 1\n' > "$lhbup/.claude/updates/2026-05-01/flaky-note.check.sh"
+( cd "$lhbup" && git add -A && git commit -q -m "commit2: take-me.md v2, plus a flaky note" )
+lhbhead2=$( cd "$lhbup" && git rev-parse HEAD )
+
+( cd "$lhbup" && git archive "$lhbbase" ) | ( cd "$lhbfounder" && tar -x )
+(
+  cd "$lhbfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lhbup"
+)
+mkdir -p "$lhbfounder/.claude/scripts" "$lhbfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lhbfounder/.claude/scripts/"
+chmod +x "$lhbfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lhbfounder/.claude/tests/run.sh"
+chmod +x "$lhbfounder/.claude/tests/run.sh"
+( cd "$lhbfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lhb() { ( cd "$lhbfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lhb --detect-base >/dev/null
+lhb --set-base "$lhbbase" >/dev/null
+( cd "$lhbfounder" && git add -A && git commit -q -m "record the base version" )
+lhb --plan >/dev/null
+
+lhbheldtsv="$lhbfounder/.git/launchhouse/update/held.tsv"
+check "held.tsv does not exist yet, before any apply" test ! -f "$lhbheldtsv"
+
+cat > "$lhbwork/decisions.tsv" <<EOF
+.claude/take-me.md	apply
+.claude/updates/2026-05-01/flaky-note.md	apply
+.claude/updates/2026-05-01/flaky-note.check.sh	apply
+EOF
+lhbout=$( ( cd "$lhbfounder" && sh .claude/scripts/update.sh --apply "$lhbwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "the update still lands overall, despite the flaky note" has "$lhbout" 'result=applied'
+check "and names the held note" has "$lhbout" 'held=flaky-note'
+check "take-me.md is reset back to the founder's own pre-update content" \
+  match_eq "$(cat "$lhbfounder/.claude/take-me.md" 2>/dev/null)" "take v1"
+check "the note's own file still landed (it is Launchhouse-owned, always taken)" \
+  has "$(cat "$lhbfounder/.claude/updates/2026-05-01/flaky-note.md" 2>/dev/null)" 'flaky-note'
+check "held.tsv now records the note" has "$(cat "$lhbheldtsv" 2>/dev/null)" 'flaky-note'
+check "launchhouse-version still advances to the new upstream head" \
+  has "$(cat "$lhbfounder/.claude/launchhouse-version" 2>/dev/null)" "$lhbhead2"
+
+# --- offered again automatically: even though the base has now moved past
+# the release that introduced flaky-note (so ordinary "new since base"
+# presence would never list it again), held.tsv brings it back.
+lhb --plan >/dev/null
+lhbnotestsv2="$lhbfounder/.git/launchhouse/update/notes.tsv"
+check "a held note is offered again on the very next plan" \
+  has "$(cat "$lhbnotestsv2" 2>/dev/null)" 'flaky-note'
+
+rm -rf "$lhbwork"
+
+# --------------------------------------- a held note's path can be reapplied
+# held.tsv used to record only id<TAB>plain reason: --plan always re-offered
+# the note itself (proven above), but its TOUCHED PATH was classified
+# against today's basecommit, which has already advanced past the release
+# that shipped the note -- comparing the founder's own (reverted) file
+# against that same commit reads as a harmless local-only edit ("keep"),
+# and a "keep"-classified row's own "apply" decision is a no-op (see
+# cmd_apply's per-row loop: `keep) : ;;`), so the path could never actually
+# be reapplied again, no matter what the founder decided. held.tsv's third
+# column (the base this note was held against) fixes this: the next --plan
+# classifies the path against THAT base instead, so it comes back as a real
+# "take" row and an "apply" decision on it actually lands.
+
+lrbwork=${TMPDIR:-/tmp}/lh-update-reoffered-test.$$
+trap 'rm -rf "$lrbwork"' EXIT
+lrbup="$lrbwork/upstream"
+lrbfounder="$lrbwork/founder"
+mkdir -p "$lrbup" "$lrbfounder" || exit 1
+
+( cd "$lrbup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lrbup/.claude"
+printf '%s\n' "$lrbup" > "$lrbup/.claude/launchhouse-upstream"
+printf 'take v1\n' > "$lrbup/.claude/take-me.md"
+( cd "$lrbup" && git add -A && git commit -q -m commit1 )
+lrbbase=$( cd "$lrbup" && git rev-parse HEAD )
+
+printf 'take v2\n' > "$lrbup/.claude/take-me.md"
+mkdir -p "$lrbup/.claude/updates/2026-07-01"
+cat > "$lrbup/.claude/updates/2026-07-01/retry-note.md" <<'EOF'
+---
+id: retry-note
+title: An improvement whose check depends on something only the founder can fix
+purpose: >
+  Prove a held note's own touched path is reclassified and actually
+  reapplied once its check passes, not stuck forever as a local-only edit.
+touches:
+  - .claude/take-me.md
+adds: []
+requires: []
+safety: false
+done-when:
+  - "never, on purpose"
+check: retry-note.check.sh
+founder-data: false
+---
+
+## What changed and why
+
+Retry note, held back once, then reapplied.
+EOF
+# Fails until a marker the note's own check looks for exists in the
+# worktree -- standing in for whatever real-world condition a founder-side
+# fix would satisfy (never upstream moving, which the fixture must not do).
+printf '#!/bin/sh\ntest -f .claude/.retry-ok\n' > "$lrbup/.claude/updates/2026-07-01/retry-note.check.sh"
+( cd "$lrbup" && git add -A && git commit -q -m "commit2: take-me.md v2, plus a retry note" )
+lrbhead2=$( cd "$lrbup" && git rev-parse HEAD )
+
+( cd "$lrbup" && git archive "$lrbbase" ) | ( cd "$lrbfounder" && tar -x )
+(
+  cd "$lrbfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lrbup"
+)
+mkdir -p "$lrbfounder/.claude/scripts" "$lrbfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lrbfounder/.claude/scripts/"
+chmod +x "$lrbfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lrbfounder/.claude/tests/run.sh"
+chmod +x "$lrbfounder/.claude/tests/run.sh"
+( cd "$lrbfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lrb() { ( cd "$lrbfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lrb --detect-base >/dev/null
+lrb --set-base "$lrbbase" >/dev/null
+( cd "$lrbfounder" && git add -A && git commit -q -m "record the base version" )
+lrb --plan >/dev/null
+
+cat > "$lrbwork/decisions.tsv" <<EOF
+.claude/take-me.md	apply
+.claude/updates/2026-07-01/retry-note.md	apply
+.claude/updates/2026-07-01/retry-note.check.sh	apply
+EOF
+lrbout1=$( ( cd "$lrbfounder" && sh .claude/scripts/update.sh --apply "$lrbwork/decisions.tsv" < /dev/null ) 2>&1 )
+check "round 1: the update still lands, the retry note held back" has "$lrbout1" 'result=applied'
+check "round 1: names the held note" has "$lrbout1" 'held=retry-note'
+check "round 1: take-me.md reset back to the founder's own pre-update content" \
+  match_eq "$(cat "$lrbfounder/.claude/take-me.md" 2>/dev/null)" "take v1"
+
+lrbheldtsv="$lrbfounder/.git/launchhouse/update/held.tsv"
+check "round 1: held.tsv records a base-sha as its third column" \
+  has "$(awk -F '\t' '$1 == "retry-note" { print $3 }' "$lrbheldtsv" 2>/dev/null)" "$lrbbase"
+
+# --- the founder satisfies the note's own check (never upstream moving).
+: > "$lrbfounder/.claude/.retry-ok"
+( cd "$lrbfounder" && git add -A && git commit -q -m "founder satisfies the retry note's own check" )
+
+lrb --plan >/dev/null
+lrbplantsv2="$lrbfounder/.git/launchhouse/update/plan.tsv"
+lrbrow2() { grep -F "$(printf '%s\t' "$1")" "$lrbplantsv2"; }
+check "round 2: take-me.md is classified take again, not stuck as a local-only keep" \
+  has "$(lrbrow2 .claude/take-me.md)" 'take'
+check "round 2: and never keep" hasnt "$(lrbrow2 .claude/take-me.md)" '	keep	'
+
+cat > "$lrbwork/decisions2.tsv" <<EOF
+.claude/take-me.md	apply
+.claude/updates/2026-07-01/retry-note.md	apply
+.claude/updates/2026-07-01/retry-note.check.sh	apply
+EOF
+lrbout2=$( ( cd "$lrbfounder" && sh .claude/scripts/update.sh --apply "$lrbwork/decisions2.tsv" < /dev/null ) 2>&1 )
+check "round 2: the update applies cleanly, nothing held this time" has "$lrbout2" 'result=applied'
+check "round 2: and no note is reported held" hasnt "$lrbout2" '^held='
+check "round 2: take-me.md's change actually lands this time" \
+  match_eq "$(cat "$lrbfounder/.claude/take-me.md" 2>/dev/null)" "take v2"
+check "round 2: the resolved note comes off held.tsv" \
+  hasnt "$(cat "$lrbheldtsv" 2>/dev/null)" 'retry-note'
+
+rm -rf "$lrbwork"
+
+# ------------------------------------- hold-back restores a pack SOURCE too
+# A held note's touched path can be a skill pack's own SOURCE file (never
+# the compiled/installed copy, which is its own "generated" class and was
+# never held-back-able as a class to begin with). Restoring the source back
+# to the founder's pre-update content, on its own, used to leave the
+# already-staged compiled/installed copy stale -- built from the upstream
+# source that was just reverted away. This fixture proves the installed
+# copy is recompiled and reinstalled from the restored source, not left
+# mismatched against it.
+
+lghwork=${TMPDIR:-/tmp}/lh-update-genholdback-test.$$
+trap 'rm -rf "$lghwork"' EXIT
+lghup="$lghwork/upstream"
+lghfounder="$lghwork/founder"
+mkdir -p "$lghup" "$lghfounder" || exit 1
+
+( cd "$lghup" && git init -q && git config user.name Up && git config user.email up@example.com )
+
+lghwrite() { # relative path, content
+  mkdir -p "$lghup/$(dirname "$1")"
+  printf '%s\n' "$2" > "$lghup/$1"
+}
+
+# --- commit 1: the pack already exists and is already installed -- this is
+# the founder's own starting point, not something this update introduces.
+lghwrite .claude/launchhouse-upstream "$lghup"
+lghwrite .claude/skill-packs/registry.tsv "id	name	kind	suffix_regex	tracks	origin
+gen	Gen	tool	^gen_	both	template"
+lghwrite .claude/skill-packs/gen/pack.md "---
+id: gen
+name: Gen
+kind: tool
+skills: [gen-expert]
+agents: []
+scripts: []
+connectors: [gen]
+vendor_url: https://example.invalid
+tracks: both
+jobs: [gen]
+job_skills: []
+specialist: none
+expert_skill: gen-expert
+inventory_source: documented
+verified_on: 2026-09-22
+origin: template
+---
+
+Fixture pack for the generated-hold-back test only."
+lghwrite .claude/skill-packs/gen/skills/gen-expert/SKILL.md "---
+name: gen-expert
+description: A demo pack skill, for the generated-hold-back test only.
+---
+
+Body v1."
+lghwrite .claude/skills/gen-expert/SKILL.md "---
+name: gen-expert
+description: A demo pack skill, for the generated-hold-back test only.
+---
+<!-- Installed from .claude/skill-packs/gen/skills/gen-expert/SKILL.md. Edit the pack's copy, not this one; Launchhouse re-installs it. -->
+
+Body v1."
+( cd "$lghup" && git add -A && git commit -q -m commit1 )
+lghbase=$( cd "$lghup" && git rev-parse HEAD )
+
+# --- commit 2: upstream changes the pack source's body, and ships a
+# non-safety note (its check always fails, standing in for whatever real
+# check would catch a bad pack change) that touches the pack SOURCE path,
+# never the installed copy.
+lghwrite .claude/skill-packs/gen/skills/gen-expert/SKILL.md "---
+name: gen-expert
+description: A demo pack skill, for the generated-hold-back test only.
+---
+
+Body v2-upstream."
+mkdir -p "$lghup/.claude/updates/2026-08-01"
+cat > "$lghup/.claude/updates/2026-08-01/gen-note.md" <<'EOF'
+---
+id: gen-note
+title: A pack-source change whose own check never passes here
+purpose: >
+  Prove a held note touching a pack SOURCE file gets the compiled/installed
+  copy recompiled from the restored source, not left stale against it.
+touches:
+  - .claude/skill-packs/gen/skills/gen-expert/SKILL.md
+adds: []
+requires: []
+safety: false
+done-when:
+  - "never, on purpose"
+check: gen-note.check.sh
+founder-data: false
+---
+
+## What changed and why
+
+Test note, held back on this founder's copy.
+EOF
+printf '#!/bin/sh\nexit 1\n' > "$lghup/.claude/updates/2026-08-01/gen-note.check.sh"
+( cd "$lghup" && git add -A && git commit -q -m "commit2: pack source v2, plus a note that never passes" )
+
+# --- the founder's copy: from commit1, already carrying the pack installed.
+( cd "$lghup" && git archive "$lghbase" ) | ( cd "$lghfounder" && tar -x )
+(
+  cd "$lghfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lghup"
+)
+mkdir -p "$lghfounder/.claude/scripts" "$lghfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$scripts/skill-packs.sh" "$lghfounder/.claude/scripts/"
+chmod +x "$lghfounder/.claude/scripts/update.sh" "$lghfounder/.claude/scripts/skill-packs.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lghfounder/.claude/tests/run.sh"
+chmod +x "$lghfounder/.claude/tests/run.sh"
+( cd "$lghfounder" && git add -A && git commit -q -m "add the update engine and skill-packs.sh under test" )
+
+lgh() { ( cd "$lghfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lgh --detect-base >/dev/null
+lgh --set-base "$lghbase" >/dev/null
+( cd "$lghfounder" && git add -A && git commit -q -m "record the base version" )
+lgh --plan >/dev/null
+
+cat > "$lghwork/decisions.tsv" <<EOF
+.claude/skill-packs/gen/skills/gen-expert/SKILL.md	apply
+.claude/updates/2026-08-01/gen-note.md	apply
+.claude/updates/2026-08-01/gen-note.check.sh	apply
+EOF
+lghout=$( ( cd "$lghfounder" && sh .claude/scripts/update.sh --apply "$lghwork/decisions.tsv" --allow-no-checks < /dev/null ) 2>&1 )
+check "the update still lands, the pack-source note held back" has "$lghout" 'result=applied'
+check "and names the held note" has "$lghout" 'held=gen-note'
+check "the pack SOURCE is reset back to the founder's own pre-update body" \
+  has "$(cat "$lghfounder/.claude/skill-packs/gen/skills/gen-expert/SKILL.md" 2>/dev/null)" 'Body v1.'
+check "the pack source never carries the held upstream body" \
+  hasnt "$(cat "$lghfounder/.claude/skill-packs/gen/skills/gen-expert/SKILL.md" 2>/dev/null)" 'Body v2-upstream.'
+check "the installed copy was recompiled from the restored source, not left stale at v2" \
+  has "$(cat "$lghfounder/.claude/skills/gen-expert/SKILL.md" 2>/dev/null)" 'Body v1.'
+check "and the installed copy never carries the held upstream body either" \
+  hasnt "$(cat "$lghfounder/.claude/skills/gen-expert/SKILL.md" 2>/dev/null)" 'Body v2-upstream.'
+check "the installed copy still carries its own install marker" \
+  has "$(cat "$lghfounder/.claude/skills/gen-expert/SKILL.md" 2>/dev/null)" 'Installed from .claude/skill-packs/gen/skills/gen-expert/SKILL.md'
+
+rm -rf "$lghwork"
+
+# ---------------------------------- generated paths are reported as changed
+# The compiled/installed outputs skill-packs.sh --compile/--install write in
+# the apply worktree never went through apply_take or apply_merged (the
+# per-row loop skips class "generated" on purpose), so $changed_paths --
+# what an apply actually reports as touched, and what hold-back may later
+# need to restore -- used to never include them at all. Reuses the
+# already-proven "generated skill/agent paths" fixture above purely to check
+# its own apply's reported output, not to rebuild the pack again --
+# specifically the FIRST apply there (decisions-hold.tsv), the one that
+# actually creates .claude/skills/demo-expert/SKILL.md for the first time
+# (the second apply, decisions-take.tsv, only resolves the unrelated
+# demo-specialist.md conflict -- the skill file was already installed and
+# unchanged by then, so it would report nothing new either way).
+check "the apply's own report of changed paths includes the regenerated skill file" \
+  has "$lugiholdout" '.claude/skills/demo-expert/SKILL.md'
+
+# ------------------------------- held note's own base used for adapt/base
+# process_path classifies a held note's touched path against the note's OWN
+# recorded base (via held_base_for_path / .heldbase.tsv), not the plan-wide
+# $basecommit -- but write_adapt_row used to always save adapt/base/<path>
+# from the plan-wide $basecommit regardless. For a held path that ends up a
+# real conflict (the founder has since edited it too), that left the
+# founder-facing adapter comparing against upstream's OWN content as "base",
+# so it would see no upstream change to apply at all. Fixture: hold a note,
+# have the founder edit the touched path themselves (a real, independent
+# edit, not the note's own proposed change), re-plan, and check that
+# adapt/base/<path> holds the file at the ORIGINAL held base, never at the
+# new $basecommit (which, by the time the note is held, already contains
+# the very upstream content the note is trying to introduce).
+
+loabwork=${TMPDIR:-/tmp}/lh-update-adaptbase-test.$$
+trap 'rm -rf "$loabwork"' EXIT
+loabup="$loabwork/upstream"
+loabfounder="$loabwork/founder"
+mkdir -p "$loabup" "$loabfounder" || exit 1
+
+( cd "$loabup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$loabup/.claude"
+printf '%s\n' "$loabup" > "$loabup/.claude/launchhouse-upstream"
+printf 'base v1\n' > "$loabup/.claude/held-path.md"
+( cd "$loabup" && git add -A && git commit -q -m commit1 )
+loabbase=$( cd "$loabup" && git rev-parse HEAD )
+
+printf 'upstream v2\n' > "$loabup/.claude/held-path.md"
+mkdir -p "$loabup/.claude/updates/2026-09-01"
+cat > "$loabup/.claude/updates/2026-09-01/adaptbase-note.md" <<'EOF'
+---
+id: adaptbase-note
+title: An improvement whose own check never passes here
+purpose: >
+  Prove a held note's touched path is saved to adapt/base against its own
+  recorded base, not the plan-wide basecommit.
+touches:
+  - .claude/held-path.md
+adds: []
+requires: []
+safety: false
+done-when:
+  - "never, on purpose"
+check: adaptbase-note.check.sh
+founder-data: false
+---
+
+## What changed and why
+
+Held note, used only to prove adapt/base uses the right base.
+EOF
+printf '#!/bin/sh\nexit 1\n' > "$loabup/.claude/updates/2026-09-01/adaptbase-note.check.sh"
+( cd "$loabup" && git add -A && git commit -q -m "commit2: held-path.md v2, plus adaptbase-note" )
+
+( cd "$loabup" && git archive "$loabbase" ) | ( cd "$loabfounder" && tar -x )
+(
+  cd "$loabfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$loabup"
+)
+mkdir -p "$loabfounder/.claude/scripts" "$loabfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$loabfounder/.claude/scripts/"
+chmod +x "$loabfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$loabfounder/.claude/tests/run.sh"
+chmod +x "$loabfounder/.claude/tests/run.sh"
+( cd "$loabfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+loab() { ( cd "$loabfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+loab --detect-base >/dev/null
+loab --set-base "$loabbase" >/dev/null
+( cd "$loabfounder" && git add -A && git commit -q -m "record the base version" )
+loab --plan >/dev/null
+
+cat > "$loabwork/decisions1.tsv" <<EOF
+.claude/held-path.md	apply
+.claude/updates/2026-09-01/adaptbase-note.md	apply
+.claude/updates/2026-09-01/adaptbase-note.check.sh	apply
+EOF
+loabout1=$( ( cd "$loabfounder" && sh .claude/scripts/update.sh --apply "$loabwork/decisions1.tsv" < /dev/null ) 2>&1 )
+check "round 1: the update lands, adaptbase-note held back" has "$loabout1" 'result=applied'
+check "round 1: names the held note" has "$loabout1" 'held=adaptbase-note'
+check "round 1: held-path.md reset back to the founder's own pre-update content" \
+  match_eq "$(cat "$loabfounder/.claude/held-path.md" 2>/dev/null)" "base v1"
+
+# --- the founder now makes their OWN, independent edit to the held path
+# (never the note's own proposed content) so the next plan finds a real
+# conflict there.
+printf 'founder edit\n' > "$loabfounder/.claude/held-path.md"
+( cd "$loabfounder" && git add -A && git commit -q -m "founder edits the held path themselves" )
+
+loab --plan >/dev/null
+loabplantsv2="$loabfounder/.git/launchhouse/update/plan.tsv"
+check "round 2: held-path.md is now classified a real conflict" \
+  has "$(grep '^\.claude/held-path\.md	' "$loabplantsv2" 2>/dev/null)" 'conflict'
+
+loabadapttsv="$loabfounder/.git/launchhouse/update/adapt.tsv"
+loabrow=$(grep '^\.claude/held-path\.md	' "$loabadapttsv")
+loabbasefield=$(printf '%s' "$loabrow" | awk -F '\t' '{print $3}')
+check "round 2: adapt.tsv holds a base-copy field for held-path.md" \
+  test -n "$loabbasefield"
+check "round 2: adapt/base/<path> is a real saved file" \
+  test -f "$loabfounder/.git/launchhouse/update/$loabbasefield"
+check "round 2: adapt/base/<path> holds the ORIGINAL held base's content, never today's basecommit" \
+  match_eq "$(cat "$loabfounder/.git/launchhouse/update/$loabbasefield" 2>/dev/null)" "base v1"
+check "round 2: adapt/base/<path> never holds upstream's own content (the plan-wide basecommit bug)" \
+  hasnt "$(cat "$loabfounder/.git/launchhouse/update/$loabbasefield" 2>/dev/null)" 'upstream v2'
+
+rm -rf "$loabwork"
+
+# ------------------------- a standing held note is resolved once it lands
+# held.tsv rows used to be removed only when hold_back_failing_notes itself
+# tests a note's own check and it passes -- which only ever happens for a
+# note that both HAS a check file and touches a path this apply actually
+# changed. A note is never tested by hold_back_failing_notes at all once,
+# upstream, its own check requirement is removed -- but its held.tsv row
+# has to come off once its touched path genuinely lands, whether or not it
+# was ever re-tested. Fixture (a): the note's check requirement is dropped
+# upstream, and upstream also moves the touched path further -- the path is
+# taken for real this apply (a genuine changed path), so the standing held
+# row must resolve even though hold_back_failing_notes's own candidate loop
+# (it requires a check file) never even looks at this note.
+
+llawork=${TMPDIR:-/tmp}/lh-update-landed-test.$$
+trap 'rm -rf "$llawork"' EXIT
+llaup="$llawork/upstream"
+llafounder="$llawork/founder"
+mkdir -p "$llaup" "$llafounder" || exit 1
+
+( cd "$llaup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$llaup/.claude"
+printf '%s\n' "$llaup" > "$llaup/.claude/launchhouse-upstream"
+printf 'v1\n' > "$llaup/.claude/landed-path.md"
+( cd "$llaup" && git add -A && git commit -q -m commit1 )
+llabase=$( cd "$llaup" && git rev-parse HEAD )
+
+printf 'v2\n' > "$llaup/.claude/landed-path.md"
+mkdir -p "$llaup/.claude/updates/2026-09-02"
+cat > "$llaup/.claude/updates/2026-09-02/landed-note.md" <<'EOF'
+---
+id: landed-note
+title: An improvement whose own check never passes here
+purpose: >
+  Prove a standing held note is resolved once its touched path actually
+  lands, even though it is never retested.
+touches:
+  - .claude/landed-path.md
+adds: []
+requires: []
+safety: false
+done-when:
+  - "never, on purpose"
+check: landed-note.check.sh
+founder-data: false
+---
+
+## What changed and why
+
+Held note, used only to prove a landed path resolves it.
+EOF
+printf '#!/bin/sh\nexit 1\n' > "$llaup/.claude/updates/2026-09-02/landed-note.check.sh"
+( cd "$llaup" && git add -A && git commit -q -m "commit2: landed-path.md v2, plus landed-note" )
+
+( cd "$llaup" && git archive "$llabase" ) | ( cd "$llafounder" && tar -x )
+(
+  cd "$llafounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$llaup"
+)
+mkdir -p "$llafounder/.claude/scripts" "$llafounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$llafounder/.claude/scripts/"
+chmod +x "$llafounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$llafounder/.claude/tests/run.sh"
+chmod +x "$llafounder/.claude/tests/run.sh"
+( cd "$llafounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lla() { ( cd "$llafounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lla --detect-base >/dev/null
+lla --set-base "$llabase" >/dev/null
+( cd "$llafounder" && git add -A && git commit -q -m "record the base version" )
+lla --plan >/dev/null
+
+cat > "$llawork/decisions1.tsv" <<EOF
+.claude/landed-path.md	apply
+.claude/updates/2026-09-02/landed-note.md	apply
+.claude/updates/2026-09-02/landed-note.check.sh	apply
+EOF
+llaout1=$( ( cd "$llafounder" && sh .claude/scripts/update.sh --apply "$llawork/decisions1.tsv" < /dev/null ) 2>&1 )
+check "landed fixture round 1: the update lands, landed-note held back" has "$llaout1" 'result=applied'
+check "landed fixture round 1: names the held note" has "$llaout1" 'held=landed-note'
+
+llaheldtsv="$llafounder/.git/launchhouse/update/held.tsv"
+check "landed fixture round 1: held.tsv records landed-note" \
+  has "$(cat "$llaheldtsv" 2>/dev/null)" 'landed-note'
+
+# --- upstream drops the note's own check requirement AND moves the touched
+# path further, in the same release.
+printf 'v3\n' > "$llaup/.claude/landed-path.md"
+sed -i.bak 's/^check: landed-note.check.sh$/check: none/' "$llaup/.claude/updates/2026-09-02/landed-note.md"
+rm -f "$llaup/.claude/updates/2026-09-02/landed-note.md.bak"
+rm -f "$llaup/.claude/updates/2026-09-02/landed-note.check.sh"
+( cd "$llaup" && git add -A && git commit -q -m "commit3: drop landed-note's own check, and move landed-path.md to v3" )
+
+lla --plan >/dev/null
+
+cat > "$llawork/decisions2.tsv" <<EOF
+.claude/landed-path.md	apply
+.claude/updates/2026-09-02/landed-note.md	apply
+EOF
+llaout2=$( ( cd "$llafounder" && sh .claude/scripts/update.sh --apply "$llawork/decisions2.tsv" < /dev/null ) 2>&1 )
+check "landed fixture round 2: the update applies cleanly" has "$llaout2" 'result=applied'
+check "landed fixture round 2: no note reported held this round" hasnt "$llaout2" '^held='
+check "landed fixture round 2: landed-path.md actually landed at v3" \
+  match_eq "$(cat "$llafounder/.claude/landed-path.md" 2>/dev/null)" "v3"
+check "landed fixture round 2: the standing held row resolves even though the note was never retested" \
+  hasnt "$(cat "$llaheldtsv" 2>/dev/null)" 'landed-note'
+
+rm -rf "$llawork"
+
+# ---------------- a checkless standing held note resolves once it matches
+# Fixture (b): the note's own check requirement is dropped upstream, and its
+# touched path never actually changes in this apply (the founder happens to
+# already hold, independently, the exact content upstream now ships) -- so
+# the path never appears in $changed_paths at all, and hold_back_failing_notes
+# never even considers this note (no check file). The standing held row must
+# still resolve, because every one of its touched paths already matches
+# upstream.
+
+lckwork=${TMPDIR:-/tmp}/lh-update-checkless-test.$$
+trap 'rm -rf "$lckwork"' EXIT
+lckup="$lckwork/upstream"
+lckfounder="$lckwork/founder"
+mkdir -p "$lckup" "$lckfounder" || exit 1
+
+( cd "$lckup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lckup/.claude"
+printf '%s\n' "$lckup" > "$lckup/.claude/launchhouse-upstream"
+printf 'v1\n' > "$lckup/.claude/checkless-path.md"
+( cd "$lckup" && git add -A && git commit -q -m commit1 )
+lckbase=$( cd "$lckup" && git rev-parse HEAD )
+
+printf 'v2\n' > "$lckup/.claude/checkless-path.md"
+mkdir -p "$lckup/.claude/updates/2026-09-03"
+cat > "$lckup/.claude/updates/2026-09-03/checkless-note.md" <<'EOF'
+---
+id: checkless-note
+title: An improvement whose own check never passes here
+purpose: >
+  Prove a standing held note with no check file is resolved once every
+  touched path already matches upstream, even though it never re-enters
+  $changed_paths.
+touches:
+  - .claude/checkless-path.md
+adds: []
+requires: []
+safety: false
+done-when:
+  - "never, on purpose"
+check: checkless-note.check.sh
+founder-data: false
+---
+
+## What changed and why
+
+Held note, used only to prove a checkless-and-matching path resolves it.
+EOF
+printf '#!/bin/sh\nexit 1\n' > "$lckup/.claude/updates/2026-09-03/checkless-note.check.sh"
+( cd "$lckup" && git add -A && git commit -q -m "commit2: checkless-path.md v2, plus checkless-note" )
+
+( cd "$lckup" && git archive "$lckbase" ) | ( cd "$lckfounder" && tar -x )
+(
+  cd "$lckfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lckup"
+)
+mkdir -p "$lckfounder/.claude/scripts" "$lckfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lckfounder/.claude/scripts/"
+chmod +x "$lckfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lckfounder/.claude/tests/run.sh"
+chmod +x "$lckfounder/.claude/tests/run.sh"
+( cd "$lckfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lck() { ( cd "$lckfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lck --detect-base >/dev/null
+lck --set-base "$lckbase" >/dev/null
+( cd "$lckfounder" && git add -A && git commit -q -m "record the base version" )
+lck --plan >/dev/null
+
+cat > "$lckwork/decisions1.tsv" <<EOF
+.claude/checkless-path.md	apply
+.claude/updates/2026-09-03/checkless-note.md	apply
+.claude/updates/2026-09-03/checkless-note.check.sh	apply
+EOF
+lckout1=$( ( cd "$lckfounder" && sh .claude/scripts/update.sh --apply "$lckwork/decisions1.tsv" < /dev/null ) 2>&1 )
+check "checkless fixture round 1: the update lands, checkless-note held back" has "$lckout1" 'result=applied'
+check "checkless fixture round 1: names the held note" has "$lckout1" 'held=checkless-note'
+check "checkless fixture round 1: checkless-path.md reset back to the founder's own pre-update content" \
+  match_eq "$(cat "$lckfounder/.claude/checkless-path.md" 2>/dev/null)" "v1"
+
+# --- the founder independently edits the held path to match what upstream
+# already ships (never through update.sh), and upstream, separately, drops
+# the note's own check requirement, without moving the path any further.
+printf 'v2\n' > "$lckfounder/.claude/checkless-path.md"
+( cd "$lckfounder" && git add -A && git commit -q -m "founder happens to make the same edit upstream already ships" )
+sed -i.bak 's/^check: checkless-note.check.sh$/check: none/' "$lckup/.claude/updates/2026-09-03/checkless-note.md"
+rm -f "$lckup/.claude/updates/2026-09-03/checkless-note.md.bak"
+rm -f "$lckup/.claude/updates/2026-09-03/checkless-note.check.sh"
+( cd "$lckup" && git add -A && git commit -q -m "commit3: drop checkless-note's own check" )
+
+lck --plan >/dev/null
+lckplantsv2="$lckfounder/.git/launchhouse/update/plan.tsv"
+check "checkless fixture round 2: checkless-path.md is not held as a conflict (local and upstream now agree)" \
+  hasnt "$(grep '^\.claude/checkless-path\.md	' "$lckplantsv2" 2>/dev/null)" 'conflict'
+
+cat > "$lckwork/decisions2.tsv" <<EOF
+.claude/updates/2026-09-03/checkless-note.md	apply
+EOF
+lckout2=$( ( cd "$lckfounder" && sh .claude/scripts/update.sh --apply "$lckwork/decisions2.tsv" < /dev/null ) 2>&1 )
+check "checkless fixture round 2: the update applies cleanly" has "$lckout2" 'result=applied'
+check "checkless fixture round 2: no note reported held this round" hasnt "$lckout2" '^held='
+check "checkless fixture round 2: checkless-path.md is never touched this apply" \
+  hasnt "$lckout2" 'checkless-path.md'
+
+lckheldtsv="$lckfounder/.git/launchhouse/update/held.tsv"
+check "checkless fixture round 2: the standing held row still resolves, though its path never re-entered changed_paths" \
+  hasnt "$(cat "$lckheldtsv" 2>/dev/null)" 'checkless-note'
+
+rm -rf "$lckwork"
+
+# ------------------------- a re-held note keeps its ORIGINAL recorded base
+# A note held a SECOND time used to have its held.tsv row rewritten with
+# today's $basecommit -- which, by the second hold, already contains the
+# upstream content the note is trying to reintroduce (that is exactly why
+# it is being held again). That left its touched path classified "keep"
+# (an unremarkable local-only edit) against that base on the very next
+# plan, so a decision of "apply" on it would be a silent no-op forever.
+# Fixture: hold the same note twice in a row, then prove the third plan
+# still classifies its touched path "take" (never "keep"), and that it
+# actually applies once its own check finally passes.
+
+lrhwork=${TMPDIR:-/tmp}/lh-update-rehold-test.$$
+trap 'rm -rf "$lrhwork"' EXIT
+lrhup="$lrhwork/upstream"
+lrhfounder="$lrhwork/founder"
+mkdir -p "$lrhup" "$lrhfounder" || exit 1
+
+( cd "$lrhup" && git init -q && git config user.name Up && git config user.email up@example.com )
+mkdir -p "$lrhup/.claude"
+printf '%s\n' "$lrhup" > "$lrhup/.claude/launchhouse-upstream"
+printf 'v1\n' > "$lrhup/.claude/rehold-path.md"
+printf 'd1\n' > "$lrhup/.claude/dummy.md"
+( cd "$lrhup" && git add -A && git commit -q -m commit1 )
+lrhbase=$( cd "$lrhup" && git rev-parse HEAD )
+
+printf 'v2\n' > "$lrhup/.claude/rehold-path.md"
+printf 'd2\n' > "$lrhup/.claude/dummy.md"
+mkdir -p "$lrhup/.claude/updates/2026-09-04"
+cat > "$lrhup/.claude/updates/2026-09-04/rehold-note.md" <<'EOF'
+---
+id: rehold-note
+title: An improvement whose check depends on something only the founder can fix
+purpose: >
+  Prove a note held twice keeps its original recorded base, so its touched
+  path is never stuck reclassified "keep" on the third plan.
+touches:
+  - .claude/rehold-path.md
+adds: []
+requires: []
+safety: false
+done-when:
+  - "never, on purpose"
+check: rehold-note.check.sh
+founder-data: false
+---
+
+## What changed and why
+
+Rehold note, held back twice, then reapplied once its check passes.
+EOF
+# Fails until a marker the note's own check looks for exists in the
+# worktree, same device the retry-note fixture above uses.
+printf '#!/bin/sh\ntest -f .claude/.rehold-ok\n' > "$lrhup/.claude/updates/2026-09-04/rehold-note.check.sh"
+( cd "$lrhup" && git add -A && git commit -q -m "commit2: rehold-path.md v2, dummy.md v2, plus rehold-note" )
+
+( cd "$lrhup" && git archive "$lrhbase" ) | ( cd "$lrhfounder" && tar -x )
+(
+  cd "$lrhfounder" && git init -q && git config user.name Founder && git config user.email f@example.com &&
+  git add -A && git commit -q -m "Initial import from template" &&
+  git remote add upstream "$lrhup"
+)
+mkdir -p "$lrhfounder/.claude/scripts" "$lrhfounder/.claude/tests"
+cp "$scripts/update.sh" "$scripts/lib.sh" "$lrhfounder/.claude/scripts/"
+chmod +x "$lrhfounder/.claude/scripts/update.sh"
+printf '#!/bin/sh\nexit 0\n' > "$lrhfounder/.claude/tests/run.sh"
+chmod +x "$lrhfounder/.claude/tests/run.sh"
+( cd "$lrhfounder" && git add -A && git commit -q -m "add the update engine under test" )
+
+lrh() { ( cd "$lrhfounder" && sh .claude/scripts/update.sh "$@" < /dev/null ) 2>&1; }
+lrh --detect-base >/dev/null
+lrh --set-base "$lrhbase" >/dev/null
+( cd "$lrhfounder" && git add -A && git commit -q -m "record the base version" )
+lrh --plan >/dev/null
+
+cat > "$lrhwork/decisions1.tsv" <<EOF
+.claude/rehold-path.md	apply
+.claude/dummy.md	apply
+.claude/updates/2026-09-04/rehold-note.md	apply
+.claude/updates/2026-09-04/rehold-note.check.sh	apply
+EOF
+lrhout1=$( ( cd "$lrhfounder" && sh .claude/scripts/update.sh --apply "$lrhwork/decisions1.tsv" < /dev/null ) 2>&1 )
+check "rehold fixture round 1: the update lands, rehold-note held back" has "$lrhout1" 'result=applied'
+check "rehold fixture round 1: names the held note" has "$lrhout1" 'held=rehold-note'
+
+lrhheldtsv="$lrhfounder/.git/launchhouse/update/held.tsv"
+check "rehold fixture round 1: held.tsv records the original base" \
+  has "$(awk -F '\t' '$1 == "rehold-note" { print $3 }' "$lrhheldtsv" 2>/dev/null)" "$lrhbase"
+
+# --- round 2: upstream moves an unrelated file further (so this apply has
+# something real to land) but the note's own check still fails.
+printf 'd3\n' > "$lrhup/.claude/dummy.md"
+( cd "$lrhup" && git add -A && git commit -q -m "commit3: dummy.md v3 only" )
+
+lrh --plan >/dev/null
+
+cat > "$lrhwork/decisions2.tsv" <<EOF
+.claude/rehold-path.md	apply
+.claude/dummy.md	apply
+.claude/updates/2026-09-04/rehold-note.md	apply
+.claude/updates/2026-09-04/rehold-note.check.sh	apply
+EOF
+lrhout2=$( ( cd "$lrhfounder" && sh .claude/scripts/update.sh --apply "$lrhwork/decisions2.tsv" < /dev/null ) 2>&1 )
+check "rehold fixture round 2: the update lands again, rehold-note held back a second time" \
+  has "$lrhout2" 'result=applied'
+check "rehold fixture round 2: names the held note again" has "$lrhout2" 'held=rehold-note'
+check "rehold fixture round 2: held.tsv still records the ORIGINAL base, not today's" \
+  match_eq "$(awk -F '\t' '$1 == "rehold-note" { print $3 }' "$lrhheldtsv" 2>/dev/null)" "$lrhbase"
+
+# --- round 3: the founder satisfies the note's own check. The third plan
+# must classify rehold-path.md "take", never "keep".
+: > "$lrhfounder/.claude/.rehold-ok"
+( cd "$lrhfounder" && git add -A && git commit -q -m "founder satisfies rehold-note's own check" )
+
+lrh --plan >/dev/null
+lrhplantsv3="$lrhfounder/.git/launchhouse/update/plan.tsv"
+lrhrow3=$(grep '^\.claude/rehold-path\.md	' "$lrhplantsv3")
+check "rehold fixture round 3: rehold-path.md is classified take, not stuck as a local-only keep" \
+  has "$lrhrow3" 'take'
+check "rehold fixture round 3: and never keep" hasnt "$lrhrow3" '	keep	'
+
+cat > "$lrhwork/decisions3.tsv" <<EOF
+.claude/rehold-path.md	apply
+.claude/updates/2026-09-04/rehold-note.md	apply
+.claude/updates/2026-09-04/rehold-note.check.sh	apply
+EOF
+lrhout3=$( ( cd "$lrhfounder" && sh .claude/scripts/update.sh --apply "$lrhwork/decisions3.tsv" < /dev/null ) 2>&1 )
+check "rehold fixture round 3: the update applies cleanly, nothing held this time" has "$lrhout3" 'result=applied'
+check "rehold fixture round 3: no note reported held" hasnt "$lrhout3" '^held='
+check "rehold fixture round 3: rehold-path.md's change actually lands this time" \
+  match_eq "$(cat "$lrhfounder/.claude/rehold-path.md" 2>/dev/null)" "v2"
+check "rehold fixture round 3: the resolved note comes off held.tsv" \
+  hasnt "$(cat "$lrhheldtsv" 2>/dev/null)" 'rehold-note'
+
+rm -rf "$lrhwork"
 
 if [ "$fail" = 0 ]; then
   printf '\nAll update cases passed.\n'

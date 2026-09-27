@@ -7,6 +7,8 @@ description: Bring a founder's Launchhouse folder up to date with the latest sys
 
 Brings the system in `.claude/` up to date from the public Launchhouse original, while the founder's own `growth-engine/` folder is never touched, their own changes to the system are kept, and nothing changes unless every check passes.
 
+**The job.** Bring Launchhouse's improvements into this founder's own folder the way a careful engineer adopts features from another repository: understand each improvement's own purpose, fit it to what this founder already has, never harm their work, and never make them worry about internals.
+
 **Who is reading this.** A founder who does not use a terminal. Run every command yourself, from inside this skill. Talk about "the latest version" and "your changes", never commits, branches or diffs, unless they ask to see one.
 
 **Name their doubt first**, before step 1: an update can sound like it might wreck their work. Say plainly: their `growth-engine/` folder is never touched. Anything they changed in the system itself is kept, or brought forward with the improvement added on top, or held for them to choose. Nothing is applied unless every check passes. And it can be undone.
@@ -147,37 +149,42 @@ sh .claude/scripts/update.sh --apply <decisions.tsv path> < /dev/null
 
 Run this with the Bash tool's maximum timeout (600000 ms, ten minutes), never the default: it builds and tests in a scratch worktree, and that can run long on a slower computer. If it is cut off anyway, run the exact same `--apply` command again with the same decisions.tsv; the engine clears the leftover worktree from the cut-off run itself before it starts, so a retry is always safe, never "could not create a worktree".
 
-This tags a checkpoint, builds and tests in a scratch worktree, checks the improvements just applied actually hold, and only fast-forwards the live folder if every check passes. Read `result` from its output.
+This tags a checkpoint, then builds and tests in a scratch worktree. Only a founder-protecting check can stop the update before it lands; the full test suites run too, but only to write their own record to a log for maintainers, never to hold anything back on their own. Read `result` from its output.
 
 ## 10. Say what happened
 
-**`result=applied`:**
+There are exactly three outcomes to describe to the founder. Never more than these, and never in any other shape:
+
+- **Updated** — everything landed clean.
+- **Updated, with some improvements held back** — the update landed, but one or more ordinary improvements did not fit cleanly and were set aside for next time. Nothing is wrong with their folder.
+- **Stopped** — nothing changed in their folder.
+
+Never use words like "worktree", "checks failed", "abort", "revert", or "commit" with the founder. Never diagnose the maintainers' test suite for them, never read them a log, a check name, or a file path, and never ask them to copy, paste, or relay any technical text into Slack. If they do ask in the Slack channel, it is enough for them to say the update stopped; a maintainer can ask Claude (or, in a later session, look at the folder) for the log or tag, whose location Claude already knows from this run.
+
+**`result=applied`, no `held=` lines — Updated.**
 1. If a remote exists and it is not under `Philm-moxywolf` (the same check the save skill and start skill use), push: `git push origin < /dev/null`.
 2. Tell them, in plain words: quit the Claude app completely and open it again in this folder, so the new version loads.
-3. List what changed, in plain words, from `## What is new`.
+3. Say what they now have, in one or two plain lines drawn from the applied notes' own titles (not a technical changelog).
 4. Mention "undo the update" is there if anything looks wrong.
 5. If there were migrations they said yes to, do them now, by their named skill, and say what changed in the founder's own files when done.
 6. Then, always, run `sh .claude/scripts/update.sh --restore-settings-plan < /dev/null`.
    - **`restore=none`**: nothing further, stop here.
    - **`restore=found`**, with `path=` (always `.claude/settings.json`) and `from_tag=`: it has written a fresh `plan.tsv`, `notes.tsv` and `adapt.tsv` of their own, one held row for that path, the same shape a normal `--plan` writes. Say plainly: an earlier update had to take their settings as they stood then, and this brings back what they had changed since, on top of everything since applied. Offer it now as its own small update: go back to step 4, then step 5, then step 6, then step 8 (the new way; it always has a note for this row), then this step again. It never needs a further restore check of its own once it lands. If the founder says no to this offer, run `sh .claude/scripts/update.sh --restore-settings-decline < /dev/null` before moving on: this records the tag as resolved (declined) so it is never offered again, rather than leaving it pending forever.
 
-**`result=reverted`:**
-1. Say plainly, in one sentence: nothing changed, their files are back as they were before the update, and a record of what was tried stays in their saved history.
-2. Say why, in plain words, from `reason`.
-3. Tell them to post in the Slack channel, saying what they were trying to update and what this said, so someone can look at why the update itself did not hold up once it landed.
+**`result=applied`, with one or more `held=<note id>` lines — Updated, with some improvements held back.**
+1. Do steps 1, 2, 4, 5 and 6 above, exactly the same.
+2. In place of step 3 above, say plainly what they now have from the notes that did land, then name each held improvement by its note's own title (read from `<gitdir>/launchhouse/update/notes.tsv`; the plain reason in `<gitdir>/launchhouse/update/held.tsv` is for your own understanding, not to read aloud). For each one, say in plain words: it will be offered again on their next update, and nothing is wrong with their folder in the meantime.
 
-**`result=reverted-failed`:**
-1. Say plainly, in one sentence: nothing was supposed to change, but the automatic undo could not finish on its own, so a mentor needs to look at this folder directly.
-2. Give them the tag name from `pre_update_tag` in the output, and tell them to include it when they post in the Slack channel; a maintainer uses it to find exactly where the folder stands.
-3. Change nothing else: do not retry, do not run `--undo` yourself, do not touch `.claude/` or `growth-engine/` again this session.
-
-**`result=aborted`:**
-1. Say, in one sentence, that nothing changed.
-2. Say, in plain words, what failed (from the engine's own output; `unchanged=yes` confirms nothing moved).
-3. Two reasons need their own handling, not just "try again":
+**`result=aborted` — Stopped.**
+1. Say, in one sentence, that nothing changed in their folder (this is always true here: a founder-protecting check stopped the update before anything was touched, and `unchanged=yes` confirms it — the engine only ever aborts before touching anything, so `unchanged` is never `no` at this point).
+2. Say what happened, in one plain sentence, using only `reason=` — never the `failed=` check name(s) and never `log=`. Two reasons need their own handling, not just "try again":
    - **`reason=folder changed since the plan; plan again`**: something in the folder moved since step 3's plan was taken (their own save, another update attempt, anything). Say so in one plain sentence, then go back to step 3 and plan again.
    - **`reason=no checks to run`**: this copy has no checks of its own to prove the update is safe before it lands. Tell the founder plainly: there is nothing here to test the update against, so applying it is a little more trust than usual. Ask them, with AskUserQuestion, whether to go ahead anyway (recommended: no, wait and ask a mentor first) or apply without that safety net. Only on a clear yes, re-run step 9 with `--allow-no-checks` added after the decisions file path.
-4. For any other reason, offer to try again later, or say a mentor can help.
+3. For any other reason: say they can try again later, or ask in the Launchhouse Slack channel — nothing more to say than that the update stopped.
+
+**`result=reverted`** behaves the same as Stopped for the founder: say, in one sentence, that nothing changed and their files are back as they were before the update. Tell them they can try again later or ask in the Slack channel; do not ask them to relay `reason`, `pre_update_tag`, or anything else technical.
+
+**`result=reverted-failed`** is not the same, and must not be described the same way: the automatic undo itself did not finish cleanly, so there is no guarantee left about the state of the folder. Say plainly that the update could not finish and could not fully undo itself on its own, so they should pause Launchhouse work in this folder for now. Say their own work in `growth-engine/` is untouched either way, since an update never writes there. Ask them to say so in the Launchhouse Slack channel, so someone there can take a look — a mentor is welcome help if one is around, never a step they have to arrange themselves before asking. Keep the `pre_update_tag` value from this run yourself, for whoever answers in Slack; never ask the founder to relay it, or any other technical text. Change nothing else afterward: do not retry, do not run `--undo` yourself, do not touch `.claude/` or `growth-engine/` again this session.
 
 ## Undo the update
 

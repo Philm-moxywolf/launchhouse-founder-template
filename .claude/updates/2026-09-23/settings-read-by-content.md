@@ -17,9 +17,9 @@ founder-data: false
 
 ## What changed and why
 
-`setup-check.sh` used to look for `outputStyle` and the disabled
-`growth-engine` plugin switch in `.claude/settings.json` by grepping for an
-exact line shape -- a specific key/value spacing, a specific quoting. But
+`setup-check.sh` used to look for `outputStyle` in `.claude/settings.json`
+by grepping for an exact line shape -- a specific key/value spacing, a
+specific quoting. But
 Claude Code's own Settings screens, a founder's editor, or `jq -S` can
 re-serialize the same JSON (re-indent it, drop or add a space after a
 colon, reorder keys, write it as one compact line) without changing what it
@@ -33,8 +33,7 @@ actual content had changed.
 misread as flattened-but-empty) that walks any JSON file into
 `path<TAB>value` lines, one per leaf, regardless of indentation, key order,
 line endings, or whether it is one compact line or spread across hundreds.
-`setup-check.sh` now reads `/outputStyle` and
-`/enabledPlugins/growth-engine@launchhouse-v3` from that flattened output
+`setup-check.sh` now reads `/outputStyle` from that flattened output
 instead of grepping the raw file, and fails open (treats the setting as
 present) if the flattener is missing or the file will not parse at all --
 a genuinely broken `settings.json` is a separate, already-covered case, not
@@ -52,9 +51,6 @@ if [ -f "$flattener" ]; then
     printf '%s\n' "$settings_flat" | awk -F '\t' \
       '$1 == "/outputStyle" && $2 == "Launchhouse Guide" { found = 1 } END { exit !found }' \
       || ok_style=0
-    printf '%s\n' "$settings_flat" | awk -F '\t' \
-      '$1 == "/enabledPlugins/growth-engine@launchhouse-v3" && $2 == "false" { found = 1 } END { exit !found }' \
-      || ok_plugin=0
   fi
 fi
 ```

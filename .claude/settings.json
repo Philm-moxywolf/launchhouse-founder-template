@@ -70,9 +70,6 @@
   },
   "outputStyle": "Launchhouse Guide",
   "enabledMcpjsonServers": ["highlevel"],
-  "enabledPlugins": {
-    "growth-engine@launchhouse-v3": false
-  },
   "hooks": {
     "SessionStart": [
       {

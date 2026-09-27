@@ -44,7 +44,7 @@ tmp=$(mktemp "${TMPDIR:-/tmp}/lh-settings-content-check.XXXXXX") || {
 }
 trap 'rm -f "$tmp"' EXIT INT TERM
 
-printf '{"outputStyle":"Launchhouse Guide","enabledPlugins":{"growth-engine@launchhouse-v3":false}}' > "$tmp"
+printf '{"outputStyle":"Launchhouse Guide","enabledMcpjsonServers":["highlevel"]}' > "$tmp"
 
 out=$(sh "$flat" "$tmp" 2>&1)
 status=$?
@@ -53,8 +53,8 @@ if [ "$status" != 0 ]; then
 else
   printf '%s\n' "$out" | awk -F '\t' '$1 == "/outputStyle" && $2 == "Launchhouse Guide" { found = 1 } END { exit !found }' \
     || problem "json-flat.sh did not correctly read /outputStyle from a compact-form JSON file"
-  printf '%s\n' "$out" | awk -F '\t' '$1 == "/enabledPlugins/growth-engine@launchhouse-v3" && $2 == "false" { found = 1 } END { exit !found }' \
-    || problem "json-flat.sh did not correctly read the nested plugin-disable flag from a compact-form JSON file"
+  printf '%s\n' "$out" | awk -F '\t' '$1 == "/enabledMcpjsonServers/0" && $2 == "highlevel" { found = 1 } END { exit !found }' \
+    || problem "json-flat.sh did not correctly read a nested array value from a compact-form JSON file"
 fi
 
 if [ "$fail" = 0 ]; then

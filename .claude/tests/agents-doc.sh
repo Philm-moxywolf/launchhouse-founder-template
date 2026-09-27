@@ -76,6 +76,39 @@ ok $? "CLAUDE.md points to AGENTS.md"
 grep -q 'differs from upstream' "$skill" 2>/dev/null
 ok $? "SKILL.md's older-copy trigger covers update.sh differing from upstream, not only being missing"
 
+# The founder only ever hears three outcomes from an update: plain success,
+# success with an ordinary improvement held back for next time, and stopped
+# with nothing changed. The held-back outcome is easy to drop when a skill
+# is edited later, so it gets its own check, not just a general skim.
+grep -q 'held=' "$skill" 2>/dev/null
+ok $? "SKILL.md names the held=<note id> outcome from --apply"
+
+grep -qi 'held back' "$skill" 2>/dev/null
+ok $? "SKILL.md tells Claude to say plainly when an improvement was held back"
+
+# Nothing here may ever tell Claude to hand the founder technical text to
+# relay elsewhere (a check name, a log, a file path, a raw reason string) --
+# that is exactly the kind of thing that turns "the update stopped" into a
+# support burden the founder cannot carry. A few narrow, known-safe phrases
+# that talk ABOUT this rule (not violations of it) are allowed through.
+relay_hits=$(grep -inE 'copy (and paste|this|the (error|log|reason|output))|paste (this|it|the)|relay (this|it|the)|send (them|him|her) the log|read (them|him|her) the log|share the log' "$skill" 2>/dev/null | grep -vi 'never ask them to copy\|never .*relay')
+[ -z "$relay_hits" ]
+ok $? "SKILL.md never tells Claude to have the founder copy, paste, or relay technical output"
+
+# A clean stop (result=reverted) and a failed undo (result=reverted-failed)
+# are not the same thing, and SKILL.md must not describe them the same way:
+# only the clean-stop paragraph may claim files are back as they were.
+rf_para=$(awk -v RS='' '/reverted-failed/' "$skill" 2>/dev/null)
+! printf '%s' "$rf_para" | grep -qi 'back as they were'
+ok $? "SKILL.md's result=reverted-failed wording never claims files are back as they were"
+
+r_para=$(awk -v RS='' '/`result=reverted`/ && !/reverted-failed/' "$skill" 2>/dev/null)
+printf '%s' "$r_para" | grep -qi 'back as they were'
+ok $? "SKILL.md's plain result=reverted wording still says files are back as they were"
+
+printf '%s' "$rf_para" | grep -qi 'Slack'
+ok $? "SKILL.md's result=reverted-failed wording sends the founder to the Slack channel"
+
 if [ "$fail" = 0 ]; then
   printf '\nAll agents-doc checks passed.\n'
 else

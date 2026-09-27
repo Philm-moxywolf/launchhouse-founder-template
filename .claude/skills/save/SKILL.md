@@ -30,8 +30,8 @@ Any of those can lose work, and none of them is ever needed here.
    - If `git remote -v` shows an `origin`, run `git push origin`, naming it explicitly, never a bare `git push`. `origin` is the only remote this folder ever saves to.
    - If the push is refused because GitHub has newer saves (for example, a routine drafted something), run `git pull --no-rebase origin`, then push again.
    - If the only conflict is `growth-engine/.state/index.md`, that file is worked out from the folder, not written by anyone. Run `git checkout --ours growth-engine/.state/index.md`, add it, finish the merge, and let it rebuild itself.
-   - If the pull stops on any other conflict, do not resolve it by guessing. Run `git merge --abort`, say their work is saved on this computer, and tell them a mentor will sort the GitHub copy.
-   - If the push asks for a login or fails another way, say their work is saved on this computer, and it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**. If they do not use GitHub Desktop, a mentor can connect it.
+   - If the pull stops on any other conflict, do not resolve it by guessing. Run `git merge --abort`, say their work is saved on this computer, and tell them they can ask in the Slack channel if they want a hand sorting out the GitHub copy.
+   - If the push asks for a login or fails another way, say their work is saved on this computer, and it goes up to GitHub with one button: open GitHub Desktop and press **Push origin**. If they do not use GitHub Desktop, they can set this up themselves with "start launchhouse", or ask in the Slack channel if they want a hand.
 
 6. End by saying what to do next, and name the plain way to check where they stand: say "where am I up to". If they have not seen them yet, "set up my routines" or "add a file" can be the one you name instead. One, once.
 

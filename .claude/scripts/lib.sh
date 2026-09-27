@@ -11,7 +11,7 @@ lh_root() {
 }
 
 # A folder is a Launchhouse folder only if it carries the marker. Everywhere
-# else these hooks do nothing, so the plugin is inert in a founder's other work.
+# else these hooks do nothing, so Launchhouse is inert in a founder's other work.
 lh_active() {
   [ -f "$(lh_root)/growth-engine/.launchhouse" ]
 }

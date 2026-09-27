@@ -135,28 +135,26 @@ settings="$root/.claude/settings.json"
 if [ ! -f "$settings" ]; then
   add_problem 'Setup: this folder has no .claude/settings.json, so none of the Launchhouse checks or the Launchhouse Guide voice are switched on. Mention this once, in plain words, and offer to run start launchhouse, which writes it.'
 else
-  ok_hooks=1; ok_style=1; ok_plugin=1
+  ok_hooks=1; ok_style=1
   grep -qF '"SessionStart"' "$settings" 2>/dev/null || ok_hooks=0
-  # outputStyle and the plugin switch are read by CONTENT, via the shared
-  # flattener, never by exact line shape: a founder's own editor, or a
-  # tool like jq, can re-serialize settings.json (drop the space after a
-  # ":", re-indent, explode a short array) without changing what it means,
-  # and this must never be mistaken for a real setup problem. Fails open
-  # (ok_style/ok_plugin left at 1, same as "SessionStart" above already
-  # does on a read error) if the flattener itself is missing or the file
-  # will not parse -- a broken settings.json is caught elsewhere, not here.
+  # outputStyle is read by CONTENT, via the shared flattener, never by
+  # exact line shape: a founder's own editor, or a tool like jq, can
+  # re-serialize settings.json (drop the space after a ":", re-indent,
+  # explode a short array) without changing what it means, and this must
+  # never be mistaken for a real setup problem. Fails open (ok_style left
+  # at 1, same as "SessionStart" above already does on a read error) if
+  # the flattener itself is missing or the file will not parse -- a
+  # broken settings.json is caught elsewhere, not here.
   flattener="$(dirname "$0")/json-flat.sh"
   if [ -f "$flattener" ]; then
     settings_flat=$(sh "$flattener" "$settings" 2>/dev/null)
     if [ -n "$settings_flat" ]; then
       printf '%s
 ' "$settings_flat" | awk -F '	' '$1 == "/outputStyle" && $2 == "Launchhouse Guide" { found = 1 } END { exit !found }'         || ok_style=0
-      printf '%s
-' "$settings_flat" | awk -F '	' '$1 == "/enabledPlugins/growth-engine@launchhouse-v3" && $2 == "false" { found = 1 } END { exit !found }'         || ok_plugin=0
     fi
   fi
-  if [ "$ok_hooks" = 0 ] || [ "$ok_style" = 0 ] || [ "$ok_plugin" = 0 ]; then
-    add_problem 'Setup: this folder'"'"'s .claude/settings.json is missing a piece Launchhouse needs (its checks, the Launchhouse Guide voice, or switching the old growth-engine plugin off), so behaviour may not match what the founder was told. Mention this once, in plain words, and offer to update the folder from the Launchhouse repository (fetch and pull in GitHub Desktop, then quit and reopen Claude).'
+  if [ "$ok_hooks" = 0 ] || [ "$ok_style" = 0 ]; then
+    add_problem 'Setup: this folder'"'"'s .claude/settings.json is missing a piece Launchhouse needs (its checks or the Launchhouse Guide voice), so behaviour may not match what the founder was told. Mention this once, in plain words, and offer to update the folder from the Launchhouse repository (fetch and pull in GitHub Desktop, then quit and reopen Claude).'
   fi
 fi
 

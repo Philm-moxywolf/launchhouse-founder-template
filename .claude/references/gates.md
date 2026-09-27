@@ -1,6 +1,8 @@
 # The gates
 
-Three gates. Each is checked at the start of the next session, so the work done between sessions is looked at while there is still time to fix it. They exist so nobody arrives in Atlanta unable to build.
+Three gates. They are the founder's own checkpoints, for their own use: nothing here is submitted, handed in, or reviewed by anyone else. Each is read at the start of the next session, so the founder can see their own progress while there is still time to build. They exist so the founder arrives in Atlanta ready to build, not so someone else can sign off on their work.
+
+Claude's job at every gate is the same: say what is done, name the next unfinished engine, and offer to start it. Keep the founder moving from one engine to the next until every engine is done, then to the 90 day plan, then to the playbook insert.
 
 ## This cohort and its dates
 
@@ -27,13 +29,13 @@ Work out today's date from the founder's own computer, and their timezone from `
 
 - **Before the programme.** Name the next thing by day and date, and say how far away it is. "Session 2 is Monday 14 September, six days away."
 - **During the programme.** Name today's session, and the next one by day. "Today is the clinic. On the Saturday your 25 messages go out."
-- **After the programme, or once a date in the block has passed.** Never announce a date that has gone as though it is still ahead, and never ask the founder which cohort they were on. Use relative words instead: "your clinic session", "the Saturday of your programme", "after your third session". A gate whose date has passed is still checked the same way and still reported as done or not done. Say it plainly: the programme dates have passed, so this is the work itself now, not a deadline.
+- **After the programme, or once a date in the block has passed.** Never announce a date that has gone as though it is still ahead, and never ask the founder which cohort they were on. Use relative words instead: "your clinic session", "the Saturday of your programme", "after your third session". A gate whose date has passed is still read the same way and still reported as done or not done. Say it plainly: the programme dates have passed, so this is the work itself now, not a deadline. Name whichever engine is still unfinished and offer to start it.
 
 Never invent a date for a cohort that is not in this block. If the block does not say, say it is not recorded here and comes from their mentor.
 
 ## The three gates
 
-| Gate | What | Built | Checked |
+| Gate | What | Built | Useful to read |
 |---|---|---|---|
 | A | The Founder Brain | Session 1 | End of Session 1 |
 | B | The content engine | After Session 1 | Session 2 |
