@@ -403,10 +403,11 @@ write_row() { # path, class, proposed, detail
 
 write_diffs() { # path
   p=$1
+  wd_base=${pp_base:-$basecommit}
   d="$state/diffs/$(dirname "$p")"
   mkdir -p "$d" 2>/dev/null
-  git diff "$basecommit" "$uh" -- "$p" > "$state/diffs/$p.base-upstream.diff" 2>/dev/null
-  git diff "$basecommit" HEAD -- "$p" > "$state/diffs/$p.base-local.diff" 2>/dev/null
+  git diff "$wd_base" "$uh" -- "$p" > "$state/diffs/$p.base-upstream.diff" 2>/dev/null
+  git diff "$wd_base" HEAD -- "$p" > "$state/diffs/$p.base-local.diff" 2>/dev/null
 }
 
 try_merge_file() { # path, bsha, hsha, usha
@@ -523,15 +524,36 @@ lh_installed_path_shape() { # path
   esac
 }
 
+# Ordinarily the plan-wide $basecommit -- but a path a held note touches
+# (recorded in $state/.heldbase.tsv, built once in cmd_plan from held.tsv's
+# own recorded base) is classified, merged and saved against that note's
+# own base instead, so it comes back as a real pending change (and adapt.tsv
+# saves the note's own actual base) rather than a false "keep" once today's
+# basecommit has already moved past it. See the .heldbase.tsv build in
+# cmd_plan for why. Shared by process_path (which passes the result on to
+# try_merge_file as its own bsha argument) and write_adapt_row, so both ever
+# agree on which base a given held path is judged against.
+held_base_for_path() { # path
+  hbfp_p=$1
+  hbfp_base=$basecommit
+  if [ -s "$state/.heldbase.tsv" ]; then
+    hbfp_ov=$(awk -F '\t' -v pp="$hbfp_p" '$1 == pp { print $2; exit }' "$state/.heldbase.tsv")
+    [ -n "$hbfp_ov" ] && hbfp_base=$hbfp_ov
+  fi
+  printf '%s\n' "$hbfp_base"
+}
+
 process_path() { # path
   p=$1
   path_ignored "$p" && return 0
 
-  bsha=$(blob_sha "$basecommit" "$p")
+  pp_base=$(held_base_for_path "$p")
+
+  bsha=$(blob_sha "$pp_base" "$p")
   hsha=$(blob_sha HEAD "$p")
   usha=$(blob_sha "$uh" "$p")
   bn=""; hn=""; un=""
-  [ -n "$bsha" ] && bn=$(norm_hash "$basecommit" "$p")
+  [ -n "$bsha" ] && bn=$(norm_hash "$pp_base" "$p")
   [ -n "$hsha" ] && hn=$(norm_hash HEAD "$p")
   [ -n "$usha" ] && un=$(norm_hash "$uh" "$p")
 
@@ -688,6 +710,48 @@ is_symlink_at() { # commit, path
   [ "$m" = 120000 ]
 }
 
+# Mirrors the git-tree file mode ("100755" -> executable, anything else ->
+# plain 644) recorded for a path at a commit onto a file already written
+# into the worktree. git records the mode a working-tree file actually has
+# at `git add` time, never the mode a blob's content alone implies -- so
+# writing a blob's bytes with `git show` (apply_take, apply_merged,
+# restore_path_to_head, all in cmd_apply) always leaves a brand-new file at
+# plain 644 unless this runs first, which is exactly the bug this fixes: a
+# new upstream script shipped 100755 landed 644 in the founder's own copy
+# and failed "Permission denied" the moment anything tried to exec it
+# directly. A symlink (mode 120000) is left untouched: its "content" is a
+# target string, not something chmod has any business changing, and none of
+# this script's write paths ever produce one (is_symlink_at already refuses
+# an adapted body for a symlink path).
+set_path_mode() { # commit, path, file
+  spm_m=$(git ls-tree "$1" -- "$2" 2>/dev/null | awk '{ print $1; exit }')
+  case $spm_m in
+    100755) chmod 755 "$3" 2>/dev/null ;;
+    120000) : ;;
+    *) chmod 644 "$3" 2>/dev/null ;;
+  esac
+}
+
+# Sets the git INDEX mode for a path just `git add`-ed in a worktree, to
+# match the tree mode set_path_mode just read (left in $spm_m by the call
+# immediately before this one -- every caller uses the two back to back).
+# `git add` alone is not enough: with core.filemode=false (Git for
+# Windows' own default), git never looks at the working tree's executable
+# bit at all when deciding the index mode, so a plain `chmod 755` +
+# `git add` here would still stage the file 644 -- the founder's own `git
+# ls-files -s` would show it non-executable even though the file on disk
+# really is, and anything that clones or re-checks-out the repo elsewhere
+# would get it wrong. `git update-index --chmod` sets the index bit
+# directly, independent of core.filemode.
+stage_index_mode() { # worktree-dir, path
+  sim_wt=$1; sim_p=$2
+  case $spm_m in
+    100755) ( cd "$sim_wt" && git update-index --chmod=+x -- "$sim_p" ) >/dev/null 2>&1 ;;
+    120000) : ;;
+    *) ( cd "$sim_wt" && git update-index --chmod=-x -- "$sim_p" ) >/dev/null 2>&1 ;;
+  esac
+}
+
 # Every note id in $state/notes.tsv whose touches list names this path,
 # comma-joined, or "-" if none. Requires $state/notes.tsv to already exist
 # (an empty or missing file just means "-" for everything).
@@ -725,11 +789,20 @@ build_notes_tsv() {
   : > "$state/notes.tsv"
   rm -rf "$state/notes"
   mkdir -p "$state/notes"
+  # $state/held.tsv (id<TAB>plain reason) is never cleared by --plan -- it is
+  # the standing record of a note a past --apply held back (cmd_apply's own
+  # HOLD BACK step). A note listed there is offered again here regardless of
+  # base presence: it never actually landed in the founder's own copy, so
+  # "present at basecommit" (the ordinary "new since base" test below) is no
+  # signal at all for it -- basecommit only ever tracks an UPSTREAM commit,
+  # which already contains the note the moment it shipped, whether or not
+  # the founder ever actually took it.
+  bnt_held_ids=""
+  [ -f "$state/held.tsv" ] && bnt_held_ids=$(awk -F '\t' '{ print $1 }' "$state/held.tsv")
   note_paths=$(git ls-tree -r --name-only "$uh" -- .claude/updates 2>/dev/null |
     grep -E '^\.claude/updates/[^/]+/[^/]+\.md$' | sort)
   printf '%s\n' "$note_paths" | while IFS= read -r np; do
     [ -n "$np" ] || continue
-    [ -z "$(blob_sha "$basecommit" "$np")" ] || continue
     nf="$state/.tmp.note.$$"
     git show "$uh:$np" > "$nf" 2>/dev/null || { rm -f "$nf"; continue; }
     fm=$(lh_um_frontmatter "$nf")
@@ -737,6 +810,15 @@ build_notes_tsv() {
     [ "$fm" != NOFRONT ] && [ -n "$fm" ] || continue
     nid=$(lh_um_fm_value "$fm" id)
     [ -n "$nid" ] || nid=$(basename "$np" .md)
+
+    is_new=1
+    [ -z "$(blob_sha "$basecommit" "$np")" ] || is_new=0
+    is_held=0
+    if [ -n "$bnt_held_ids" ] && printf '%s\n' "$bnt_held_ids" | grep -qxF "$nid"; then
+      is_held=1
+    fi
+    [ "$is_new" = 1 ] || [ "$is_held" = 1 ] || continue
+
     nsafety=$(lh_um_fm_value "$fm" safety)
     ntouches=$(lh_note_fm_list "$fm" touches | tr '\n' ',' | sed 's/,$//')
     ncheck=$(lh_um_fm_value "$fm" check)
@@ -749,12 +831,17 @@ build_notes_tsv() {
 }
 
 # One adapt.tsv row for a held path, using the standard plan-time sides:
-# base=$basecommit, theirs=$uh, mine=HEAD. Saves each side that exists under
-# $state/adapt/{base,theirs,mine}/<path>; a missing side is recorded "-".
+# base=held_base_for_path (a held note's own recorded base when one touches
+# this path, else the plan-wide $basecommit -- the SAME base process_path
+# and try_merge_file just classified and merged this path against, never
+# the plan-wide $basecommit on its own), theirs=$uh, mine=HEAD. Saves each
+# side that exists under $state/adapt/{base,theirs,mine}/<path>; a missing
+# side is recorded "-".
 write_adapt_row() { # path
   wap=$1
   wa_note_ids=$(notes_touching "$wap")
-  wa_base="-"; save_side "$basecommit" "$wap" "$state/adapt/base/$wap" && wa_base="adapt/base/$wap"
+  wa_base_commit=$(held_base_for_path "$wap")
+  wa_base="-"; save_side "$wa_base_commit" "$wap" "$state/adapt/base/$wap" && wa_base="adapt/base/$wap"
   wa_theirs="-"; save_side "$uh" "$wap" "$state/adapt/theirs/$wap" && wa_theirs="adapt/theirs/$wap"
   wa_mine="-"; save_side HEAD "$wap" "$state/adapt/mine/$wap" && wa_mine="adapt/mine/$wap"
   printf '%s\t%s\t%s\t%s\t%s\n' "$wap" "$wa_note_ids" "$wa_base" "$wa_theirs" "$wa_mine" >> "$state/adapt.tsv"
@@ -806,9 +893,37 @@ cmd_plan() {
   save_upstream_json_validator "$uh"
 
   rm -rf "$state/plan.tsv" "$state/diffs" "$state/merged" "$state/meta" \
-    "$state/notes.tsv" "$state/notes" "$state/adapt.tsv" "$state/adapt" "$state/adapted.tsv"
+    "$state/notes.tsv" "$state/notes" "$state/adapt.tsv" "$state/adapt" "$state/adapted.tsv" \
+    "$state/.heldbase.tsv"
   mkdir -p "$state/diffs" "$state/merged"
   : > "$state/plan.tsv"
+
+  # build_notes_tsv is run BEFORE the per-path classification loop below
+  # (it used to run after; nothing in it needs plan.tsv, only
+  # build_adapt_tsv does) so a held note's own touches are already known
+  # when the held-base override map right after it is built.
+  build_notes_tsv
+
+  # A held note (held.tsv's 3rd column: the basecommit it was held
+  # against, see cmd_apply's own held.tsv comment) needs its touched paths
+  # classified against THAT base, never today's basecommit -- by the time
+  # it is offered again, .claude/launchhouse-version has already advanced
+  # to the upstream commit that shipped the note, so comparing the
+  # founder's own (reverted) file against today's basecommit would compare
+  # mine and theirs at the very same commit and read as a harmless
+  # local-only edit ("keep"), never reapplied. One path can only carry one
+  # override; the newest held.tsv row for it wins (file order).
+  : > "$state/.heldbase.tsv"
+  if [ -f "$state/held.tsv" ]; then
+    while IFS='	' read -r hbid _hbreason hbbase; do
+      [ -n "$hbid" ] || continue
+      [ -n "$hbbase" ] || continue
+      hbpaths=$(awk -F '\t' -v id="$hbid" '$1 == id { print $4 }' "$state/notes.tsv")
+      printf '%s\n' "$hbpaths" | tr ',' '\n' | awk 'NF' | while IFS= read -r hbp; do
+        printf '%s\t%s\n' "$hbp" "$hbbase" >> "$state/.heldbase.tsv"
+      done
+    done < "$state/held.tsv"
+  fi
 
   ignore_patterns=""
   ignore_patterns=$(git show "$uh:.launchhouse-update-ignore" 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$')
@@ -825,7 +940,6 @@ cmd_plan() {
     process_path "$p"
   done
 
-  build_notes_tsv
   build_adapt_tsv
 
   {
@@ -1124,44 +1238,159 @@ cmd_restore_settings_decline() {
 
 # --------------------------------------------------------------------- apply
 
+# Only what protects the founder can stop an update. Two different kinds of
+# check run here, and only one of them can abort:
+#
+#   GATING (decides the apply; a failure here aborts): the update notes'
+#   own safety checks (.claude/tests/updates-checks.sh, which already fails
+#   closed for a safety note and only ever WARNs -- never fails -- on a
+#   non-safety note once this is a founder copy, so its own exit code IS
+#   the safety-note signal); settings.json still being valid JSON; every
+#   hook command settings.json names still resolving to a real, syntax-
+#   clean script; and growth-engine/ in the worktree still being byte-
+#   identical to the founder's own HEAD (an update never touches it, and
+#   this is the fail-closed proof of that, not a courtesy). And, whenever
+#   this plan carries a safety: true note at all: updates-checks.sh,
+#   settings.json and json-valid.sh (preferring the upstream copy --plan
+#   saved into state, else the worktree's own) must each actually EXIST --
+#   gate_failed=safety-checks-missing / settings-missing / validator-missing
+#   the moment one is not, never treated as "nothing to check".
+#
+#   NOT GATING (recorded, never stops anything): the full maintainer test
+#   suite -- .claude/tests/run.sh, .claude/tests/state.sh, skill-packs.sh
+#   --validate/--check-compiled. Its complete output is written to
+#   $state/last-checks.log (overwritten every apply, with a header) purely
+#   for a maintainer to read later; a failure there never aborts and is
+#   never shown to the founder as an error.
+#
+# Prints "gate_failed=<name>" to stdout, once per failed gating check, and
+# "checks=none" if the maintainer suite found nothing at all to run (no
+# run.sh, no state.sh, no skill-packs.sh) -- cmd_apply still refuses THAT
+# case unless --allow-no-checks, same as before this split. Returns 1 the
+# moment any gating check fails, 0 otherwise; the maintainer suite's own
+# result never changes the return code.
 run_checks_in() { # dir
   d=$1
-  (
-    cd "$d" || exit 1
-    # LH_UPDATE_RELOCATED and LH_UPDATE_ROOT are internal markers for this
-    # invocation's own re-exec from .git/launchhouse/update/run/ (see
-    # cmd_apply above): they are exported so a re-exec of THIS script keeps
-    # finding the right root once it is running from inside .git. But
-    # exported vars are inherited by every child process, and the checks
-    # below can themselves shell out to update.sh again -- upstream's own
-    # .claude/tests/run.sh exercises the update engine's test suite, which
-    # runs update.sh many times over against its own throwaway fixture
-    # repos. Left set, every one of those nested runs would trust this
-    # apply's root instead of working out its own, breaking unrelated
-    # fixtures. Unset here, in this subshell only, before any check runs.
-    unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT
-    # Only the checks that exist in the updated tree are run. A test
-    # harness proves this by placing its own stub .claude/tests/run.sh (one
-    # that exits 0 or 1) in the fake founder/upstream trees it builds --
-    # never by an env var, which could otherwise silently skip the real
-    # checks in production.
-    ran=0
-    if [ -f .claude/tests/run.sh ]; then
-      ran=1
-      sh .claude/tests/run.sh || exit 1
+  rci_fail=0
+
+  # Fail CLOSED, never open, the moment any update note this plan carries is
+  # safety: true (column 3 of $state/notes.tsv, "true" for a safety note):
+  # the machinery that note's own safety depends on -- updates-checks.sh to
+  # actually run it, settings.json to run it against, json-valid.sh to
+  # trust settings.json is even well-formed -- being merely ABSENT must
+  # never look the same as "nothing to check". Each one missing is its own
+  # named gate failure, exactly like a check that ran and failed.
+  rci_has_safety=0
+  if [ -f "$state/notes.tsv" ] && awk -F '\t' '$3 == "true" { f = 1 } END { exit !f }' "$state/notes.tsv"; then
+    rci_has_safety=1
+  fi
+
+  if [ -f "$d/.claude/tests/updates-checks.sh" ]; then
+    if ! ( cd "$d" && unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT && sh .claude/tests/updates-checks.sh ) >/dev/null 2>&1; then
+      echo "gate_failed=updates-checks.sh"
+      rci_fail=1
     fi
-    if [ -f .claude/tests/state.sh ]; then
-      ran=1
-      sh .claude/tests/state.sh || exit 1
+  elif [ "$rci_has_safety" = 1 ]; then
+    echo "gate_failed=safety-checks-missing"
+    rci_fail=1
+  fi
+
+  # Which copy of json-valid.sh settings.json is checked against: the
+  # upstream copy --plan saved into state (save_upstream_json_validator,
+  # trusted over a founder's own live copy that could have been altered to
+  # always pass) when one was saved, else the worktree's own copy. Used
+  # both for the ordinary settings.json-changed check below and for the
+  # safety gate beneath it.
+  rci_jv=""
+  if [ -n "${state:-}" ] && [ -s "$state/tools/json-valid.sh" ]; then
+    rci_jv="$state/tools/json-valid.sh"
+  elif [ -f "$d/.claude/scripts/json-valid.sh" ]; then
+    rci_jv="$d/.claude/scripts/json-valid.sh"
+  fi
+
+  if [ -f "$d/.claude/settings.json" ] && [ -n "$rci_jv" ]; then
+    if ! ( cd "$d" && sh "$rci_jv" .claude/settings.json ) >/dev/null 2>&1; then
+      echo "gate_failed=settings.json"
+      rci_fail=1
     fi
-    if [ -f .claude/scripts/skill-packs.sh ]; then
-      ran=1
-      sh .claude/scripts/skill-packs.sh --validate all || exit 1
-      sh .claude/scripts/skill-packs.sh --check-compiled || exit 1
+  fi
+
+  if [ "$rci_has_safety" = 1 ]; then
+    if [ ! -f "$d/.claude/settings.json" ]; then
+      echo "gate_failed=settings-missing"
+      rci_fail=1
     fi
-    [ "$ran" = 1 ] || echo "checks=none"
-    exit 0
-  )
+    if [ -z "$rci_jv" ]; then
+      echo "gate_failed=validator-missing"
+      rci_fail=1
+    fi
+  fi
+
+  if [ -f "$d/.claude/settings.json" ]; then
+    rci_hookfail=0
+    rci_cmds=$(extract_hook_commands "$d/.claude/settings.json")
+    while IFS= read -r rci_hc; do
+      [ -n "$rci_hc" ] || continue
+      rci_hs=$(hook_script_relpath "$rci_hc")
+      [ -n "$rci_hs" ] || continue
+      rci_hf="$d/$rci_hs"
+      if [ ! -f "$rci_hf" ] || [ ! -r "$rci_hf" ] || ! sh -n "$rci_hf" >/dev/null 2>&1; then
+        rci_hookfail=1
+      fi
+    done <<EOF
+$rci_cmds
+EOF
+    if [ "$rci_hookfail" = 1 ]; then
+      echo "gate_failed=hook-script"
+      rci_fail=1
+    fi
+  fi
+
+  rci_ge_wt=$(git -C "$d" rev-parse -q --verify HEAD:growth-engine 2>/dev/null)
+  rci_ge_root=$(git rev-parse -q --verify HEAD:growth-engine 2>/dev/null)
+  if [ "$rci_ge_wt" != "$rci_ge_root" ]; then
+    echo "gate_failed=growth-engine"
+    rci_fail=1
+  fi
+
+  rci_full=$( {
+    printf 'Launchhouse update checks\n'
+    printf 'date: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date)"
+    printf 'base: %s\n' "${basecommit:-unknown}"
+    printf 'upstream: %s\n' "${cur_upstream:-unknown}"
+    printf '\n'
+    rci_ran=0
+    if [ -f "$d/.claude/tests/run.sh" ]; then
+      rci_ran=1
+      printf -- '--- .claude/tests/run.sh ---\n'
+      ( cd "$d" && unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT && sh .claude/tests/run.sh ) 2>&1
+      printf '(exit %s)\n' "$?"
+    fi
+    if [ -f "$d/.claude/tests/state.sh" ]; then
+      rci_ran=1
+      printf -- '--- .claude/tests/state.sh ---\n'
+      ( cd "$d" && unset LH_UPDATE_RELOCATED LH_UPDATE_ROOT && sh .claude/tests/state.sh ) 2>&1
+      printf '(exit %s)\n' "$?"
+    fi
+    if [ -f "$d/.claude/scripts/skill-packs.sh" ]; then
+      rci_ran=1
+      printf -- '--- skill-packs.sh --validate all ---\n'
+      ( cd "$d" && sh .claude/scripts/skill-packs.sh --validate all ) 2>&1
+      printf '(exit %s)\n' "$?"
+      printf -- '--- skill-packs.sh --check-compiled ---\n'
+      ( cd "$d" && sh .claude/scripts/skill-packs.sh --check-compiled ) 2>&1
+      printf '(exit %s)\n' "$?"
+    fi
+    [ "$rci_ran" = 1 ] || echo "checks=none"
+  } 2>&1 )
+
+  if [ -n "${state:-}" ]; then
+    mkdir -p "$state" 2>/dev/null
+    printf '%s\n' "$rci_full" > "$state/last-checks.log"
+  fi
+  printf '%s\n' "$rci_full" | grep -q '^checks=none$' && echo "checks=none"
+
+  [ "$rci_fail" = 0 ]
 }
 
 decision_for() { # path, decisions file
@@ -1486,7 +1715,9 @@ cmd_apply() {
     p=$1
     mkdir -p "$wt/$(dirname "$p")" 2>/dev/null
     if git show "$cur_upstream:$p" > "$wt/$p" 2>/dev/null; then
+      set_path_mode "$cur_upstream" "$p" "$wt/$p"
       ( cd "$wt" && git add -- "$p" ) >/dev/null 2>&1
+      stage_index_mode "$wt" "$p"
       changed_paths="$changed_paths$p
 "
     fi
@@ -1497,7 +1728,19 @@ cmd_apply() {
     if [ -f "$src" ]; then
       mkdir -p "$wt/$(dirname "$p")" 2>/dev/null
       cp "$src" "$wt/$p"
+      # The merged content's own shape (executable or not) follows upstream
+      # -- that is what every merge, adaptation and registry-union here is
+      # ultimately reconciling towards. A path deleted upstream but kept
+      # through adaptation (deleted-upstream-kept, settings) has nothing to
+      # read there any more; the founder's own HEAD mode is the only
+      # meaningful source left for those.
+      if git rev-parse -q --verify "$cur_upstream:$p" >/dev/null 2>&1; then
+        set_path_mode "$cur_upstream" "$p" "$wt/$p"
+      else
+        set_path_mode HEAD "$p" "$wt/$p"
+      fi
       ( cd "$wt" && git add -- "$p" ) >/dev/null 2>&1
+      stage_index_mode "$wt" "$p"
       changed_paths="$changed_paths$p
 "
     fi
@@ -1515,6 +1758,277 @@ cmd_apply() {
     [ -f "$wt/$p" ] || return 0
     mkdir -p "$state/mine/$(dirname "$p")" 2>/dev/null
     cp "$wt/$p" "$state/mine/$p"
+  }
+  # Writes a path's founder-HEAD content back into the worktree (or removes
+  # it, if the founder never had it) -- used only by hold_back_failing_notes
+  # below, to back a held note's touches out of an apply that otherwise
+  # lands. HEAD's own recorded mode goes with it: this is the founder's own
+  # file exactly as it already was, never upstream's shape.
+  # Returns 1 the moment any git step fails, so a caller can abort rather
+  # than pretend a restore succeeded when it did not.
+  restore_path_to_head() { # path
+    p=$1
+    rph_hsha=$(blob_sha HEAD "$p")
+    if [ -n "$rph_hsha" ]; then
+      mkdir -p "$wt/$(dirname "$p")" 2>/dev/null
+      git show "$rph_hsha" > "$wt/$p" 2>/dev/null || return 1
+      set_path_mode HEAD "$p" "$wt/$p"
+      ( cd "$wt" && git add -- "$p" ) >/dev/null 2>&1 || return 1
+      stage_index_mode "$wt" "$p"
+    elif [ -f "$wt/$p" ]; then
+      ( cd "$wt" && git rm -f -q -- "$p" ) >/dev/null 2>&1 || return 1
+    fi
+    return 0
+  }
+
+  # Purpose-based updates' HOLD BACK step: after the update commit below,
+  # tests every non-safety note that actually has a check AND touched at
+  # least one path this apply just changed. A note whose own check fails
+  # against the worktree has its touched paths reset back to the founder's
+  # own HEAD content (never upstream's), so the rest of the update still
+  # lands instead of the whole apply aborting over one improvement. A path
+  # shared with a note that is NOT being held is never restored -- "if
+  # unsure, hold both notes" -- and neither is a path any SAFETY note also
+  # touches, whatever else wants it back; a safety note can only ever be
+  # dealt with by aborting the whole apply (see run_checks_in), never held.
+  #
+  # A held note whose OWN touched path cannot actually be restored (it is
+  # shared with a safety note, so restoring it is refused outright) is never
+  # reported as held while its change quietly stays live -- that would be a
+  # lie: "held" has to mean "reverted". Instead the whole apply is aborted
+  # (see $hb_abort below), the same as any other founder-safety gate
+  # failure, rather than landing with an unreverted change under a "held"
+  # label.
+  #
+  # Sets $hb_held (newline list of note ids held THIS apply, "" if none) and
+  # $hb_resolved (newline list of tested notes that passed outright, so a
+  # standing held.tsv row for them can come off) and, when it restores
+  # anything, amends the worktree's own update commit and rewrites
+  # $changed_paths to drop the restored paths. Only ever called with the
+  # update commit already made in $wt.
+  #
+  # $hb_abort (0/1), $hb_abort_ids (comma-joined note ids or a step name)
+  # and $hb_abort_reason: set instead of restoring/amending when the whole
+  # apply must be aborted rather than land with a hold-back it cannot
+  # honour honestly. The caller (cmd_apply) checks $hb_abort right after
+  # calling this function and never runs run_checks_in when it is set.
+  hold_back_failing_notes() {
+    hb_held=""
+    hb_resolved=""
+    hb_abort=0
+    hb_abort_ids=""
+    hb_abort_reason=""
+    [ -f "$state/notes.tsv" ] || return 0
+
+    hb_t="$state/.tmp.hb.$$"
+    hb_changed="$hb_t.changed"
+    printf '%s' "$changed_paths" | awk 'NF' > "$hb_changed"
+
+    hb_candidates="$hb_t.candidates"
+    : > "$hb_candidates"
+    while IFS='	' read -r hnid _hnpath hnsafety hntouches; do
+      [ -n "$hnid" ] || continue
+      [ "$hnsafety" = true ] && continue
+      [ -f "$state/notes/$hnid.check.sh" ] || continue
+      printf '%s\n' "$hntouches" | tr ',' '\n' | awk 'NF' > "$hb_t.tp"
+      if grep -qFxf "$hb_t.tp" "$hb_changed" 2>/dev/null; then
+        printf '%s\n' "$hnid" >> "$hb_candidates"
+      fi
+      rm -f "$hb_t.tp"
+    done < "$state/notes.tsv"
+
+    if [ ! -s "$hb_candidates" ]; then
+      rm -f "$hb_changed" "$hb_candidates"
+      return 0
+    fi
+
+    hb_final="$hb_t.final"
+    : > "$hb_final"
+    while IFS= read -r hnid; do
+      [ -n "$hnid" ] || continue
+      if ( cd "$wt" && REPO_ROOT="$wt" sh "$state/notes/$hnid.check.sh" ) >/dev/null 2>&1; then
+        hb_resolved="$hb_resolved$hnid
+"
+      else
+        printf '%s\n' "$hnid" >> "$hb_final"
+      fi
+    done < "$hb_candidates"
+
+    if [ ! -s "$hb_final" ]; then
+      rm -f "$hb_changed" "$hb_candidates" "$hb_final"
+      return 0
+    fi
+
+    # Fixed-point widen: any other, not-yet-held, non-safety note that also
+    # touches a path a currently-held note touches gets pulled in too, and
+    # this repeats until nothing new is added. A safety note is never
+    # pulled in this way (never held) -- see the safe-paths filter below.
+    hb_grew=1
+    while [ "$hb_grew" = 1 ]; do
+      hb_grew=0
+      : > "$hb_t.paths"
+      while IFS= read -r hnid; do
+        [ -n "$hnid" ] || continue
+        awk -F '\t' -v id="$hnid" '$1 == id { print $4 }' "$state/notes.tsv" |
+          tr ',' '\n' | awk 'NF' >> "$hb_t.paths"
+      done < "$hb_final"
+      sort -u "$hb_t.paths" -o "$hb_t.paths"
+      while IFS='	' read -r onid _op osafety otouches; do
+        [ -n "$onid" ] || continue
+        [ "$osafety" = true ] && continue
+        grep -qxF "$onid" "$hb_final" && continue
+        printf '%s\n' "$otouches" | tr ',' '\n' | awk 'NF' > "$hb_t.otp"
+        if grep -qFxf "$hb_t.otp" "$hb_t.paths" 2>/dev/null; then
+          printf '%s\n' "$onid" >> "$hb_final"
+          hb_grew=1
+        fi
+        rm -f "$hb_t.otp"
+      done < "$state/notes.tsv"
+    done
+    rm -f "$hb_t.paths"
+    sort -u "$hb_final" -o "$hb_final"
+    # A note that passed its own check and then got widened back into
+    # $hb_final (because it shares a touched path with a note that failed)
+    # must come off $hb_resolved: it is held too now, not resolved.
+    if printf '%s' "$hb_resolved" | grep -q .; then
+      hb_resolved_filtered="$hb_t.resolvedf"
+      printf '%s\n' "$hb_resolved" | awk 'NF' > "$hb_t.resolved0"
+      grep -vxFf "$hb_final" "$hb_t.resolved0" > "$hb_resolved_filtered" 2>/dev/null || cp "$hb_t.resolved0" "$hb_resolved_filtered"
+      hb_resolved=$(cat "$hb_resolved_filtered")
+      [ -n "$hb_resolved" ] && hb_resolved="$hb_resolved
+"
+      rm -f "$hb_t.resolved0" "$hb_resolved_filtered"
+    fi
+    rm -f "$hb_candidates"
+
+    : > "$hb_t.restore"
+    while IFS= read -r hnid; do
+      [ -n "$hnid" ] || continue
+      awk -F '\t' -v id="$hnid" '$1 == id { print $4 }' "$state/notes.tsv" |
+        tr ',' '\n' | awk 'NF' >> "$hb_t.restore"
+    done < "$hb_final"
+    sort -u "$hb_t.restore" -o "$hb_t.restore"
+    # Only ever restore a path this apply actually changed.
+    grep -Fxf "$hb_changed" "$hb_t.restore" > "$hb_t.restore2" 2>/dev/null || : > "$hb_t.restore2"
+    mv "$hb_t.restore2" "$hb_t.restore"
+
+    # A path any safety note also touches can never be restored -- but if
+    # that leaves a held note's own change quietly live while it is
+    # reported "held" (as if reverted), that is dishonest: abort the whole
+    # apply instead of pretending. $hb_t.restore before this filter is
+    # therefore "everything hold-back NEEDS to restore"; after it, "what it
+    # is actually willing to restore" -- the difference between the two is
+    # exactly what cannot be honoured.
+    cp "$hb_t.restore" "$hb_t.needed"
+    : > "$hb_t.safepaths"
+    while IFS='	' read -r snid _sp ssafety stouches; do
+      [ -n "$snid" ] || continue
+      [ "$ssafety" = true ] || continue
+      printf '%s\n' "$stouches" | tr ',' '\n' | awk 'NF' >> "$hb_t.safepaths"
+    done < "$state/notes.tsv"
+    if [ -s "$hb_t.safepaths" ]; then
+      sort -u "$hb_t.safepaths" -o "$hb_t.safepaths"
+      grep -vFxf "$hb_t.safepaths" "$hb_t.restore" > "$hb_t.restore2" 2>/dev/null || : > "$hb_t.restore2"
+      mv "$hb_t.restore2" "$hb_t.restore"
+    fi
+    rm -f "$hb_t.safepaths"
+
+    hb_diff_unrestorable=$(grep -vFxf "$hb_t.restore" "$hb_t.needed" 2>/dev/null)
+    rm -f "$hb_t.needed"
+    if [ -n "$hb_diff_unrestorable" ]; then
+      printf '%s\n' "$hb_diff_unrestorable" > "$hb_t.blocked"
+      hb_abort_ids=""
+      while IFS= read -r hnid; do
+        [ -n "$hnid" ] || continue
+        awk -F '\t' -v id="$hnid" '$1 == id { print $4 }' "$state/notes.tsv" |
+          tr ',' '\n' | awk 'NF' > "$hb_t.htp"
+        if grep -qFxf "$hb_t.htp" "$hb_t.blocked" 2>/dev/null; then
+          hb_abort_ids="$hb_abort_ids$hnid,"
+        fi
+      done < "$hb_final"
+      rm -f "$hb_t.htp" "$hb_t.blocked"
+      hb_abort=1
+      hb_abort_ids=${hb_abort_ids%,}
+      hb_abort_reason="its own check failed, but it touches a path a founder-safety note also touches, which is never reverted -- holding it back would leave its change live while reporting it held, so the whole update is aborted instead"
+      rm -f "$hb_changed" "$hb_candidates" "$hb_final" "$hb_t.restore"
+      return 0
+    fi
+
+    hb_restore_failed=0
+    while IFS= read -r hp; do
+      [ -n "$hp" ] || continue
+      restore_path_to_head "$hp" || hb_restore_failed=1
+    done < "$hb_t.restore"
+
+    if [ "$hb_restore_failed" = 1 ]; then
+      hb_abort=1
+      hb_abort_ids="hold-back-restore"
+      hb_abort_reason="could not restore a held note's own touched path back to the founder's pre-update content inside the worktree"
+      rm -f "$hb_changed" "$hb_final" "$hb_t.restore"
+      return 0
+    fi
+
+    # A restored path under a skill pack's own source (never the compiled
+    # .claude/skill-packs/compiled-policy.sh or the registry itself, both
+    # handled on their own terms) means the compiled/installed outputs the
+    # apply already staged above no longer match what is now back in the
+    # worktree -- recompile and reinstall before amending, so a held pack
+    # source never leaves a stale generated file landed against it.
+    hb_pack_source=0
+    while IFS= read -r hp; do
+      [ -n "$hp" ] || continue
+      case $hp in
+        .claude/skill-packs/compiled-policy.sh|.claude/skill-packs/registry.tsv) : ;;
+        .claude/skill-packs/*) hb_pack_source=1 ;;
+      esac
+    done < "$hb_t.restore"
+    if [ "$hb_pack_source" = 1 ] && [ -f "$wt/.claude/scripts/skill-packs.sh" ]; then
+      # --install REFUSES to overwrite a destination that already exists
+      # and does not already match what the (now-restored) source would
+      # produce (lh_install_one's own REFUSED case) -- exactly the
+      # generated copy this apply's first compile/install pass just wrote
+      # from the upstream source that was just reverted away. Remove the
+      # same generated paths $gen_paths named the very first time (still
+      # in scope from earlier in this apply; compiled-policy.sh is
+      # rewritten in place, never removed) so --install finds a clean slot
+      # to regenerate into, instead of comparing against its own now-stale
+      # output and refusing.
+      printf '%s\n' "$gen_paths" | while IFS= read -r hb_gp; do
+        [ -n "$hb_gp" ] || continue
+        case $hb_gp in .claude/skill-packs/compiled-policy.sh) continue ;; esac
+        rm -f "$wt/$hb_gp"
+      done
+      ( cd "$wt" && sh .claude/scripts/skill-packs.sh --compile ) >/dev/null 2>&1
+      ( cd "$wt" && git add -- .claude/skill-packs/compiled-policy.sh ) >/dev/null 2>&1
+      ( cd "$wt" && sh .claude/scripts/skill-packs.sh --install all ) >/dev/null 2>&1
+      [ -d "$wt/.claude/skills" ] && ( cd "$wt" && git add -A -- .claude/skills ) >/dev/null 2>&1
+      [ -d "$wt/.claude/agents" ] && ( cd "$wt" && git add -A -- .claude/agents ) >/dev/null 2>&1
+      hb_regen=$( ( cd "$wt" && git diff --cached --name-only -- \
+        .claude/skill-packs/compiled-policy.sh .claude/skills .claude/agents ) 2>/dev/null )
+      if [ -n "$hb_regen" ]; then
+        printf '%s\n' "$hb_regen" >> "$hb_t.restore"
+        sort -u "$hb_t.restore" -o "$hb_t.restore"
+      fi
+    fi
+
+    if [ -s "$hb_t.restore" ]; then
+      grep -vFxf "$hb_t.restore" "$hb_changed" > "$hb_t.newchanged" 2>/dev/null || cp "$hb_changed" "$hb_t.newchanged"
+      changed_paths=$(cat "$hb_t.newchanged")
+      [ -n "$changed_paths" ] && changed_paths="$changed_paths
+"
+      if ! ( cd "$wt" && git commit -q --amend --no-edit ) >/dev/null 2>&1; then
+        hb_abort=1
+        hb_abort_ids="hold-back-commit"
+        hb_abort_reason="could not amend the update commit in the worktree after holding a note back"
+        rm -f "$hb_t.newchanged" "$hb_changed" "$hb_final" "$hb_t.restore"
+        return 0
+      fi
+      rm -f "$hb_t.newchanged"
+    fi
+
+    hb_held=$(cat "$hb_final")
+
+    rm -f "$hb_changed" "$hb_final" "$hb_t.restore"
   }
 
   while IFS='	' read -r path class proposed detail; do
@@ -1594,6 +2108,21 @@ cmd_apply() {
     # can genuinely have no .claude/agents (or no .claude/skills) at all.
     [ -d "$wt/.claude/skills" ] && ( cd "$wt" && git add -A -- .claude/skills ) >/dev/null 2>&1
     [ -d "$wt/.claude/agents" ] && ( cd "$wt" && git add -A -- .claude/agents ) >/dev/null 2>&1
+
+    # These compiled/installed outputs never went through apply_take or
+    # apply_merged (the per-row loop above skips class "generated" on
+    # purpose), so $changed_paths would otherwise never list them at all --
+    # neither hold_back_failing_notes (which only ever restores a path
+    # already IN $changed_paths) nor --apply's own final report of what
+    # actually changed would ever see them. Fold in everything the compile
+    # and install steps just staged as different from the worktree's own
+    # pre-update HEAD.
+    gen_changed=$( ( cd "$wt" && git diff --cached --name-only -- \
+      .claude/skill-packs/compiled-policy.sh .claude/skills .claude/agents ) 2>/dev/null )
+    if [ -n "$gen_changed" ]; then
+      changed_paths="$changed_paths$gen_changed
+"
+    fi
   fi
 
   short=$(printf '%s' "$cur_upstream" | cut -c1-12)
@@ -1601,7 +2130,7 @@ cmd_apply() {
   printf '%s\n' "$cur_upstream" > "$wt/.claude/launchhouse-version"
   ( cd "$wt" && git add -- .claude/launchhouse-version ) >/dev/null 2>&1
 
-  aborted=0; abort_reason=""; checks_out=""
+  aborted=0; abort_reason=""; checks_out=""; hb_held=""; hb_resolved=""; hb_abort=0; hb_abort_ids=""
   if ! ( cd "$wt" && git diff --cached --quiet ); then
     if ! ( cd "$wt" && git commit -q -m "Launchhouse update to $short" ); then
       aborted=1; abort_reason="could not commit the update in the worktree"
@@ -1611,14 +2140,28 @@ cmd_apply() {
   fi
 
   if [ "$aborted" = 0 ]; then
-    checks_out=$(run_checks_in "$wt" 2>&1)
-    checks_rc=$?
-    if [ "$checks_rc" != 0 ]; then
+    # Purpose-based updates' HOLD BACK step, before the gate below runs:
+    # a failing non-safety note's own touches are reset in the worktree
+    # (and the commit above amended) so the rest of this apply is judged,
+    # and can still land, without them. hold_back_failing_notes can itself
+    # decide the whole apply must abort ($hb_abort) rather than land with a
+    # hold-back it cannot honour honestly (see its own comment) -- that is
+    # checked before run_checks_in ever runs, same as any other gate.
+    hold_back_failing_notes
+
+    if [ "$hb_abort" = 1 ]; then
       aborted=1
-      abort_reason="checks failed inside the worktree"
-    elif printf '%s\n' "$checks_out" | grep -q '^checks=none$' && [ "$allow_no_checks" != "--allow-no-checks" ]; then
-      aborted=1
-      abort_reason="no checks to run"
+      abort_reason="$hb_abort_reason"
+    else
+      checks_out=$(run_checks_in "$wt" 2>&1)
+      checks_rc=$?
+      if [ "$checks_rc" != 0 ]; then
+        aborted=1
+        abort_reason="a founder-safety check failed inside the worktree"
+      elif printf '%s\n' "$checks_out" | grep -q '^checks=none$' && [ "$allow_no_checks" != "--allow-no-checks" ]; then
+        aborted=1
+        abort_reason="no checks to run"
+      fi
     fi
   fi
 
@@ -1627,8 +2170,12 @@ cmd_apply() {
     git branch -D "$branch" >/dev/null 2>&1
     git tag -d "$tag" >/dev/null 2>&1
     echo "result=aborted"
+    printf '%s\n' "$checks_out" | grep '^gate_failed=' | sed 's/^gate_failed=/failed=/'
+    if [ -n "$hb_abort_ids" ]; then
+      printf '%s\n' "$hb_abort_ids" | tr ',' '\n' | awk 'NF' | sed 's/^/failed=/'
+    fi
     echo "reason=$abort_reason"
-    [ -n "$checks_out" ] && printf '%s\n' "$checks_out" | tail -60
+    [ -f "$state/last-checks.log" ] && printf 'log=%s\n' "$state/last-checks.log"
     post_head=$(git rev-parse HEAD)
     post_status=$(git status --porcelain)
     if [ "$post_head" = "$pre_head" ] && [ "$post_status" = "$pre_status" ]; then
@@ -1669,7 +2216,107 @@ cmd_apply() {
           rm -f "$state/restore-pending"
         fi
       fi
+      # A standing held id this apply's hold-back logic never even
+      # considered (it only ever tests a note that HAS a check file AND
+      # touches a path this apply changed) still needs to come off held.tsv
+      # once it has actually landed, or it is re-offered, and misclassified
+      # against its own recorded base, forever. Resolved here when either:
+      # (a) the id is still in THIS plan's own notes.tsv, is not being held
+      # again this apply (in $hb_held), and at least one of its touched
+      # paths is in the final $changed_paths -- it genuinely landed, check
+      # or no check; or (b) it has no check file at all (a checked note
+      # that never touched a changed path was correctly never tested, and
+      # must stay held) and every one of its touched paths, in the real
+      # repository this apply just landed, now matches what upstream
+      # actually ships -- the founder's own copy already agreed with
+      # upstream, so the path never shows up in $changed_paths even though
+      # the note is, in truth, no longer pending.
+      hb_standing_resolved=""
+      if [ -s "$state/held.tsv" ] && [ -f "$state/notes.tsv" ]; then
+        hb_ch="$state/.tmp.hbch.$$"
+        printf '%s' "$changed_paths" | awk 'NF' > "$hb_ch"
+        while IFS='	' read -r hoid _horeason _hobase; do
+          [ -n "$hoid" ] || continue
+          printf '%s\n' "$hb_held" | grep -qxF "$hoid" && continue
+          printf '%s\n' "$hb_standing_resolved" | grep -qxF "$hoid" && continue
+          hn_touches=$(awk -F '	' -v id="$hoid" '$1 == id { print $4; exit }' "$state/notes.tsv")
+          [ -n "$hn_touches" ] || continue
+          printf '%s\n' "$hn_touches" | tr ',' '\n' | awk 'NF' > "$hb_ch.tp"
+          if grep -qFxf "$hb_ch.tp" "$hb_ch" 2>/dev/null; then
+            hb_standing_resolved="$hb_standing_resolved$hoid
+"
+          elif [ ! -f "$state/notes/$hoid.check.sh" ]; then
+            hb_all_match=1
+            while IFS= read -r hn_tp; do
+              [ -n "$hn_tp" ] || continue
+              hn_h=$(norm_hash HEAD "$hn_tp")
+              hn_u=$(norm_hash "$cur_upstream" "$hn_tp")
+              [ "$hn_h" = "$hn_u" ] || { hb_all_match=0; break; }
+            done < "$hb_ch.tp"
+            [ "$hb_all_match" = 1 ] && hb_standing_resolved="$hb_standing_resolved$hoid
+"
+          fi
+          rm -f "$hb_ch.tp"
+        done < "$state/held.tsv"
+        rm -f "$hb_ch"
+      fi
+
+      # Fold this apply's hold-back outcome into the standing held.tsv (id
+      # <TAB> plain reason <TAB> base-sha, never cleared by --plan): a note
+      # this apply just held is (re)written; a note this apply just proved
+      # fine again, or that $hb_standing_resolved just worked out landed on
+      # its own, comes off; anything this apply never touched at all is
+      # left exactly as it was, still waiting -- base-sha and all. Run
+      # whenever held.tsv actually has rows, never only when something was
+      # held or resolved THIS apply -- $hb_standing_resolved above already
+      # had to read held.tsv to find anything to resolve, so the update
+      # below has to run for that to ever take effect.
+      #
+      # base-sha is the basecommit THIS plan classified paths against
+      # (recorded in $state/meta, read into $basecommit above) -- the
+      # commit before the held note's own content first appeared upstream.
+      # The next --plan uses it (see cmd_plan's held-base override) instead
+      # of the founder's now-advanced .claude/launchhouse-version to
+      # classify the note's touched paths, because by the time this note is
+      # offered again .claude/launchhouse-version already points at
+      # $cur_upstream: comparing the founder's reverted file against THAT
+      # would compare mine against theirs at the very same commit (once
+      # upstream itself has not moved further), which reads as a harmless
+      # local-only edit ("keep") and the note would never be reapplied.
+      # Classified against the older, recorded base instead, the real
+      # upstream change shows up again, exactly like any other pending
+      # update. That base-sha is used ONLY the first time a note is held:
+      # a note already standing in held.tsv keeps the base it was first
+      # held against -- today's $basecommit already contains the upstream
+      # content this note is trying to reintroduce (that is exactly why it
+      # is being held again), so overwriting its base with today's
+      # $basecommit would make its own touched paths classify as an
+      # unremarkable "keep" against that base next time, and it could never
+      # re-apply.
+      if [ -s "$state/held.tsv" ] || printf '%s' "$hb_held" | grep -q .; then
+        hb_new="$state/.tmp.heldnew.$$"
+        : > "$hb_new"
+        if [ -f "$state/held.tsv" ]; then
+          while IFS='	' read -r hoid horeason hobase; do
+            [ -n "$hoid" ] || continue
+            printf '%s\n' "$hb_resolved" | grep -qxF "$hoid" && continue
+            printf '%s\n' "$hb_standing_resolved" | grep -qxF "$hoid" && continue
+            printf '%s\n' "$hb_held" | grep -qxF "$hoid" && continue
+            printf '%s\t%s\t%s\n' "$hoid" "$horeason" "$hobase" >> "$hb_new"
+          done < "$state/held.tsv"
+        fi
+        printf '%s\n' "$hb_held" | awk 'NF' > "$hb_new.ids"
+        while IFS= read -r hnid; do
+          [ -n "$hnid" ] || continue
+          hnb=$(awk -F '	' -v id="$hnid" '$1 == id { print $3; exit }' "$state/held.tsv" 2>/dev/null)
+          [ -n "$hnb" ] || hnb=$basecommit
+          printf '%s\treview needed: its own check failed once applied, or it shares a changed path with a note whose check failed\t%s\n' "$hnid" "$hnb" >> "$hb_new"
+        done < "$hb_new.ids"
+        rm -f "$hb_new.ids"
+        mv "$hb_new" "$state/held.tsv"
+      fi
       echo "result=applied"
+      printf '%s\n' "$hb_held" | awk 'NF' | sed 's/^/held=/'
       printf '%s' "$changed_paths" | awk 'NF'
       printf '%s\n' "$checks_out" | grep '^checks=none$'
       exit 0

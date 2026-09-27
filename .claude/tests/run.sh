@@ -812,9 +812,11 @@ out=$(write drafts/ghl-note.md "GoHighLevel key: $pk")
 check "a note about a line never quotes a key back" hasnt "$out" "$pk"
 rm -f "$ge/drafts/ghl-note.md"
 
-# No key file anywhere: the key is never kept in a file.
+# No key file anywhere: the key is never kept in a file. Excludes helper
+# worktrees checked out under .claude/worktrees/ too, alongside tests/, so a
+# maintainer's local run is never tripped up by another worktree's own files.
 check "no key file is named anywhere in the folder" \
-  sh -c '! grep -rqiE "gohighlevel-key|Documents/launchhouse|key\.txt" "$1/.claude" "$1/START-HERE.md" "$1/README.md" "$1/CLAUDE.md" "$1/.gitignore" --exclude-dir=tests' _ "$here/../.."
+  sh -c '! grep -rqiE "gohighlevel-key|Documents/launchhouse|key\.txt" "$1/.claude" "$1/START-HERE.md" "$1/README.md" "$1/CLAUDE.md" "$1/.gitignore" --exclude-dir=tests --exclude-dir=worktrees' _ "$here/../.."
 unset LH_FAKE_OS
 
 # LH-023: the printable insert is an allowed, checked file.
@@ -899,9 +901,9 @@ check "desktop-copy.sh's own on-demand run is never refused by the privacy guard
 # shows up here as a real FAIL, same as any other missing piece — that is
 # the point of running it in the suite.
 tp="$here/../scripts/skill-packs.sh"
-check "skill-packs.sh --validate all reports no problems" sh -c '"$1" --validate all >/dev/null 2>&1' _ "$tp"
-check "skill-packs.sh --compile then --check-compiled agree" sh -c '"$1" --compile >/dev/null 2>&1 && "$1" --check-compiled >/dev/null 2>&1' _ "$tp"
-check "skill-packs.sh --test all passes every pack's own tests" sh -c '"$1" --test all >/dev/null 2>&1' _ "$tp"
+check "skill-packs.sh --validate all reports no problems" sh -c 'sh "$1" --validate all >/dev/null 2>&1' _ "$tp"
+check "skill-packs.sh --compile then --check-compiled agree" sh -c 'sh "$1" --compile >/dev/null 2>&1 && sh "$1" --check-compiled >/dev/null 2>&1' _ "$tp"
+check "skill-packs.sh --test all passes every pack's own tests" sh -c 'sh "$1" --test all >/dev/null 2>&1' _ "$tp"
 
 # ------------------------------------------------- skill-packs.sh: name safety
 # Grammar enforcement and symlink/traversal defence on pack ids and on

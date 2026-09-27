@@ -17,7 +17,7 @@ A routine is a Claude agent that runs on a schedule, in the cloud, against the f
 ## 0. Before starting
 
 1. **Check the folder.** Read the session context. If it says this is not the founder folder, stop and tell them which folder to open.
-2. **Check for a GitHub copy.** Run `git remote -v`. Routines run against the GitHub copy, so a folder with no remote cannot have routines. Tell them a mentor can connect it to GitHub, then come back.
+2. **Check for a GitHub copy.** Run `git remote -v`. Routines run against the GitHub copy, so a folder with no remote cannot have routines. Tell them they can connect it to GitHub themselves with "start launchhouse", or ask in the Slack channel if they want a hand, then come back.
 3. **Save and push.** Run `git status --short` and save anything unsaved with `/growth-engine:save`, so the routine sees their latest work.
 
 ## 1. The routines

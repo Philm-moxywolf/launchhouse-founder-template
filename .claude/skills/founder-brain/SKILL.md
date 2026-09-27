@@ -237,10 +237,10 @@ Five to ten accounts, competitors, newsletters or feeds their audience already r
 Description of how they write or speak, plus three or four verbatim phrases.
 
 ## Flags
-Anything the mentor team needs to know. Thin proof, no list, personal IG, fresh domain, unclear offer, a Model that is only the nearest fit.
+Anything worth naming for yourself. Thin proof, no list, personal IG, fresh domain, unclear offer, a Model that is only the nearest fit.
 ```
 
-The Flags section is what the mentor team reads before the session. Be honest in it. A brain that hides a problem is worse than one that names it.
+The Flags section is for the founder's own use: a plain record of what is still thin or unresolved, worth showing a mentor if they want a hand. Be honest in it. A brain that hides a problem is worse than one that names it.
 
 ## When an update changes what other files were built from
 

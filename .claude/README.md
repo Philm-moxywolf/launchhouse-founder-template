@@ -15,5 +15,3 @@ This is Launchhouse itself. You do not need to open or change anything in here, 
 | `settings.json` | Turns the checks on and lets Claude save your work without asking every time |
 
 Because all of it is in this folder, there is nothing to install. When there is a new version, open GitHub Desktop, pull the folder, then quit and reopen the Claude app.
-
-If you installed the old Launchhouse plugin at some point, it is switched off in `settings.json`, so you will not see every skill twice. This folder is the one in use.

@@ -278,14 +278,41 @@ else
   printf 'FAIL  the fresh nudge for the resumed engine is recorded\n'; fail=1
 fi
 
+# Portable "today +/- N days" as "D Month YYYY", working with both BSD date
+# (macOS: -v+Nd / -v-Nd) and GNU date (Git for Windows/Linux: -d "N days").
+# Falls back to a fixed far-future Saturday if neither dialect answers, so
+# these fixtures are never themselves bound to whichever machine runs them.
+lh_offset_date() { # $1 = signed day count, e.g. +7 or -7
+  off=$1
+  if date -v${off}d '+%d %B %Y' >/dev/null 2>&1; then
+    date -v${off}d '+%d %B %Y' 2>/dev/null | sed 's/^0//'
+  elif date -d "${off} days" '+%d %B %Y' >/dev/null 2>&1; then
+    date -d "${off} days" '+%d %B %Y' 2>/dev/null | sed 's/^0//'
+  fi
+}
+# Writes a cohort block whose only row that matters to gate-state.sh, the
+# Saturday, is $1 days from the real today (signed). gate-state.sh reads
+# nothing else from gates.md, so the rest of the file is not reproduced.
+lh_write_gates_fixture() { # $1 = signed day offset, $2 = destination path
+  d=$(lh_offset_date "$1")
+  [ -n "$d" ] || d="26 September 2099"
+  {
+    printf '# The gates\n\n## This cohort and its dates\n\n'
+    printf '| What | When |\n|---|---|\n'
+    printf '| The Saturday, when the 25 messages go by hand | Sat %s |\n' "$d"
+  } > "$2"
+}
+
 # Bug: an item at "not due" must count toward neither the done column nor the
-# total. A fresh b2c folder, before the cohort's Saturday, has exactly this:
+# total. A fresh b2c folder, with the cohort's Saturday a week AFTER today
+# (never the real cohort date, so this never goes stale), has exactly this:
 # the sends row is not due yet, so Gate C should read "0 of 6", not "0 of 7"
 # with the not-due row silently counted as done, nor "0 of 7" some other way.
 b2c=${TMPDIR:-/tmp}/lh-state-b2c.$$
 mkdir -p "$b2c/.claude" "$b2c/growth-engine/.state" "$b2c/growth-engine/brain" || exit 1
 cp -R "$repo/.claude/scripts" "$b2c/.claude/" || exit 1
 cp -R "$repo/.claude/references" "$b2c/.claude/" || exit 1
+lh_write_gates_fixture +7 "$b2c/.claude/references/gates.md"
 : > "$b2c/growth-engine/.launchhouse"
 cat > "$b2c/growth-engine/brain/founder-brain.md" <<'EOF'
 # Founder Brain
@@ -307,6 +334,37 @@ else
   printf 'FAIL  a not due item counts toward neither the done nor the total\n'; fail=1
 fi
 rm -rf "$b2c"
+
+# Mirror of the bug above: with the cohort's Saturday a week BEFORE today, the
+# sends row is due, so it must count toward Gate C's total (never silently
+# dropped the way a "not due" row is), even though nobody has been marked
+# sent yet in this fresh folder.
+b2cdue=${TMPDIR:-/tmp}/lh-state-b2c-due.$$
+mkdir -p "$b2cdue/.claude" "$b2cdue/growth-engine/.state" "$b2cdue/growth-engine/brain" || exit 1
+cp -R "$repo/.claude/scripts" "$b2cdue/.claude/" || exit 1
+cp -R "$repo/.claude/references" "$b2cdue/.claude/" || exit 1
+lh_write_gates_fixture -7 "$b2cdue/.claude/references/gates.md"
+: > "$b2cdue/growth-engine/.launchhouse"
+cat > "$b2cdue/growth-engine/brain/founder-brain.md" <<'EOF'
+# Founder Brain
+
+- **Founder:** Test Founder
+- **Business:** Test Works
+- **Track:** b2c
+EOF
+CLAUDE_PROJECT_DIR="$b2cdue" sh "$b2cdue/.claude/scripts/gate-state.sh" --force
+b2cdue_state="$b2cdue/growth-engine/.state/gate-state.md"
+if grep -q '| sends |.*| ask |' "$b2cdue_state" 2>/dev/null; then
+  printf 'PASS  the sends row is due once the cohort Saturday has passed\n'
+else
+  printf 'FAIL  the sends row is due once the cohort Saturday has passed\n'; fail=1
+fi
+if grep -q '^Gate C: 0 of 7 done, 2 to confirm$' "$b2cdue_state" 2>/dev/null; then
+  printf 'PASS  a due item counts toward the total once its Saturday has passed\n'
+else
+  printf 'FAIL  a due item counts toward the total once its Saturday has passed\n'; fail=1
+fi
+rm -rf "$b2cdue"
 
 # Fix 2: an item kept off GitHub, not present on this computer, must not lock
 # an engine either, the same as an "ask" row. A b2b founder's second computer,
@@ -645,11 +703,12 @@ conn_ok_t() { if lh_founder_copy; then printf 'PASS  %s (template check; not run
 conn_ok $? "no server is shipped, and the one connect-tools writes is approved when the app reopens"
 
 # GoHighLevel's address is named only as the v2 connector address: every
-# mention of leadconnectorhq.com/mcp/ under .claude (excluding tests) and in
+# mention of leadconnectorhq.com/mcp/ under .claude (excluding tests and any
+# helper worktrees checked out under .claude/worktrees/) and in
 # START-HERE.md is the same /mcp/anthropic/v2 address, never the old bare one.
 ct="$repo/.claude/skills/connect-tools/SKILL.md"
-mcp_lines=$(grep -rE --exclude-dir=tests 'leadconnectorhq\.com/mcp/' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
-mcp_v2_lines=$(grep -rE --exclude-dir=tests 'leadconnectorhq\.com/mcp/anthropic' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
+mcp_lines=$(grep -rE --exclude-dir=tests --exclude-dir=worktrees 'leadconnectorhq\.com/mcp/' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
+mcp_v2_lines=$(grep -rE --exclude-dir=tests --exclude-dir=worktrees 'leadconnectorhq\.com/mcp/anthropic' "$repo/.claude" "$repo/START-HERE.md" | wc -l)
 grep -qF 'services.leadconnectorhq.com/mcp/anthropic/v2' "$ct" \
   && grep -qF 'services.leadconnectorhq.com/mcp/anthropic/v2' "$repo/.claude/references/connections.md" \
   && [ "$mcp_lines" = "$mcp_v2_lines" ]
@@ -794,13 +853,15 @@ grep -q 'use `none` as the version' "$pb" \
   && grep -q 'If they say no, hand it over' "$pb" && ! grep -q 'do not hand it over' "$pb"
 conn_ok_t $? "the playbook skill's own wording: with no git it falls back to file dates, and a founder who says no to a rebuild still gets it"
 
-# LH-028: the folder is standalone. There is no plugin build, and the old
-# growth-engine plugin stays switched off here so a founder never gets two copies.
+# LH-028: the folder is standalone. There is no plugin build, and no one
+# ever installed the old growth-engine plugin. A founder's own unrelated
+# enabledPlugins entry is theirs to keep -- only the old plugin's own id
+# (growth-engine@launchhouse-<anything>) is a fail.
 [ ! -e "$repo/.claude/build" ] \
-  && lh_settings_path_is /enabledPlugins/growth-engine@launchhouse-v3 false
-ok $? "the folder is standalone: no plugin build, and the old plugin is switched off in settings"
-grep -q 'switches the old `growth-engine` plugin off' "$repo/CLAUDE.md"
-ok_t $? "CLAUDE.md explains the old plugin is switched off here"
+  && lh_settings_never_has 'growth-engine@launchhouse-'
+ok $? "the folder is standalone: no plugin build, and settings.json names no old growth-engine plugin"
+! grep -qi 'growth-engine.*plugin\|old.*plugin\|plugin.*switch' "$repo/CLAUDE.md"
+ok_t $? "CLAUDE.md does not mention an old growth-engine plugin to switch off"
 lh_settings_never_has 'extraKnownMarketplaces' \
   && lh_settings_never_has 'Philm-moxywolf'
 ok $? "the settings name no marketplace and nothing from the public original"
@@ -1256,7 +1317,7 @@ fi
 # pasting a block into anything: the gates lock and unlock in this folder,
 # nowhere else. This test file itself has to hold the patterns to look for
 # them, so it is the one file left out of its own search.
-form_hits=$(grep -rIn --exclude-dir=.git --exclude=state.sh -i \
+form_hits=$(grep -rIn --exclude-dir=.git --exclude-dir=worktrees --exclude=state.sh -i \
   -e 'gate form' -e 'form link' -e 'mentor submission' -e 'gate submission' -e 'gate block' \
   "$repo" 2>/dev/null)
 if [ -z "$form_hits" ]; then
@@ -1804,10 +1865,11 @@ rm -rf "$lru_target" "$lru_repo" "$lru_upstream"
 # Link parity: GoHighLevel's install link is written out in full, by hand, in
 # more than one founder-facing place. Every copy of it, anywhere under
 # START-HERE.md and .claude (excluding .claude/tests/, which holds this file
-# and its fixtures), must be byte for byte the one in connections.md, and
+# and its fixtures, and .claude/worktrees/, any helper worktrees checked out
+# alongside it), must be byte for byte the one in connections.md, and
 # connections.md must hold exactly one.
 lh_ghl_link_re='https://marketplace\.leadconnectorhq\.com/v2/oauth/chooselocation[^()[:space:]]*'
-lh_ghl_urls=$(grep -rhoE --exclude-dir=tests "$lh_ghl_link_re" "$repo/.claude" "$repo/START-HERE.md" 2>/dev/null | sort -u)
+lh_ghl_urls=$(grep -rhoE --exclude-dir=tests --exclude-dir=worktrees "$lh_ghl_link_re" "$repo/.claude" "$repo/START-HERE.md" 2>/dev/null | sort -u)
 lh_ghl_distinct=$(printf '%s\n' "$lh_ghl_urls" | grep -c .)
 lh_ghl_conn_count=$(grep -ohE "$lh_ghl_link_re" "$repo/.claude/references/connections.md" 2>/dev/null | grep -c .)
 [ "$lh_ghl_distinct" = 1 ] && [ "$lh_ghl_conn_count" = 1 ]

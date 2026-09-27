@@ -22,7 +22,7 @@ Tells the founder exactly where they stand and what to do next.
 
 **Track first**, because everything branches on it. Then, as a short checklist:
 
-| Area | What it has to contain | Built | Checked |
+| Area | What it has to contain | Built | Useful to read |
 |---|---|---|---|
 | Founder Brain | Locked, track, thesis, voice | Session 1 | Gate A, end of Session 1 |
 | Content | 30 pieces, the sheet, the refill sources, 30 approved | After Session 1 | Gate B, Session 2 |
@@ -63,7 +63,7 @@ Check the Brain's Flags section and surface anything unresolved. These two items
 
 ## 4. Self-reported items, only when it matters
 
-When the founder asks "am I ready", or a gate is being checked this week, ask each item the computed state has at `ask`. Ask one question at a time.
+When the founder asks "am I ready", or a gate is worth reading this week, ask each item the computed state has at `ask`. Ask one question at a time.
 
 Record each answer as a new dated line in `growth-engine/.state/gate-answers.md`, in the shape in `../../references/contract.md`. Then save it: `git add growth-engine` and `git commit -m "Gate answers"`.
 
